@@ -18,6 +18,11 @@ try:
 except ImportError:
     sys.exit("Instala dependencias: pip install -r requirements.txt")
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 CODEX_API_BASE = os.getenv("CODEX_API_BASE", "https://api.openai.com/v1")
 CODEX_API_KEY = os.getenv("CODEX_API_KEY", "")
@@ -64,12 +69,21 @@ def generate_code_from_prompt(prompt: str, language: str = "python") -> str:
     return response.json()["choices"][0]["message"]["content"]
 
 
+def safe_dest(project_dir: Path, raw_path: str) -> Path:
+    """Resuelve la ruta y rechaza cualquier intento de salir del proyecto."""
+    dest = (project_dir / raw_path).resolve()
+    if not dest.is_relative_to(project_dir.resolve()):
+        raise ValueError(f"Ruta insegura rechazada: {raw_path!r}")
+    return dest
+
+
 def parse_files_from_response(content: str) -> list[dict]:
     """
     Extrae bloques de código de la respuesta del modelo.
     Soporta bloques ```lang\nfilename\n...``` o marcadores # filepath:
     """
     files = []
+    fallback_counts: dict[str, int] = {}
 
     # Patrón: ```lang\n# filename: path\n...código...```
     block_pattern = re.compile(
@@ -83,7 +97,9 @@ def parse_files_from_response(content: str) -> list[dict]:
         if not path:
             ext = {"python": ".py", "javascript": ".js", "typescript": ".ts",
                    "bash": ".sh", "json": ".json"}.get(lang, f".{lang}")
-            path = f"main{ext}"
+            count = fallback_counts.get(ext, 0)
+            fallback_counts[ext] = count + 1
+            path = f"main{ext}" if count == 0 else f"main_{count}{ext}"
         files.append({"path": path, "content": code})
 
     # Si no se detectaron bloques, guarda el contenido completo como main.py
@@ -123,7 +139,7 @@ def import_from_prompt(prompt: str, project_name: str, language: str, output_bas
     project_dir.mkdir(parents=True, exist_ok=True)
 
     for file_info in files:
-        dest = project_dir / file_info["path"]
+        dest = safe_dest(project_dir, file_info["path"])
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(file_info["content"], encoding="utf-8")
         print(f"  Creado: {dest.relative_to(output_base)}")
@@ -153,7 +169,7 @@ def import_from_project_id(project_id: str, output_base: Path) -> Path:
     project_dir.mkdir(parents=True, exist_ok=True)
 
     for file_info in files_data:
-        dest = project_dir / file_info["path"]
+        dest = safe_dest(project_dir, file_info["path"])
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(file_info.get("content", ""), encoding="utf-8")
         print(f"  Creado: {dest.relative_to(output_base)}")
