@@ -1,0 +1,14 @@
+{
+  "name": "trello-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "MCP server para integrar agentes de IA con Trello",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "dotenv": "^16.0.0"
+  }
+}
