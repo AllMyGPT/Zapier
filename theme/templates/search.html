@@ -1,0 +1,36 @@
+<!-- wp:template-part {"slug":"header","tagName":"header","theme":"wf2gutenberg"} /-->
+
+<!-- wp:group {"tagName":"main","style":{"spacing":{"padding":{"top":"var(--wp--preset--spacing--80)","bottom":"var(--wp--preset--spacing--80)"}}},"layout":{"type":"constrained"}} -->
+<main class="wp-block-group">
+
+  <!-- wp:query-title {"type":"search","style":{"typography":{"fontWeight":"800"},"spacing":{"margin":{"bottom":"var(--wp--preset--spacing--40)"}}},"fontSize":"4xl"} /-->
+  <!-- wp:search {"label":"Nueva búsqueda","showLabel":false,"placeholder":"Buscar...","buttonText":"Buscar","buttonUseIcon":true,"style":{"spacing":{"margin":{"bottom":"var(--wp--preset--spacing--70)"}}}} /-->
+
+  <!-- wp:query {"queryId":0,"query":{"perPage":10,"postType":"post","inherit":true}} -->
+  <div class="wp-block-query">
+    <!-- wp:post-template {"style":{"spacing":{"blockGap":"var(--wp--preset--spacing--50)"}}} -->
+      <!-- wp:group {"style":{"border":{"bottom":{"color":"var(--wp--preset--color--border)","width":"1px","style":"solid"}},"spacing":{"padding":{"bottom":"var(--wp--preset--spacing--50)"}}}} -->
+      <div class="wp-block-group">
+        <!-- wp:post-title {"isLink":true,"style":{"typography":{"fontWeight":"700"},"elements":{"link":{"color":{"text":"var(--wp--preset--color--contrast)"},":hover":{"color":{"text":"var(--wp--preset--color--primary)"}}}}}} /-->
+        <!-- wp:post-excerpt {"moreText":"","style":{"color":{"text":"var(--wp--preset--color--contrast-3)"}}} /-->
+        <!-- wp:template-part {"slug":"post-meta","theme":"wf2gutenberg"} /-->
+      </div>
+      <!-- /wp:group -->
+    <!-- /wp:post-template -->
+
+    <!-- wp:query-pagination {"layout":{"type":"flex","justifyContent":"center"},"style":{"spacing":{"margin":{"top":"var(--wp--preset--spacing--70)"}}}} -->
+      <!-- wp:query-pagination-previous /-->
+      <!-- wp:query-pagination-numbers /-->
+      <!-- wp:query-pagination-next /-->
+    <!-- /wp:query-pagination -->
+
+    <!-- wp:query-no-results -->
+      <!-- wp:paragraph --><p>No se encontraron resultados para tu búsqueda. Intenta con otras palabras.</p><!-- /wp:paragraph -->
+    <!-- /wp:query-no-results -->
+  </div>
+  <!-- /wp:query -->
+
+</main>
+<!-- /wp:group -->
+
+<!-- wp:template-part {"slug":"footer","tagName":"footer","theme":"wf2gutenberg"} /-->

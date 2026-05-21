@@ -1,0 +1,336 @@
+/* ==========================================================
+   WireFrame-to-Gutenberg — main.css
+   Reset mínimo + utilidades + componentes personalizados
+   ========================================================== */
+
+/* ── Reset mínimo ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+img, video, svg { max-width: 100%; height: auto; display: block; }
+p, h1, h2, h3, h4, h5, h6 { overflow-wrap: break-word; }
+
+/* ── Scroll suave ─────────────────────────────────────────── */
+:root { scroll-behavior: smooth; }
+
+/* ── Skip to content ──────────────────────────────────────── */
+.skip-link {
+  position: absolute;
+  top: -999px;
+  left: 0;
+  z-index: 9999;
+  padding: .75rem 1.5rem;
+  background: var(--wp--preset--color--primary);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  border-radius: 0 0 8px 0;
+  transition: top .15s;
+}
+.skip-link:focus { top: 0; }
+
+/* ── Cabecera sticky ──────────────────────────────────────── */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #fff;
+  box-shadow: 0 1px 0 var(--wp--preset--color--border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: box-shadow .2s ease;
+}
+
+.site-header--minimal {
+  position: relative;
+  box-shadow: none;
+}
+
+/* ── Tarjetas ─────────────────────────────────────────────── */
+.card {
+  transition: transform .25s ease, box-shadow .25s ease;
+  overflow: hidden;
+}
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 32px rgba(0,0,0,.1);
+}
+.card figure.wp-block-post-featured-image img {
+  transition: transform .4s ease;
+}
+.card:hover figure.wp-block-post-featured-image img {
+  transform: scale(1.04);
+}
+
+/* ── Tarjetas de características ─────────────────────────── */
+.feature-card {
+  height: 100%;
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 32px rgba(0,0,0,.1);
+}
+
+/* ── Tarjetas de servicio ─────────────────────────────────── */
+.service-card {
+  height: 100%;
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+.service-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(0,0,0,.12);
+}
+
+/* ── Tarjetas de testimonios ──────────────────────────────── */
+.testimonial-card {
+  height: 100%;
+  transition: transform .25s ease;
+}
+.testimonial-card:hover { transform: translateY(-3px); }
+
+/* ── Precios ──────────────────────────────────────────────── */
+.pricing-card { height: 100%; }
+.pricing-card--featured { transform: scale(1.05); }
+@media (max-width: 768px) { .pricing-card--featured { transform: none; } }
+
+.pricing-list { list-style: none; padding-left: 0; }
+.pricing-list li { padding: .375rem 0; }
+
+/* ── Botones ──────────────────────────────────────────────── */
+.wp-block-button__link {
+  transition: background-color .2s ease, transform .15s ease, box-shadow .2s ease;
+}
+.wp-block-button__link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+}
+.wp-block-button__link:active { transform: translateY(0); }
+
+/* ── Barra de navegación ──────────────────────────────────── */
+.wp-block-navigation .wp-block-navigation-item__content {
+  padding: .5rem .25rem;
+  position: relative;
+  transition: color .2s ease;
+}
+.wp-block-navigation .wp-block-navigation-item__content::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--wp--preset--color--primary);
+  transform: scaleX(0);
+  transition: transform .25s ease;
+  border-radius: 2px;
+}
+.wp-block-navigation .wp-block-navigation-item__content:hover::after,
+.wp-block-navigation .current-menu-item .wp-block-navigation-item__content::after {
+  transform: scaleX(1);
+}
+
+/* ── Hamburger menu (móvil) ───────────────────────────────── */
+.wp-block-navigation__responsive-container-open,
+.wp-block-navigation__responsive-container-close {
+  color: var(--wp--preset--color--contrast);
+  border: 2px solid var(--wp--preset--color--border);
+  border-radius: 8px;
+  padding: .5rem;
+  transition: background-color .2s ease;
+}
+.wp-block-navigation__responsive-container-open:hover,
+.wp-block-navigation__responsive-container-close:hover {
+  background-color: var(--wp--preset--color--base-2);
+}
+
+/* ── Menú móvil overlay ───────────────────────────────────── */
+.wp-block-navigation__responsive-container.is-menu-open {
+  background: #fff;
+  padding: 2rem;
+}
+
+/* ── Hero ─────────────────────────────────────────────────── */
+.wf2g-hero .wp-block-cover__inner-container {
+  padding: var(--wp--preset--spacing--80) var(--wp--preset--spacing--60);
+}
+
+/* ── Sección de estadísticas ──────────────────────────────── */
+.wf2g-stats .wp-block-column + .wp-block-column {
+  border-left: 1px solid rgba(255,255,255,.2);
+}
+@media (max-width: 768px) {
+  .wf2g-stats .wp-block-column + .wp-block-column {
+    border-left: none;
+    border-top: 1px solid rgba(255,255,255,.2);
+  }
+}
+
+/* ── Formulario de búsqueda / newsletter ──────────────────── */
+.wp-block-search__inside-wrapper {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,.08);
+}
+.newsletter-form-wrapper .wp-block-search {
+  width: 100%;
+  max-width: 480px;
+}
+.wp-block-search__input {
+  border: 2px solid var(--wp--preset--color--border) !important;
+  padding: .875rem 1rem !important;
+  font-size: var(--wp--preset--font-size--medium) !important;
+  transition: border-color .2s ease !important;
+}
+.wp-block-search__input:focus {
+  border-color: var(--wp--preset--color--primary) !important;
+  outline: none !important;
+}
+.wp-block-search__button {
+  background: var(--wp--preset--color--primary) !important;
+  color: #fff !important;
+  padding: .875rem 1.5rem !important;
+  font-weight: 600 !important;
+  border: none !important;
+  cursor: pointer;
+  transition: background-color .2s ease !important;
+}
+.wp-block-search__button:hover {
+  background: var(--wp--preset--color--primary-dark) !important;
+}
+
+/* ── Paginación ───────────────────────────────────────────── */
+.wp-block-query-pagination {
+  gap: .5rem;
+}
+.wp-block-query-pagination .page-numbers,
+.wp-block-query-pagination-numbers a,
+.wp-block-query-pagination-previous a,
+.wp-block-query-pagination-next a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  height: 2.5rem;
+  padding: 0 .75rem;
+  border: 2px solid var(--wp--preset--color--border);
+  border-radius: 8px;
+  font-weight: 600;
+  color: var(--wp--preset--color--contrast);
+  text-decoration: none;
+  transition: all .2s ease;
+}
+.wp-block-query-pagination .page-numbers:hover,
+.wp-block-query-pagination-numbers a:hover,
+.wp-block-query-pagination-previous a:hover,
+.wp-block-query-pagination-next a:hover {
+  background: var(--wp--preset--color--primary);
+  border-color: var(--wp--preset--color--primary);
+  color: #fff;
+}
+.wp-block-query-pagination .current {
+  background: var(--wp--preset--color--primary);
+  border-color: var(--wp--preset--color--primary);
+  color: #fff;
+}
+
+/* ── Post content typography ──────────────────────────────── */
+.wp-block-post-content {
+  --content-max: 75ch;
+  line-height: 1.8;
+  font-size: var(--wp--preset--font-size--large);
+}
+.wp-block-post-content > * { max-width: var(--content-max); }
+.wp-block-post-content > .alignwide,
+.wp-block-post-content > .alignfull { max-width: 100%; }
+
+.wp-block-post-content p + p { margin-top: 1.5em; }
+.wp-block-post-content ul, .wp-block-post-content ol {
+  padding-left: 1.75rem;
+  margin: 1.5em 0;
+}
+.wp-block-post-content li { margin: .5em 0; }
+.wp-block-post-content blockquote {
+  border-left: 4px solid var(--wp--preset--color--primary);
+  padding-left: 1.5rem;
+  margin-left: 0;
+  font-style: italic;
+  color: var(--wp--preset--color--contrast-2);
+}
+.wp-block-post-content pre, .wp-block-post-content code {
+  font-family: var(--wp--preset--font-family--mono);
+  font-size: .875em;
+  background: var(--wp--preset--color--base-3);
+  border-radius: 4px;
+  padding: .15em .4em;
+}
+.wp-block-post-content pre { padding: 1.25rem 1.5rem; overflow-x: auto; }
+.wp-block-post-content pre code { background: none; padding: 0; }
+
+/* ── Comentarios ──────────────────────────────────────────── */
+.wp-block-post-comments-form .comment-reply-title { font-weight: 700; }
+.wp-block-post-comments-form input,
+.wp-block-post-comments-form textarea {
+  border: 2px solid var(--wp--preset--color--border);
+  border-radius: 8px;
+  padding: .75rem 1rem;
+  font-family: inherit;
+  font-size: var(--wp--preset--font-size--medium);
+  width: 100%;
+  transition: border-color .2s ease;
+}
+.wp-block-post-comments-form input:focus,
+.wp-block-post-comments-form textarea:focus {
+  border-color: var(--wp--preset--color--primary);
+  outline: none;
+}
+.wp-block-post-comments-form .submit {
+  background: var(--wp--preset--color--primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: .75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color .2s ease;
+}
+.wp-block-post-comments-form .submit:hover {
+  background: var(--wp--preset--color--primary-dark);
+}
+
+/* ── Footer ───────────────────────────────────────────────── */
+.site-footer a { transition: color .2s ease; }
+.site-footer a:hover { color: #fff; }
+
+/* ── Widget sidebar ───────────────────────────────────────── */
+.widget { margin-bottom: var(--wp--preset--spacing--60); }
+.widget-title {
+  font-size: var(--wp--preset--font-size--large);
+  font-weight: 700;
+  margin-bottom: var(--wp--preset--spacing--40);
+  padding-bottom: var(--wp--preset--spacing--30);
+  border-bottom: 2px solid var(--wp--preset--color--border);
+}
+
+/* ── Selectores de separadores ────────────────────────────── */
+.wp-block-separator.is-style-dots {
+  border: none;
+  text-align: center;
+}
+.wp-block-separator.is-style-dots::before {
+  content: '···';
+  letter-spacing: .4em;
+  color: inherit;
+}
+
+/* ── Responsive helpers ───────────────────────────────────── */
+@media (max-width: 600px) {
+  .wf2g-hero .wp-block-cover__inner-container {
+    padding: var(--wp--preset--spacing--80) var(--wp--preset--spacing--50);
+  }
+  .pricing-card--featured { transform: none; }
+}
+
+/* ── Print ────────────────────────────────────────────────── */
+@media print {
+  .site-header, .site-footer, .wp-block-query-pagination { display: none; }
+  .wp-block-post-content { font-size: 12pt; line-height: 1.6; }
+}

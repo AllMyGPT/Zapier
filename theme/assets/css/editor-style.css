@@ -1,0 +1,45 @@
+/* ==========================================================
+   WireFrame-to-Gutenberg — editor-style.css
+   Estilos que se aplican DENTRO del editor de bloques
+   ========================================================== */
+
+/* Tipografía del editor */
+.editor-styles-wrapper {
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.7;
+}
+
+/* Ancho máximo del área de contenido en el editor */
+.editor-styles-wrapper .wp-block {
+  max-width: 780px;
+}
+.editor-styles-wrapper .wp-block[data-align="wide"] {
+  max-width: 1200px;
+}
+.editor-styles-wrapper .wp-block[data-align="full"] {
+  max-width: 100%;
+}
+
+/* Mejoras visuales de bloques en el editor */
+.editor-styles-wrapper .wp-block-group {
+  padding: 1rem;
+}
+
+/* Tarjetas en el editor */
+.editor-styles-wrapper .card,
+.editor-styles-wrapper .feature-card,
+.editor-styles-wrapper .service-card {
+  transition: none;
+}
+
+/* Colores de texto en bloques oscuros */
+.editor-styles-wrapper .wf2g-hero h1,
+.editor-styles-wrapper .wf2g-hero h2,
+.editor-styles-wrapper .wf2g-cta h2 {
+  color: #fff;
+}
+
+/* Borde de inserción de bloque más visible */
+.block-editor-block-list__insertion-point-indicator {
+  background: var(--wp--preset--color--primary) !important;
+}
