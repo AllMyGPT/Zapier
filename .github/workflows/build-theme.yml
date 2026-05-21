@@ -1,0 +1,75 @@
+name: Build & Release Theme ZIP
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Empaquetar tema WordPress
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extraer versión
+        id: version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION=$(grep -Po '(?<=^Version:\s).*' theme/style.css | tr -d '[:space:]')
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Versión detectada: ${VERSION}"
+
+      - name: Construir ZIP
+        run: |
+          chmod +x build.sh
+          ./build.sh "${{ steps.version.outputs.version }}"
+
+      - name: Verificar contenido del ZIP
+        run: |
+          echo "Contenido del ZIP:"
+          unzip -l dist/wf2gutenberg.zip
+
+      - name: Subir artefacto (en PRs y push a main)
+        uses: actions/upload-artifact@v4
+        with:
+          name: wf2gutenberg-${{ steps.version.outputs.version }}
+          path: dist/wf2gutenberg.zip
+          retention-days: 30
+
+      # Solo en tags → crea Release en GitHub con el ZIP adjunto
+      - name: Crear Release de GitHub
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "WireFrame-to-Gutenberg v${{ steps.version.outputs.version }}"
+          body: |
+            ## Instalación en WordPress
+
+            1. Descarga `wf2gutenberg.zip` de los adjuntos de esta release
+            2. Ve a **Apariencia → Temas → Añadir nuevo → Subir tema**
+            3. Selecciona el ZIP y haz clic en **Instalar ahora**
+            4. Activa el tema
+
+            ### Requisitos
+            - WordPress 6.4+
+            - PHP 8.0+
+
+            ### Qué incluye
+            - 11 plantillas FSE (portada, blog, entrada, página, 404…)
+            - 12 patrones de bloque (hero, precios, testimonios, contacto…)
+            - Sistema de diseño completo en theme.json
+            - 100% responsive con CSS fluido
+          files: dist/wf2gutenberg.zip
+          draft: false
+          prerelease: false

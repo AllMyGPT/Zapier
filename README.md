@@ -15,15 +15,25 @@ Inspirado en Astra, optimizado para rendimiento y 100% responsive.
 
 ## Instalación
 
+### Opción A — ZIP desde WordPress (recomendado)
+
+1. **Descarga** `dist/wf2gutenberg.zip` desde este repositorio  
+   *(o desde la última [Release](../../releases/latest))*
+2. En tu WordPress ve a **Apariencia → Temas → Añadir nuevo → Subir tema**
+3. Selecciona `wf2gutenberg.zip` → **Instalar ahora** → **Activar**
+
+### Opción B — Desde el repositorio
+
 ```bash
-# 1. Clona el repositorio
 git clone https://github.com/allmygpt/zapier.git
+cp -r zapier/theme/ /ruta/wordpress/wp-content/themes/wf2gutenberg
+# Activar desde Apariencia → Temas
+```
 
-# 2. Copia la carpeta theme/ a tu WordPress
-cp -r theme/ /ruta/a/wordpress/wp-content/themes/wf2gutenberg
+### Generar el ZIP localmente
 
-# 3. Activa el tema
-# Apariencia → Temas → WireFrame-to-Gutenberg → Activar
+```bash
+./build.sh 1.0.0        # genera dist/wf2gutenberg.zip
 ```
 
 ## Requisitos
