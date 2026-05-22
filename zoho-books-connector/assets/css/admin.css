@@ -1,0 +1,67 @@
+/* Zoho Books Connector — Admin styles */
+
+.zbc-admin-wrap { max-width: 960px; }
+
+.zbc-admin-title {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 22px;
+	margin-bottom: 20px;
+}
+
+.zbc-admin-card {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	padding: 24px;
+	margin-bottom: 24px;
+	box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+
+.zbc-admin-card h2 {
+	margin-top: 0;
+	font-size: 16px;
+	border-bottom: 1px solid #dcdcde;
+	padding-bottom: 12px;
+	margin-bottom: 18px;
+}
+
+.zbc-btn-row {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-top: 20px;
+}
+
+.zbc-notice {
+	padding: 10px 14px;
+	border-radius: 6px;
+	margin-bottom: 16px;
+	border-left: 4px solid;
+	font-size: 14px;
+}
+
+.zbc-notice-success { background: #edfaef; border-color: #00a32a; color: #00791e; }
+.zbc-notice-error   { background: #fce8e8; border-color: #d63638; color: #8a1515; }
+.zbc-notice-info    { background: #e5f3ff; border-color: #0070cc; color: #005ba5; }
+
+.zbc-status { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; }
+.zbc-status-active  { background: #edfaef; color: #00a32a; }
+.zbc-status-expired { background: #fce8e8; color: #d63638; }
+
+.zbc-shortcode-table code,
+.zbc-users-table code {
+	background: #f0f0f1;
+	padding: 2px 6px;
+	border-radius: 3px;
+	font-size: 12px;
+}
+
+.zbc-empty-state {
+	text-align: center;
+	padding: 30px;
+	color: #646970;
+}
+
+.zbc-copy-btn { margin-left: 8px; }
