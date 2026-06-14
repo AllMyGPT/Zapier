@@ -8,6 +8,7 @@ export interface UserProfile {
   avatar_url: string | null
   weekly_capacity_hours: number | null
   cost_rate: number | null
+  everhour_user_id?: string | null
   created_at: string
 }
 
@@ -77,6 +78,7 @@ export interface IntegrationSetting {
   updated_at: string
 }
 
+// @deprecated — no usado
 export interface SyncStats {
   totalProjects: number
   syncedProjects: number
