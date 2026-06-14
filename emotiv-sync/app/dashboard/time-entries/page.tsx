@@ -1,14 +1,26 @@
 import { createClient } from '@/lib/supabase/server'
 import { formatDate, formatHours } from '@/lib/utils'
-import { Clock, CheckCircle2 } from 'lucide-react'
+import { Clock, CheckCircle2, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import SyncTimeEntriesButton from '@/components/features/time-entries/SyncTimeEntriesButton'
 import JustifyPanel from '@/components/features/time-entries/JustifyPanel'
 import type { TimeEntry } from '@/types'
+import { BASE_PATH } from '@/lib/config'
+import Link from 'next/link'
+
+const PAGE_SIZE = 50
+
+const STATUS_LABELS: Record<string, string> = {
+  '': 'Todos',
+  approved: 'Aprobadas',
+  pending: 'Pendientes',
+  rejected: 'Rechazadas',
+  needs_justification: 'Requieren justificación',
+}
 
 export default async function TimeEntriesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string }>
+  searchParams: Promise<{ from?: string; to?: string; status?: string; page?: string }>
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -26,22 +38,32 @@ export default async function TimeEntriesPage({
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
   const from = params.from ?? firstOfMonth.toISOString().split('T')[0]
   const to = params.to ?? today.toISOString().split('T')[0]
+  const statusFilter = params.status ?? ''
+  const page = Math.max(1, parseInt(params.page ?? '1', 10))
+  const rangeFrom = (page - 1) * PAGE_SIZE
+  const rangeTo = page * PAGE_SIZE - 1
 
   let query = supabase
     .from('everhour_time_entries')
-    .select(`*, project:everhour_projects(name, client_name), user:user_profiles(full_name, email)`)
+    .select(`*, project:everhour_projects(name, client_name), user:user_profiles(full_name, email)`, { count: 'exact' })
     .gte('logged_date', from)
     .lte('logged_date', to)
     .order('logged_date', { ascending: false })
+    .range(rangeFrom, rangeTo)
 
   if (!isAdmin) {
     query = query.eq('user_id', user!.id)
   }
 
-  const { data: entries } = await query
+  if (statusFilter) {
+    query = query.eq('status', statusFilter)
+  }
+
+  const { data: entries, count: totalCount } = await query
+
+  const totalPages = Math.ceil((totalCount ?? 0) / PAGE_SIZE)
 
   // The current user's own over-budget entries that need a justification
-  // (shown regardless of the date filter so nothing gets missed).
   const { data: toJustify } = await supabase
     .from('everhour_time_entries')
     .select(`*, project:everhour_projects(name, client_name)`)
@@ -53,46 +75,88 @@ export default async function TimeEntriesPage({
   const syncedCount = (entries ?? []).filter(e => e.synced_at).length
   const pendingCount = (entries ?? []).length - syncedCount
 
+  // Build URL helper for pagination/filters
+  function buildUrl(overrides: Record<string, string | number>) {
+    const q = new URLSearchParams({
+      from,
+      to,
+      ...(statusFilter ? { status: statusFilter } : {}),
+      page: String(page),
+      ...Object.fromEntries(Object.entries(overrides).map(([k, v]) => [k, String(v)])),
+    })
+    return `/dashboard/time-entries?${q.toString()}`
+  }
+
+  // CSV export URL — must include BASE_PATH since route handlers don't add it automatically
+  const exportParams = new URLSearchParams({ from, to })
+  if (statusFilter) exportParams.set('status', statusFilter)
+  const exportHref = `${BASE_PATH}/api/time-entries/export?${exportParams.toString()}`
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Horas</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{formatHours(totalHours)} · {(entries ?? []).length} registros</p>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {formatHours(totalHours)} · {totalCount ?? 0} registros
+          </p>
         </div>
-        {isAdmin && <SyncTimeEntriesButton from={from} to={to} />}
+        <div className="flex items-center gap-2">
+          <a
+            href={exportHref}
+            className="flex items-center gap-1 px-3 py-2 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+            CSV
+          </a>
+          {isAdmin && <SyncTimeEntriesButton from={from} to={to} />}
+        </div>
       </div>
 
       {/* Over-budget entries awaiting the user's justification */}
       <JustifyPanel entries={(toJustify ?? []) as TimeEntry[]} />
 
-      {/* Date filter */}
-      <form className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 flex items-center gap-2">
-        <div className="flex-1">
-          <label className="text-xs text-slate-500">Desde</label>
-          <input
-            type="date"
-            name="from"
-            defaultValue={from}
-            className="block w-full text-sm text-slate-800 border-none outline-none"
-          />
+      {/* Filters */}
+      <form className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <label className="text-xs text-slate-500">Desde</label>
+            <input
+              type="date"
+              name="from"
+              defaultValue={from}
+              className="block w-full text-sm text-slate-800 border-none outline-none"
+            />
+          </div>
+          <div className="w-px h-8 bg-slate-200" />
+          <div className="flex-1">
+            <label className="text-xs text-slate-500">Hasta</label>
+            <input
+              type="date"
+              name="to"
+              defaultValue={to}
+              className="block w-full text-sm text-slate-800 border-none outline-none"
+            />
+          </div>
+          <button
+            type="submit"
+            className="px-3 py-2 bg-violet-600 text-white rounded-lg text-xs font-medium"
+          >
+            Filtrar
+          </button>
         </div>
-        <div className="w-px h-8 bg-slate-200" />
-        <div className="flex-1">
-          <label className="text-xs text-slate-500">Hasta</label>
-          <input
-            type="date"
-            name="to"
-            defaultValue={to}
-            className="block w-full text-sm text-slate-800 border-none outline-none"
-          />
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-slate-500 flex-shrink-0">Estado:</label>
+          <select
+            name="status"
+            defaultValue={statusFilter}
+            className="flex-1 text-xs text-slate-700 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-violet-400"
+          >
+            {Object.entries(STATUS_LABELS).map(([val, label]) => (
+              <option key={val} value={val}>{label}</option>
+            ))}
+          </select>
         </div>
-        <button
-          type="submit"
-          className="px-3 py-2 bg-violet-600 text-white rounded-lg text-xs font-medium"
-        >
-          Filtrar
-        </button>
       </form>
 
       {/* Stats */}
@@ -171,6 +235,41 @@ export default async function TimeEntriesPage({
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between bg-white rounded-xl border border-slate-100 shadow-sm px-4 py-3">
+          <span className="text-xs text-slate-500">
+            Página {page} de {totalPages} · {totalCount} entradas
+          </span>
+          <div className="flex items-center gap-2">
+            {page > 1 ? (
+              <Link
+                href={buildUrl({ page: page - 1 })}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" /> Anterior
+              </Link>
+            ) : (
+              <span className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-300 bg-slate-50 rounded-lg cursor-not-allowed">
+                <ChevronLeft className="w-3.5 h-3.5" /> Anterior
+              </span>
+            )}
+            {page < totalPages ? (
+              <Link
+                href={buildUrl({ page: page + 1 })}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+              >
+                Siguiente <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            ) : (
+              <span className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-300 bg-slate-50 rounded-lg cursor-not-allowed">
+                Siguiente <ChevronRight className="w-3.5 h-3.5" />
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -2,8 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { formatDateTime } from '@/lib/utils'
 import { computeBudgetStatus, formatMoney, type BudgetStatus } from '@/lib/budgets'
 import { formatHours } from '@/lib/utils'
-import { FolderKanban, CheckCircle2, AlertCircle } from 'lucide-react'
+import { FolderKanban, CheckCircle2, AlertCircle, ChevronRight } from 'lucide-react'
 import SyncProjectsButton from '@/components/features/projects/SyncProjectsButton'
+import Link from 'next/link'
 import type { TimeEntry } from '@/types'
 
 export default async function ProjectsPage() {
@@ -129,6 +130,12 @@ export default async function ProjectsPage() {
                         {formatDateTime(project.last_synced_at)}
                       </p>
                     )}
+                    <Link
+                      href={`/dashboard/projects/${project.id}`}
+                      className="inline-flex items-center gap-0.5 text-xs text-violet-600 hover:text-violet-800 mt-1.5 font-medium transition-colors"
+                    >
+                      Ver detalle <ChevronRight className="w-3 h-3" />
+                    </Link>
                   </div>
                 </div>
 
