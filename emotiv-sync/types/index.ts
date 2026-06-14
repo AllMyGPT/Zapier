@@ -6,6 +6,8 @@ export interface UserProfile {
   full_name: string | null
   role: UserRole
   avatar_url: string | null
+  weekly_capacity_hours: number | null
+  cost_rate: number | null
   created_at: string
 }
 
@@ -19,9 +21,17 @@ export interface EverhourProject {
   status: 'active' | 'archived' | 'pending_sync'
   billable: boolean
   hourly_rate: number | null
+  cost_rate: number | null
+  budget_type: 'money' | 'hours' | null
+  budget_amount: number | null
+  budget_period: 'overall' | 'monthly'
+  budget_recurring: boolean
+  disallow_overbudget: boolean
   last_synced_at: string | null
   created_at: string
 }
+
+export type TimeEntryStatus = 'pending' | 'approved' | 'rejected'
 
 export interface TimeEntry {
   id: string
@@ -31,6 +41,11 @@ export interface TimeEntry {
   hours: number
   logged_date: string
   description: string | null
+  billable: boolean
+  status: TimeEntryStatus
+  approved_by: string | null
+  approved_at: string | null
+  rejection_reason: string | null
   everhour_id: string | null
   zoho_timesheet_id: string | null
   synced_at: string | null

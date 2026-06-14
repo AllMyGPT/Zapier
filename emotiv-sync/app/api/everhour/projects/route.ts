@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { EverhourClient } from '@/lib/everhour'
+import { EverhourClient, centsToUnits, parseBudget } from '@/lib/everhour'
 
 export async function POST() {
   const supabase = await createClient()
@@ -34,6 +34,11 @@ export async function POST() {
 
     let imported = 0
     for (const p of projects) {
+      const budget = parseBudget(p.budget)
+      const hourlyRate =
+        centsToUnits(p.rate?.rate) ?? centsToUnits(p.billing?.fee) ?? null
+      const costRate = centsToUnits(p.cost?.rate)
+
       const { error } = await supabase
         .from('everhour_projects')
         .upsert({
@@ -42,7 +47,13 @@ export async function POST() {
           client_name: p.client?.name ?? null,
           status: p.status === 'open' ? 'active' : 'archived',
           billable: p.billing?.type === 'hourly' || p.billing?.type === 'fixed',
-          hourly_rate: p.billing?.fee ?? null,
+          hourly_rate: hourlyRate,
+          cost_rate: costRate,
+          budget_type: budget.budget_type,
+          budget_amount: budget.budget_amount,
+          budget_period: budget.budget_period,
+          budget_recurring: budget.budget_recurring,
+          disallow_overbudget: budget.disallow_overbudget,
         }, { onConflict: 'everhour_id' })
 
       if (!error) imported++

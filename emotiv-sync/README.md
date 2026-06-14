@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Emotiv Sync — Everhour ↔ Zoho Books
 
-## Getting Started
+App web mobile-first (PWA) para sincronizar el tracking de tiempo de **Everhour**
+con la contabilidad de **Zoho Books**, desplegable en **Vercel** con backend en
+**Supabase**.
 
-First, run the development server:
+## Funcionalidades
+
+### Núcleo de sincronización
+- Importa proyectos y entradas de tiempo desde Everhour.
+- Sincroniza proyectos (con `customer_id`) y partes de horas a Zoho Books.
+- Historial completo de sincronizaciones con estado (éxito / parcial / error).
+
+### Lo mejor de Everhour
+- **Presupuestos y alertas** — presupuesto por proyecto en horas o dinero (total o
+  mensual), barra de consumo y alertas automáticas al superar el 80 % / 100 %.
+- **Flujo de aprobación** — las horas importadas entran como *pendientes*; un admin
+  las aprueba o rechaza (en bloque por persona) y **solo las aprobadas** se
+  sincronizan a Zoho Books. Un trigger en la base de datos lo garantiza.
+- **Informes y rentabilidad** — ingresos, coste, beneficio y margen; facturable vs
+  no facturable; utilización del equipo (horas / capacidad); desglose por cliente,
+  proyecto y persona.
+
+### Multiusuario
+- **Admin** — importa/sincroniza, aprueba horas, gestiona usuarios y configura las
+  API keys. Ve informes de todo el equipo.
+- **Freelancer** — ve sus propios proyectos, horas y el estado de aprobación.
+- El primer usuario registrado se convierte automáticamente en `admin`.
+
+## Stack
+
+| Capa          | Tecnología                          |
+|---------------|-------------------------------------|
+| Frontend      | Next.js 16 (App Router) + Tailwind  |
+| Backend       | API Routes de Next.js               |
+| Base de datos | Supabase (proyecto `contabilidad-emotive`) |
+| Auth          | Supabase Auth                       |
+| Deploy        | Vercel                              |
+
+## Puesta en marcha
 
 ```bash
+npm install
+cp .env.example .env.local   # rellena las variables de Supabase
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Variables de entorno
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+NEXT_PUBLIC_SUPABASE_URL=https://ulayaivxakzaghxaxlae.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Base de datos
 
-## Learn More
+Las migraciones están en `supabase/migrations/`. Aplícalas en orden:
+1. `001_initial_schema.sql` — tablas base + RLS + perfiles.
+2. `0015_fix_rls_recursion_and_role_guard.sql` — helper `is_admin()` y guard de rol.
+3. `002_budgets_approvals_reports.sql` — presupuestos, aprobaciones y rentabilidad.
 
-To learn more about Next.js, take a look at the following resources:
+## Despliegue en Vercel
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Importa la carpeta `emotiv-sync/` como proyecto en Vercel.
+2. Configura las dos variables de entorno anteriores.
+3. En Supabase → Authentication → URL Configuration, añade la URL de Vercel como
+   redirect permitido.
+4. Entra por primera vez: tu usuario quedará como **admin**.
+5. En *Configuración*, introduce la API Key de Everhour y el Access Token + Org ID
+   (+ customer por defecto) de Zoho Books.
+6. Importa proyectos → revisa presupuestos → importa horas → aprueba → sincroniza.

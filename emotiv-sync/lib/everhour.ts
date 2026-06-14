@@ -1,13 +1,28 @@
 const EVERHOUR_BASE = 'https://api.everhour.com'
 
+interface EverhourBudget {
+  type: 'money' | 'time'
+  budget: number // money in cents, time in seconds
+  period?: 'general' | 'monthly'
+  disallowOverbudget?: boolean
+}
+
+interface EverhourRate {
+  type: string
+  rate?: number // cents per hour
+}
+
 interface EverhourProject {
   id: string
   name: string
   status: string
   billing?: {
     type: string
-    fee?: number
+    fee?: number // cents
   }
+  budget?: EverhourBudget
+  rate?: EverhourRate
+  cost?: EverhourRate
   client?: {
     id: string
     name: string
@@ -19,12 +34,24 @@ interface EverhourTimeEntry {
   date: string
   time: number
   user: number
+  isLocked?: boolean
   task?: {
     id: string
     name: string
     projects?: string[]
+    billable?: boolean
   }
   comment?: string
+}
+
+interface EverhourUser {
+  id: number
+  name: string
+  email: string
+  capacity?: number // weekly seconds
+  cost?: number // cents per hour
+  rate?: number // cents per hour
+  status?: string
 }
 
 export class EverhourClient {
@@ -58,15 +85,45 @@ export class EverhourClient {
 
   async getTimeEntries(from: string, to: string): Promise<EverhourTimeEntry[]> {
     return this.request<EverhourTimeEntry[]>(
-      `/team/time?from=${from}&to=${to}&limit=500`
+      `/team/time?from=${from}&to=${to}&limit=1000`
     )
   }
 
-  async getUsers() {
-    return this.request('/team/users')
+  async getUsers(): Promise<EverhourUser[]> {
+    return this.request<EverhourUser[]>('/team/users')
   }
 }
 
 export function secondsToHours(seconds: number): number {
   return Math.round((seconds / 3600) * 100) / 100
+}
+
+export function centsToUnits(cents: number | undefined | null): number | null {
+  if (cents == null) return null
+  return Math.round(cents) / 100
+}
+
+/** Normalises an Everhour project budget into our schema fields. */
+export function parseBudget(budget: EverhourBudget | undefined) {
+  if (!budget || !budget.budget) {
+    return {
+      budget_type: null as 'money' | 'hours' | null,
+      budget_amount: null as number | null,
+      budget_period: 'overall' as 'overall' | 'monthly',
+      budget_recurring: false,
+      disallow_overbudget: false,
+    }
+  }
+  const isMoney = budget.type === 'money'
+  return {
+    budget_type: (isMoney ? 'money' : 'hours') as 'money' | 'hours',
+    budget_amount: isMoney
+      ? Math.round(budget.budget) / 100
+      : Math.round((budget.budget / 3600) * 100) / 100,
+    budget_period: (budget.period === 'monthly' ? 'monthly' : 'overall') as
+      | 'overall'
+      | 'monthly',
+    budget_recurring: budget.period === 'monthly',
+    disallow_overbudget: !!budget.disallowOverbudget,
+  }
 }

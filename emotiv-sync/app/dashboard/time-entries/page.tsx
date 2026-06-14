@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { formatDate, formatHours } from '@/lib/utils'
-import { Clock, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Clock, CheckCircle2 } from 'lucide-react'
 import SyncTimeEntriesButton from '@/components/features/time-entries/SyncTimeEntriesButton'
 
 export default async function TimeEntriesPage({
@@ -109,7 +109,9 @@ export default async function TimeEntriesPage({
             {(entries ?? []).map((entry) => (
               <div key={entry.id} className="p-4 flex items-start gap-3">
                 <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                  entry.synced_at ? 'bg-green-500' : 'bg-amber-400'
+                  entry.status === 'approved' ? 'bg-green-500'
+                  : entry.status === 'rejected' ? 'bg-red-400'
+                  : 'bg-amber-400'
                 }`} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
@@ -134,11 +136,20 @@ export default async function TimeEntriesPage({
                       <p className="text-xs text-slate-400 mt-0.5">{formatDate(entry.logged_date)}</p>
                     </div>
                   </div>
-                  {entry.synced_at && (
-                    <div className="flex items-center gap-1 mt-1.5">
-                      <CheckCircle2 className="w-3 h-3 text-green-500" />
-                      <span className="text-xs text-green-600">Zoho Books</span>
-                    </div>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <StatusBadge status={entry.status} />
+                    {entry.billable === false && (
+                      <span className="text-xs text-slate-400">No facturable</span>
+                    )}
+                    {entry.synced_at && (
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-green-500" />
+                        <span className="text-xs text-green-600">Zoho Books</span>
+                      </span>
+                    )}
+                  </div>
+                  {entry.status === 'rejected' && entry.rejection_reason && (
+                    <p className="text-xs text-red-500 mt-1">Motivo: {entry.rejection_reason}</p>
                   )}
                 </div>
               </div>
@@ -147,5 +158,19 @@ export default async function TimeEntriesPage({
         )}
       </div>
     </div>
+  )
+}
+
+function StatusBadge({ status }: { status: 'pending' | 'approved' | 'rejected' }) {
+  const map = {
+    pending: { text: 'Pendiente', cls: 'bg-amber-50 text-amber-700' },
+    approved: { text: 'Aprobada', cls: 'bg-green-50 text-green-700' },
+    rejected: { text: 'Rechazada', cls: 'bg-red-50 text-red-700' },
+  }
+  const s = map[status]
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${s.cls}`}>
+      {s.text}
+    </span>
   )
 }

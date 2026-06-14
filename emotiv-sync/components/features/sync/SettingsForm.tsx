@@ -6,18 +6,14 @@ import { useRouter } from 'next/navigation'
 
 export default function SettingsForm({
   everhourKey,
-  everhourActive,
   zohoToken,
   zohoOrgId,
   zohoDefaultCustomerId,
-  zohoActive,
 }: {
   everhourKey: string
-  everhourActive: boolean
   zohoToken: string
   zohoOrgId: string
   zohoDefaultCustomerId: string
-  zohoActive: boolean
 }) {
   const [showEverhour, setShowEverhour] = useState(false)
   const [showZoho, setShowZoho] = useState(false)

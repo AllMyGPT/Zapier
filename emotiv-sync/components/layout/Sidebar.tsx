@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FolderKanban, Clock, RefreshCw,
-  Users, Settings, Zap, LogOut,
+  Users, Settings, Zap, LogOut, Target, CheckSquare, BarChart3,
 } from 'lucide-react'
 import type { UserProfile } from '@/types'
 import { createClient } from '@/lib/supabase/client'
@@ -14,11 +14,14 @@ import { cn } from '@/lib/utils'
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/dashboard/projects', icon: FolderKanban, label: 'Proyectos' },
+  { href: '/dashboard/budgets', icon: Target, label: 'Presupuestos' },
   { href: '/dashboard/time-entries', icon: Clock, label: 'Horas' },
   { href: '/dashboard/sync', icon: RefreshCw, label: 'Sincronización' },
 ]
 
 const adminItems = [
+  { href: '/dashboard/approvals', icon: CheckSquare, label: 'Aprobaciones' },
+  { href: '/dashboard/reports', icon: BarChart3, label: 'Informes' },
   { href: '/dashboard/users', icon: Users, label: 'Usuarios' },
   { href: '/dashboard/settings', icon: Settings, label: 'Configuración' },
 ]

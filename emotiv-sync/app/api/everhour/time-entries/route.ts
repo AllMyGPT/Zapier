@@ -72,7 +72,7 @@ export async function POST(request: Request) {
       const { data: project } = projectEverhourId
         ? await supabase
             .from('everhour_projects')
-            .select('id')
+            .select('id, billable')
             .eq('everhour_id', projectEverhourId)
             .single()
         : { data: null }
@@ -82,6 +82,17 @@ export async function POST(request: Request) {
       // Prefer an already-known mapping, otherwise fall back to admin
       // (admin can later re-assign via the UI if needed)
       const resolvedUserId = everhourIdToUserId.get(everhourUserId) ?? user.id
+
+      // Billable: prefer the task flag, fall back to the project's setting
+      const billable = entry.task?.billable ?? project?.billable ?? true
+
+      // Newly imported entries start as 'pending' and must be approved
+      // before they can sync to Zoho. Avoid overwriting an existing decision.
+      const { data: existing } = await supabase
+        .from('everhour_time_entries')
+        .select('status')
+        .eq('everhour_id', String(entry.id))
+        .maybeSingle()
 
       const { error } = await supabase
         .from('everhour_time_entries')
@@ -93,6 +104,8 @@ export async function POST(request: Request) {
           hours: secondsToHours(entry.time),
           logged_date: entry.date,
           description: entry.comment ?? entry.task?.name ?? null,
+          billable,
+          status: existing?.status ?? 'pending',
         }, { onConflict: 'everhour_id' })
 
       if (!error) imported++

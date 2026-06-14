@@ -38,12 +38,13 @@ export async function POST(request: Request) {
     .from('everhour_time_entries')
     .select(`*, project:everhour_projects(zoho_project_id)`)
     .is('synced_at', null)
+    .eq('status', 'approved')
     .gte('logged_date', from)
     .lte('logged_date', to)
     .not('everhour_project_id', 'is', null)
 
   if (!entries?.length) {
-    return NextResponse.json({ synced: 0, message: 'No pending time entries' })
+    return NextResponse.json({ synced: 0, message: 'No approved time entries pending sync' })
   }
 
   const zoho = new ZohoClient(zohoSettings.api_key, zohoSettings.extra_config.organization_id)
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
         log_date: entry.logged_date,
         hours: entry.hours,
         notes: entry.description ?? undefined,
-        is_billable: true,
+        is_billable: entry.billable ?? true,
       })
 
       if (result?.time_entry?.time_entry_id) {
