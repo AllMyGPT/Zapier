@@ -80,9 +80,6 @@ export default async function DashboardPage() {
   const overallProjects = (budgetProjects ?? []).filter(
     (p: EverhourProject) => p.budget_period !== 'monthly'
   )
-  const monthlyProjects = (budgetProjects ?? []).filter(
-    (p: EverhourProject) => p.budget_period === 'monthly'
-  )
 
   // Load all-time entries for overall projects
   const overallEntriesByProject = new Map<string, MonthEntry[]>()
