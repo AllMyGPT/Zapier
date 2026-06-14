@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { formatHours } from '@/lib/utils'
 import { formatMoney } from '@/lib/budgets'
 import { TrendingUp, TrendingDown, PieChart, Users } from 'lucide-react'
+import DatePresets from '@/components/features/reports/DatePresets'
 
 interface Row {
   label: string
@@ -48,6 +49,17 @@ export default async function ReportsPage({
   const from = params.from ?? firstOfMonth.toISOString().split('T')[0]
   const to = params.to ?? today.toISOString().split('T')[0]
 
+  // Compute preset date ranges server-side
+  const thisMonthFrom = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
+  const thisMonthTo = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0]
+  const prevMonthFrom = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().split('T')[0]
+  const prevMonthTo = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split('T')[0]
+  const quarterMonth = Math.floor(today.getMonth() / 3) * 3
+  const thisQuarterFrom = new Date(today.getFullYear(), quarterMonth, 1).toISOString().split('T')[0]
+  const thisQuarterTo = new Date(today.getFullYear(), quarterMonth + 3, 0).toISOString().split('T')[0]
+  const thisYearFrom = new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0]
+  const thisYearTo = new Date(today.getFullYear(), 11, 31).toISOString().split('T')[0]
+
   const { data: entries } = await supabase
     .from('everhour_time_entries')
     .select(`
@@ -55,7 +67,7 @@ export default async function ReportsPage({
       project:everhour_projects(name, client_name, hourly_rate, cost_rate),
       user:user_profiles(full_name, email, cost_rate, weekly_capacity_hours)
     `)
-    .neq('status', 'rejected')
+    .eq('status', 'approved')
     .gte('logged_date', from)
     .lte('logged_date', to)
 
@@ -138,8 +150,20 @@ export default async function ReportsPage({
     <div className="space-y-5">
       <div>
         <h1 className="text-xl font-bold text-slate-900">Informes</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Rentabilidad y utilización del equipo</p>
+        <p className="text-sm text-slate-500 mt-0.5">Rentabilidad y utilización del equipo (solo horas aprobadas)</p>
       </div>
+
+      {/* Date presets */}
+      <DatePresets
+        thisMonthFrom={thisMonthFrom}
+        thisMonthTo={thisMonthTo}
+        prevMonthFrom={prevMonthFrom}
+        prevMonthTo={prevMonthTo}
+        thisQuarterFrom={thisQuarterFrom}
+        thisQuarterTo={thisQuarterTo}
+        thisYearFrom={thisYearFrom}
+        thisYearTo={thisYearTo}
+      />
 
       {/* Date filter */}
       <form className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 flex items-center gap-2">

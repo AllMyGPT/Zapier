@@ -13,27 +13,53 @@ export default async function BudgetsPage() {
     .not('budget_type', 'is', null)
     .order('name')
 
-  const projectIds = (projects ?? []).map((p) => p.id)
+  const today = new Date()
+  const firstDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    .toISOString().split('T')[0]
+  const lastDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+    .toISOString().split('T')[0]
+
+  // Separate projects by budget period
+  const monthlyProjects = (projects ?? []).filter((p: EverhourProject) => p.budget_period === 'monthly')
+  const overallProjects = (projects ?? []).filter((p: EverhourProject) => p.budget_period !== 'monthly')
+
+  const monthlyIds = monthlyProjects.map((p: EverhourProject) => p.id)
+  const overallIds = overallProjects.map((p: EverhourProject) => p.id)
 
   type BudgetEntry = Pick<TimeEntry, 'hours' | 'logged_date' | 'billable'> & {
     everhour_project_id: string | null
   }
 
-  let entries: BudgetEntry[] = []
-  if (projectIds.length) {
+  const entriesByProject = new Map<string, BudgetEntry[]>()
+
+  // For monthly projects: only load current month entries
+  if (monthlyIds.length) {
     const { data } = await supabase
       .from('everhour_time_entries')
       .select('hours, logged_date, billable, everhour_project_id')
-      .in('everhour_project_id', projectIds)
-    entries = (data ?? []) as BudgetEntry[]
+      .in('everhour_project_id', monthlyIds)
+      .gte('logged_date', firstDayOfCurrentMonth)
+      .lte('logged_date', lastDayOfCurrentMonth)
+    for (const e of (data ?? []) as BudgetEntry[]) {
+      if (!e.everhour_project_id) continue
+      const arr = entriesByProject.get(e.everhour_project_id) ?? []
+      arr.push(e)
+      entriesByProject.set(e.everhour_project_id, arr)
+    }
   }
 
-  const entriesByProject = new Map<string, BudgetEntry[]>()
-  for (const e of entries) {
-    if (!e.everhour_project_id) continue
-    const arr = entriesByProject.get(e.everhour_project_id) ?? []
-    arr.push(e)
-    entriesByProject.set(e.everhour_project_id, arr)
+  // For overall projects: load all entries
+  if (overallIds.length) {
+    const { data } = await supabase
+      .from('everhour_time_entries')
+      .select('hours, logged_date, billable, everhour_project_id')
+      .in('everhour_project_id', overallIds)
+    for (const e of (data ?? []) as BudgetEntry[]) {
+      if (!e.everhour_project_id) continue
+      const arr = entriesByProject.get(e.everhour_project_id) ?? []
+      arr.push(e)
+      entriesByProject.set(e.everhour_project_id, arr)
+    }
   }
 
   const rows = (projects ?? []).map((p: EverhourProject) => ({

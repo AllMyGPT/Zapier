@@ -22,6 +22,8 @@ export default async function DashboardPage() {
   const today = new Date()
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
     .toISOString().split('T')[0]
+  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+    .toISOString().split('T')[0]
   const sevenDaysAgo = new Date(today)
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
   const weekAgo = sevenDaysAgo.toISOString().split('T')[0]
@@ -30,6 +32,7 @@ export default async function DashboardPage() {
     { count: totalProjects },
     { count: syncedProjects },
     { count: pendingApprovals },
+    { count: needsJustificationCount },
     { count: myNeedsJustification },
     { data: recentLogs },
     { data: userEntries },
@@ -39,6 +42,7 @@ export default async function DashboardPage() {
     supabase.from('everhour_projects').select('*', { count: 'exact', head: true }),
     supabase.from('everhour_projects').select('*', { count: 'exact', head: true }).not('zoho_project_id', 'is', null),
     supabase.from('everhour_time_entries').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('everhour_time_entries').select('*', { count: 'exact', head: true }).eq('status', 'needs_justification'),
     supabase.from('everhour_time_entries').select('*', { count: 'exact', head: true })
       .eq('user_id', user!.id).eq('status', 'needs_justification'),
     supabase.from('sync_logs').select('*').order('created_at', { ascending: false }).limit(5),
@@ -49,8 +53,9 @@ export default async function DashboardPage() {
     supabase.from('everhour_projects').select('*').not('budget_type', 'is', null),
     supabase.from('everhour_time_entries')
       .select('hours, logged_date, billable, everhour_project_id, project:everhour_projects(hourly_rate, cost_rate)')
-      .neq('status', 'rejected')
-      .gte('logged_date', monthStart),
+      .eq('status', 'approved')
+      .gte('logged_date', monthStart)
+      .lte('logged_date', monthEnd),
   ])
 
   const weekHours = (userEntries ?? []).reduce((sum, e) => sum + (e.hours || 0), 0)
@@ -70,15 +75,44 @@ export default async function DashboardPage() {
     entriesByProject.set(e.everhour_project_id, arr)
   }
 
+  // For monthly budget projects we only pass the current month entries (already filtered).
+  // For overall projects we need all entries — load them separately.
+  const overallProjects = (budgetProjects ?? []).filter(
+    (p: EverhourProject) => p.budget_period !== 'monthly'
+  )
+  const monthlyProjects = (budgetProjects ?? []).filter(
+    (p: EverhourProject) => p.budget_period === 'monthly'
+  )
+
+  // Load all-time entries for overall projects
+  const overallEntriesByProject = new Map<string, MonthEntry[]>()
+  if (overallProjects.length > 0) {
+    const { data: overallData } = await supabase
+      .from('everhour_time_entries')
+      .select('hours, logged_date, billable, everhour_project_id, project:everhour_projects(hourly_rate, cost_rate)')
+      .in('everhour_project_id', overallProjects.map((p: EverhourProject) => p.id))
+    for (const e of (overallData ?? []) as unknown as MonthEntry[]) {
+      if (!e.everhour_project_id) continue
+      const arr = overallEntriesByProject.get(e.everhour_project_id) ?? []
+      arr.push(e)
+      overallEntriesByProject.set(e.everhour_project_id, arr)
+    }
+  }
+
   const budgetAlerts = (budgetProjects ?? [])
-    .map((p: EverhourProject) => ({
-      project: p,
-      status: computeBudgetStatus(p, entriesByProject.get(p.id) ?? []),
-    }))
+    .map((p: EverhourProject) => {
+      const entries = p.budget_period === 'monthly'
+        ? (entriesByProject.get(p.id) ?? [])
+        : (overallEntriesByProject.get(p.id) ?? [])
+      return {
+        project: p,
+        status: computeBudgetStatus(p, entries),
+      }
+    })
     .filter((b) => b.status.level === 'warning' || b.status.level === 'over')
     .sort((a, b) => b.status.percent - a.status.percent)
 
-  // Month profitability (admin)
+  // Month profitability (admin) — approved entries only
   let revenue = 0, cost = 0
   for (const e of monthRows) {
     const billRate = e.project?.hourly_rate ?? 0
@@ -161,6 +195,25 @@ export default async function DashboardPage() {
             <p className="text-xs text-amber-700">Revisa antes de sincronizar a Zoho Books</p>
           </div>
           <ChevronRight className="w-5 h-5 text-amber-400 flex-shrink-0" />
+        </Link>
+      )}
+
+      {/* Needs-justification banner (admin) */}
+      {isAdmin && (needsJustificationCount ?? 0) > 0 && (
+        <Link
+          href="/dashboard/approvals"
+          className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-2xl p-4"
+        >
+          <div className="w-9 h-9 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Target className="w-5 h-5 text-orange-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-orange-900">
+              {needsJustificationCount} {needsJustificationCount === 1 ? 'entrada requiere' : 'entradas requieren'} justificación del freelancer
+            </p>
+            <p className="text-xs text-orange-700">Esperando justificación antes de poder aprobar</p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-orange-400 flex-shrink-0" />
         </Link>
       )}
 
