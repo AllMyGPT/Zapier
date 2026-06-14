@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Iniciar sesión</title>
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 16px;
+      background: #fff;
+      color: #172b4d;
+    }
+
+    .logo {
+      text-align: center;
+      font-size: 32px;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      text-align: center;
+      font-size: 16px;
+      font-weight: 600;
+      color: #172b4d;
+      margin-bottom: 16px;
+    }
+
+    .field {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #5e6c84;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 2px solid #dfe1e6;
+      border-radius: 3px;
+      font-size: 14px;
+      color: #172b4d;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus {
+      border-color: #0052cc;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #0052cc;
+      color: #fff;
+      border: none;
+      border-radius: 3px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 4px;
+      transition: background 0.15s;
+    }
+
+    button:hover:not(:disabled) {
+      background: #0065ff;
+    }
+
+    button:disabled {
+      background: #a5adba;
+      cursor: not-allowed;
+    }
+
+    .error {
+      background: #ffebe6;
+      color: #bf2600;
+      border: 1px solid #ff8f73;
+      border-radius: 3px;
+      padding: 8px 10px;
+      font-size: 13px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .error.visible {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">⏱</div>
+  <h2>Card Time Tracker</h2>
+
+  <form id="login-form">
+    <div class="field">
+      <label for="email">Correo electrónico</label>
+      <input
+        type="email"
+        id="email"
+        name="email"
+        placeholder="tu@correo.com"
+        required
+        autocomplete="email"
+      />
+    </div>
+
+    <div class="field">
+      <label for="password">Contraseña</label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        placeholder="••••••••"
+        required
+        autocomplete="current-password"
+      />
+    </div>
+
+    <button type="submit" id="submit-btn">Iniciar sesión</button>
+
+    <div class="error" id="error-msg"></div>
+  </form>
+
+  <script type="module" src="/popups/login.ts"></script>
+</body>
+</html>
