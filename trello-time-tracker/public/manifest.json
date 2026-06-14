@@ -1,0 +1,9 @@
+{
+  "name": "Card Time Tracker",
+  "description": "Registra tiempo directamente desde tus tarjetas de Trello",
+  "icon": {
+    "url": "./icon.png"
+  },
+  "capabilities": ["card-buttons", "card-badges", "card-detail-badges", "card-back-section"],
+  "connectors": []
+}
