@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { appUrl } from '@/lib/config'
 import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
@@ -10,7 +9,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
   const router = useRouter()
   const supabase = createClient()
 
@@ -20,20 +18,10 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      if (mode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) throw error
-        router.push('/dashboard')
-        router.refresh()
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: appUrl('/auth/callback') },
-        })
-        if (error) throw error
-        setError('Revisa tu email para confirmar el registro.')
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) throw error
+      router.push('/dashboard')
+      router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error desconocido')
     } finally {
@@ -58,9 +46,7 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl p-6">
-          <h2 className="text-lg font-semibold text-slate-800 mb-6">
-            {mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
-          </h2>
+          <h2 className="text-lg font-semibold text-slate-800 mb-6">Iniciar sesión</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -93,11 +79,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className={`text-sm p-3 rounded-lg ${
-                error.includes('Revisa')
-                  ? 'bg-green-50 text-green-700 border border-green-200'
-                  : 'bg-red-50 text-red-700 border border-red-200'
-              }`}>
+              <div className="text-sm p-3 rounded-lg bg-red-50 text-red-700 border border-red-200">
                 {error}
               </div>
             )}
@@ -107,18 +89,13 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white font-semibold rounded-xl transition-colors text-sm shadow-sm"
             >
-              {loading ? 'Cargando...' : mode === 'login' ? 'Entrar' : 'Crear cuenta'}
+              {loading ? 'Cargando...' : 'Entrar'}
             </button>
           </form>
 
-          <div className="mt-4 text-center">
-            <button
-              onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null) }}
-              className="text-sm text-violet-600 hover:text-violet-700 font-medium"
-            >
-              {mode === 'login' ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Entra'}
-            </button>
-          </div>
+          <p className="mt-4 text-center text-xs text-slate-400">
+            ¿Sin cuenta? Solicita acceso al administrador.
+          </p>
         </div>
 
         <p className="text-center text-xs text-slate-400 mt-6">

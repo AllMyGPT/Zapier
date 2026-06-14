@@ -84,9 +84,8 @@ export class EverhourClient {
   }
 
   async getTimeEntries(from: string, to: string): Promise<EverhourTimeEntry[]> {
-    return this.request<EverhourTimeEntry[]>(
-      `/team/time?from=${from}&to=${to}&limit=1000`
-    )
+    const params = new URLSearchParams({ from, to, limit: '1000' })
+    return this.request<EverhourTimeEntry[]>(`/team/time?${params}`)
   }
 
   async getUsers(): Promise<EverhourUser[]> {
