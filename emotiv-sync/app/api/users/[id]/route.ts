@@ -1,35 +1,59 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireAdmin, apiError } from '@/lib/api'
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const { response } = await requireAdmin(supabase)
+  if (response) return response
 
   const { id } = await params
   const body = await request.json()
-  const { role } = body
+  const { role, weekly_capacity_hours, cost_rate, everhour_user_id } = body
 
-  if (!['admin', 'freelancer'].includes(role)) {
-    return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
+  // Build the update object from whichever fields were provided
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const update: Record<string, any> = {}
+
+  if (role !== undefined) {
+    if (!['admin', 'freelancer'].includes(role)) {
+      return apiError('Invalid role', 400)
+    }
+    update.role = role
+  }
+
+  if (weekly_capacity_hours !== undefined) {
+    if (weekly_capacity_hours !== null) {
+      if (typeof weekly_capacity_hours !== 'number' || weekly_capacity_hours < 0) {
+        return apiError('weekly_capacity_hours must be a non-negative number', 400)
+      }
+    }
+    update.weekly_capacity_hours = weekly_capacity_hours
+  }
+
+  if (cost_rate !== undefined) {
+    if (cost_rate !== null) {
+      if (typeof cost_rate !== 'number' || cost_rate < 0) {
+        return apiError('cost_rate must be a non-negative number', 400)
+      }
+    }
+    update.cost_rate = cost_rate
+  }
+
+  if (everhour_user_id !== undefined) {
+    update.everhour_user_id = everhour_user_id
+  }
+
+  if (Object.keys(update).length === 0) {
+    return apiError('No valid fields provided', 400)
   }
 
   const { error } = await supabase
     .from('user_profiles')
-    .update({ role })
+    .update(update)
     .eq('id', id)
 
   if (error) {

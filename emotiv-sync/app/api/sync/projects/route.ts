@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { ZohoClient } from '@/lib/zoho'
+import { requireAdmin, apiError } from '@/lib/api'
 
 // Zoho Books billing_type accepted values:
 // based_on_project_hours | based_on_staff_hours | based_on_task_hours | fixed_cost_for_project
@@ -11,18 +12,8 @@ function toBillingType(billable: boolean, hasHourlyRate: boolean): string {
 
 export async function POST() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const { user, response } = await requireAdmin(supabase)
+  if (response) return response
 
   const { data: zohoSettings } = await supabase
     .from('integration_settings')
@@ -32,7 +23,7 @@ export async function POST() {
     .single()
 
   if (!zohoSettings?.api_key || !zohoSettings?.extra_config?.organization_id) {
-    return NextResponse.json({ error: 'Zoho Books not configured' }, { status: 400 })
+    return apiError('Zoho Books not configured', 400)
   }
 
   const { data: projects } = await supabase
@@ -45,7 +36,14 @@ export async function POST() {
     return NextResponse.json({ synced: 0, message: 'No pending projects' })
   }
 
-  const zoho = new ZohoClient(zohoSettings.api_key, zohoSettings.extra_config.organization_id)
+  const zohoExtra = zohoSettings.extra_config as Record<string, string>
+  const zoho = new ZohoClient(
+    zohoSettings.api_key,
+    zohoExtra.organization_id,
+    zohoExtra.refresh_token,
+    process.env.ZOHO_CLIENT_ID,
+    process.env.ZOHO_CLIENT_SECRET,
+  )
 
   // Fetch existing Zoho customers to resolve client_name → customer_id
   let zohoCustomers: Array<{ customer_id: string; customer_name: string }> = []

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireAuth, apiError } from '@/lib/api'
+import { notifyJustificationSubmitted } from '@/lib/mailer'
 
 // A freelancer submits a justification for an over-budget entry, moving it
 // from 'needs_justification' to 'pending' (awaiting admin approval).
@@ -7,8 +9,8 @@ import { createClient } from '@/lib/supabase/server'
 // for their own entries and cannot self-approve.
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const user = await requireAuth(supabase)
+  if (!user) return apiError('Unauthorized', 401)
 
   const body = await request.json()
   const { id, justification } = body as { id: string; justification: string }
@@ -39,6 +41,29 @@ export async function POST(request: Request) {
       { error: 'La entrada no requiere justificación o no es tuya' },
       { status: 404 }
     )
+  }
+
+  // Notify the first admin about the pending justification (fire-and-forget)
+  try {
+    const { data: adminProfile } = await supabase
+      .from('user_profiles')
+      .select('email')
+      .eq('role', 'admin')
+      .limit(1)
+      .single()
+
+    if (adminProfile?.email) {
+      const { data: freelancerProfile } = await supabase
+        .from('user_profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .single()
+
+      const freelancerName = freelancerProfile?.full_name ?? freelancerProfile?.email ?? 'Un freelancer'
+      await notifyJustificationSubmitted(adminProfile.email, freelancerName, data.length)
+    }
+  } catch {
+    // Non-fatal: notification failure must not break the response
   }
 
   return NextResponse.json({ success: true })

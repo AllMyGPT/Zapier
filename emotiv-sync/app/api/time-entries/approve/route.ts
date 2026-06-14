@@ -1,22 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireAdmin } from '@/lib/api'
+import { notifyApproval } from '@/lib/mailer'
 
 // Bulk approve / reject time entries. Admin only.
 // Body: { ids: string[], action: 'approve' | 'reject', reason?: string }
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const { user, response } = await requireAdmin(supabase)
+  if (response) return response
 
   const body = await request.json()
   const { ids, action, reason } = body as {
@@ -43,13 +35,13 @@ export async function POST(request: Request) {
     action === 'approve'
       ? {
           status: 'approved' as const,
-          approved_by: user.id,
+          approved_by: user!.id,
           approved_at: new Date().toISOString(),
           rejection_reason: null,
         }
       : {
           status: 'rejected' as const,
-          approved_by: user.id,
+          approved_by: user!.id,
           approved_at: new Date().toISOString(),
           rejection_reason: reason ?? null,
         }
@@ -59,10 +51,40 @@ export async function POST(request: Request) {
     .update(update)
     .in('id', ids)
     .is('synced_at', null)
-    .select('id')
+    .select('id, user_id')
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  // Insert audit log entry
+  await supabase.from('audit_log').insert({
+    actor_id: user!.id,
+    action: action === 'approve' ? 'approve_entries' : 'reject_entries',
+    target_table: 'everhour_time_entries',
+    metadata: { ids_count: data?.length ?? 0, reason: reason ?? null },
+  })
+
+  // Send email notifications to affected users (fire-and-forget)
+  try {
+    const updatedCount = data?.length ?? 0
+    if (updatedCount > 0) {
+      // Gather unique user_ids from updated entries
+      const userIds = [...new Set((data ?? []).map(e => e.user_id).filter(Boolean))]
+
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('id, email')
+        .in('id', userIds)
+
+      for (const profile of profiles ?? []) {
+        if (profile.email) {
+          await notifyApproval(profile.email, updatedCount, action === 'approve', reason)
+        }
+      }
+    }
+  } catch {
+    // Non-fatal: notification failure must not break the response
   }
 
   return NextResponse.json({ updated: data?.length ?? 0, action })

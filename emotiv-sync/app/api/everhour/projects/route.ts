@@ -1,21 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { EverhourClient, centsToUnits, parseBudget } from '@/lib/everhour'
+import { requireAdmin, apiError } from '@/lib/api'
 
 export async function POST() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const { response } = await requireAdmin(supabase)
+  if (response) return response
 
   const { data: settings } = await supabase
     .from('integration_settings')
@@ -25,7 +16,7 @@ export async function POST() {
     .single()
 
   if (!settings?.api_key) {
-    return NextResponse.json({ error: 'Everhour API key not configured' }, { status: 400 })
+    return apiError('Everhour API key not configured', 400)
   }
 
   try {
