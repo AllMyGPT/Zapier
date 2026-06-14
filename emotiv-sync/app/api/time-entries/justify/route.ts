@@ -16,6 +16,9 @@ export async function POST(request: Request) {
   if (!id || !justification || justification.trim().length === 0) {
     return NextResponse.json({ error: 'Falta la justificación' }, { status: 400 })
   }
+  if (justification.trim().length > 2000) {
+    return NextResponse.json({ error: 'Justificación demasiado larga (máx. 2000 caracteres)' }, { status: 400 })
+  }
 
   const { data, error } = await supabase
     .from('everhour_time_entries')

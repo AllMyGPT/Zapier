@@ -20,8 +20,11 @@ export async function POST(request: Request) {
   const { searchParams } = new URL(request.url)
   const today = new Date()
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-  const from = searchParams.get('from') ?? firstOfMonth.toISOString().split('T')[0]
-  const to = searchParams.get('to') ?? today.toISOString().split('T')[0]
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+  const rawFrom = searchParams.get('from') ?? ''
+  const rawTo = searchParams.get('to') ?? ''
+  const from = DATE_RE.test(rawFrom) ? rawFrom : firstOfMonth.toISOString().split('T')[0]
+  const to = DATE_RE.test(rawTo) ? rawTo : today.toISOString().split('T')[0]
 
   const { data: zohoSettings } = await supabase
     .from('integration_settings')

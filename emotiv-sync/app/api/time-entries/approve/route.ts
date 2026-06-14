@@ -28,8 +28,14 @@ export async function POST(request: Request) {
   if (!Array.isArray(ids) || ids.length === 0) {
     return NextResponse.json({ error: 'No entries selected' }, { status: 400 })
   }
+  if (ids.length > 500) {
+    return NextResponse.json({ error: 'Too many entries in a single request (max 500)' }, { status: 400 })
+  }
   if (action !== 'approve' && action !== 'reject') {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+  }
+  if (reason && reason.length > 1000) {
+    return NextResponse.json({ error: 'Reason too long (max 1000 characters)' }, { status: 400 })
   }
 
   // Never re-decide entries already pushed to Zoho.
