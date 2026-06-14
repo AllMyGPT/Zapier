@@ -9,7 +9,7 @@ import type { TimeEntry } from '@/types'
 export default function JustifyPanel({ entries }: { entries: TimeEntry[] }) {
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [loadingId, setLoadingId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const router = useRouter()
 
   if (entries.length === 0) return null
@@ -17,11 +17,11 @@ export default function JustifyPanel({ entries }: { entries: TimeEntry[] }) {
   async function submit(id: string) {
     const justification = (drafts[id] ?? '').trim()
     if (!justification) {
-      setError('Escribe una justificación antes de enviar.')
+      setErrors((e) => ({ ...e, [id]: 'Escribe una justificación antes de enviar.' }))
       return
     }
     setLoadingId(id)
-    setError(null)
+    setErrors((e) => { const next = { ...e }; delete next[id]; return next })
     try {
       const res = await fetch('/api/time-entries/justify', {
         method: 'POST',
@@ -32,7 +32,10 @@ export default function JustifyPanel({ entries }: { entries: TimeEntry[] }) {
       if (!res.ok) throw new Error(data.error ?? 'Error')
       router.refresh()
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Error')
+      setErrors((prev) => ({
+        ...prev,
+        [id]: e instanceof Error ? e.message : 'Error',
+      }))
     } finally {
       setLoadingId(null)
     }
@@ -58,43 +61,55 @@ export default function JustifyPanel({ entries }: { entries: TimeEntry[] }) {
         </div>
       </div>
 
-      {error && (
-        <div className="mx-4 mt-3 text-sm bg-red-50 text-red-700 p-2.5 rounded-lg">{error}</div>
-      )}
-
       <div className="divide-y divide-amber-100">
-        {entries.map((entry) => (
-          <div key={entry.id} className="p-4">
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-900 truncate">
-                  {entry.project?.name ?? 'Sin proyecto'}
-                </p>
-                <p className="text-xs text-slate-500">{formatDate(entry.logged_date)}</p>
+        {entries.map((entry) => {
+          const text = drafts[entry.id] ?? ''
+          const charCount = text.length
+          const isOverLimit = charCount > 1900
+          return (
+            <div key={entry.id} className="p-4">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-900 truncate">
+                    {entry.project?.name ?? 'Sin proyecto'}
+                  </p>
+                  <p className="text-xs text-slate-500">{formatDate(entry.logged_date)}</p>
+                </div>
+                <span className="text-sm font-bold text-slate-900 flex-shrink-0">
+                  {formatHours(entry.hours)}
+                </span>
               </div>
-              <span className="text-sm font-bold text-slate-900 flex-shrink-0">
-                {formatHours(entry.hours)}
-              </span>
+              <textarea
+                value={text}
+                onChange={(e) => setDrafts((d) => ({ ...d, [entry.id]: e.target.value }))}
+                placeholder="Explica por qué estas horas exceden el presupuesto…"
+                rows={2}
+                maxLength={2000}
+                className="w-full px-3 py-2 text-sm border border-amber-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+              />
+              <div className="flex items-center justify-between mt-1 mb-2">
+                {errors[entry.id] ? (
+                  <p className="text-xs text-red-600">{errors[entry.id]}</p>
+                ) : (
+                  <span />
+                )}
+                <span className={`text-xs ml-auto ${isOverLimit ? 'text-red-500 font-medium' : 'text-slate-400'}`}>
+                  {charCount}/2000
+                </span>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => submit(entry.id)}
+                  disabled={loadingId === entry.id}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  {loadingId === entry.id ? 'Enviando…' : 'Solicitar aprobación'}
+                </button>
+              </div>
             </div>
-            <textarea
-              value={drafts[entry.id] ?? ''}
-              onChange={(e) => setDrafts((d) => ({ ...d, [entry.id]: e.target.value }))}
-              placeholder="Explica por qué estas horas exceden el presupuesto…"
-              rows={2}
-              className="w-full px-3 py-2 text-sm border border-amber-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
-            />
-            <div className="flex justify-end mt-2">
-              <button
-                onClick={() => submit(entry.id)}
-                disabled={loadingId === entry.id}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50"
-              >
-                <Send className="w-3.5 h-3.5" />
-                {loadingId === entry.id ? 'Enviando…' : 'Solicitar aprobación'}
-              </button>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

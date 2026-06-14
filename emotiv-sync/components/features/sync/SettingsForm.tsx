@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Eye, EyeOff, Save } from 'lucide-react'
+import { Eye, EyeOff, Save, Wifi } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+
+type VerifyStatus = { ok: boolean; error?: string } | null
 
 export default function SettingsForm({
   everhourKey,
@@ -25,6 +27,11 @@ export default function SettingsForm({
   })
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<string | null>(null)
+  const [verifying, setVerifying] = useState(false)
+  const [verifyResult, setVerifyResult] = useState<{
+    everhour: VerifyStatus
+    zoho: VerifyStatus
+  } | null>(null)
   const router = useRouter()
 
   async function handleSave(e: React.FormEvent) {
@@ -50,18 +57,49 @@ export default function SettingsForm({
     }
   }
 
+  async function verifyConnection() {
+    setVerifying(true)
+    setVerifyResult(null)
+    try {
+      const res = await fetch('/api/settings/verify', { method: 'POST' })
+      const data = await res.json()
+      setVerifyResult({
+        everhour: data.everhour ?? null,
+        zoho: data.zoho ?? null,
+      })
+    } catch {
+      setVerifyResult({
+        everhour: { ok: false, error: 'No se pudo conectar' },
+        zoho: { ok: false, error: 'No se pudo conectar' },
+      })
+    } finally {
+      setVerifying(false)
+    }
+  }
+
   return (
     <form onSubmit={handleSave} className="space-y-4">
       {/* Everhour */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center">
-            <span className="text-blue-600 font-bold text-xs">EV</span>
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center">
+              <span className="text-blue-600 font-bold text-xs">EV</span>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Everhour</p>
+              <p className="text-xs text-slate-400">API Key para importar proyectos y horas</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-800">Everhour</p>
-            <p className="text-xs text-slate-400">API Key para importar proyectos y horas</p>
-          </div>
+          {verifyResult?.everhour && (
+            <span className={`text-xs font-medium px-2 py-1 rounded-full flex-shrink-0 ${
+              verifyResult.everhour.ok
+                ? 'bg-green-50 text-green-700'
+                : 'bg-red-50 text-red-700'
+            }`}>
+              {verifyResult.everhour.ok ? '✓ Conectado' : `✗ Error: ${verifyResult.everhour.error}`}
+            </span>
+          )}
         </div>
 
         <div>
@@ -90,14 +128,25 @@ export default function SettingsForm({
 
       {/* Zoho Books */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 bg-orange-50 rounded-xl flex items-center justify-center">
-            <span className="text-orange-600 font-bold text-xs">ZB</span>
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-orange-50 rounded-xl flex items-center justify-center">
+              <span className="text-orange-600 font-bold text-xs">ZB</span>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Zoho Books</p>
+              <p className="text-xs text-slate-400">Access Token, Organization ID y cliente por defecto</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-800">Zoho Books</p>
-            <p className="text-xs text-slate-400">Access Token, Organization ID y cliente por defecto</p>
-          </div>
+          {verifyResult?.zoho && (
+            <span className={`text-xs font-medium px-2 py-1 rounded-full flex-shrink-0 ${
+              verifyResult.zoho.ok
+                ? 'bg-green-50 text-green-700'
+                : 'bg-red-50 text-red-700'
+            }`}>
+              {verifyResult.zoho.ok ? '✓ Conectado' : `✗ Error: ${verifyResult.zoho.error}`}
+            </span>
+          )}
         </div>
 
         <div className="space-y-3">
@@ -158,14 +207,26 @@ export default function SettingsForm({
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full flex items-center justify-center gap-2 py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white font-semibold rounded-xl transition-colors"
-      >
-        <Save className="w-4 h-4" />
-        {loading ? 'Guardando...' : 'Guardar configuración'}
-      </button>
+      <div className="flex flex-col gap-3">
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white font-semibold rounded-xl transition-colors"
+        >
+          <Save className="w-4 h-4" />
+          {loading ? 'Guardando...' : 'Guardar configuración'}
+        </button>
+
+        <button
+          type="button"
+          onClick={verifyConnection}
+          disabled={verifying}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-semibold rounded-xl transition-colors"
+        >
+          <Wifi className={`w-4 h-4 ${verifying ? 'animate-pulse' : ''}`} />
+          {verifying ? 'Verificando...' : 'Verificar conexión'}
+        </button>
+      </div>
     </form>
   )
 }

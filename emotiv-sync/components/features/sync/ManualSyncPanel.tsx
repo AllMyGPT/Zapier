@@ -1,40 +1,57 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { RefreshCw, FolderKanban, Clock } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
+type OpResult = { ok: boolean; message: string } | null
+
 export default function ManualSyncPanel() {
-  const [syncingProjects, setSyncingProjects] = useState(false)
-  const [syncingEntries, setSyncingEntries] = useState(false)
-  const [results, setResults] = useState<Record<string, string>>({})
+  const [loadingOp, setLoadingOp] = useState<'projects' | 'time_entries' | null>(null)
+  const [projectsResult, setProjectsResult] = useState<OpResult>(null)
+  const [entriesResult, setEntriesResult] = useState<OpResult>(null)
   const router = useRouter()
 
+  // Auto-clear results after 5 seconds
+  useEffect(() => {
+    if (!projectsResult) return
+    const t = setTimeout(() => setProjectsResult(null), 5000)
+    return () => clearTimeout(t)
+  }, [projectsResult])
+
+  useEffect(() => {
+    if (!entriesResult) return
+    const t = setTimeout(() => setEntriesResult(null), 5000)
+    return () => clearTimeout(t)
+  }, [entriesResult])
+
   async function runSync(type: 'projects' | 'time-entries') {
-    const setLoading = type === 'projects' ? setSyncingProjects : setSyncingEntries
-    setLoading(true)
-    setResults(r => ({ ...r, [type]: '' }))
+    const op = type === 'projects' ? 'projects' : 'time_entries'
+    setLoadingOp(op as 'projects' | 'time_entries')
+    if (op === 'projects') setProjectsResult(null)
+    else setEntriesResult(null)
 
     try {
       const res = await fetch(`/api/sync/${type}`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Error desconocido')
-      setResults(r => ({
-        ...r,
-        [type]: `✓ ${data.synced ?? data.records_processed ?? 0} registros sincronizados`,
-      }))
+      const count = data.synced ?? data.records_processed ?? 0
+      const msg = type === 'projects'
+        ? `${count} proyectos sincronizados`
+        : `${count} horas sincronizadas`
+      if (op === 'projects') setProjectsResult({ ok: true, message: msg })
+      else setEntriesResult({ ok: true, message: msg })
       router.refresh()
     } catch (e: unknown) {
-      setResults(r => ({
-        ...r,
-        [type]: `✗ ${e instanceof Error ? e.message : 'Error'}`,
-      }))
+      const msg = e instanceof Error ? e.message : 'Error'
+      if (op === 'projects') setProjectsResult({ ok: false, message: msg })
+      else setEntriesResult({ ok: false, message: msg })
     } finally {
-      setLoading(false)
+      setLoadingOp(null)
     }
   }
 
-  const syncing = syncingProjects || syncingEntries
+  const anySyncing = loadingOp !== null
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
@@ -50,18 +67,24 @@ export default function ManualSyncPanel() {
           <p className="text-xs text-slate-400 mb-3">
             Importa de Everhour y sincroniza con Zoho Books
           </p>
-          {results['projects'] && (
-            <p className={`text-xs mb-2 ${results['projects'].startsWith('✓') ? 'text-green-600' : 'text-red-600'}`}>
-              {results['projects']}
+          {loadingOp === 'projects' && (
+            <p className="text-xs text-blue-600 mb-2 flex items-center gap-1">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              Sincronizando proyectos…
+            </p>
+          )}
+          {projectsResult && (
+            <p className={`text-xs mb-2 ${projectsResult.ok ? 'text-green-600' : 'text-red-600'}`}>
+              {projectsResult.ok ? `✅ ${projectsResult.message}` : `❌ Error: ${projectsResult.message}`}
             </p>
           )}
           <button
             onClick={() => runSync('projects')}
-            disabled={syncing}
+            disabled={anySyncing}
             className="w-full flex items-center justify-center gap-2 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg text-sm font-medium transition-colors"
           >
-            <RefreshCw className={`w-4 h-4 ${syncingProjects ? 'animate-spin' : ''}`} />
-            {syncingProjects ? 'Sincronizando...' : 'Sincronizar proyectos'}
+            <RefreshCw className={`w-4 h-4 ${loadingOp === 'projects' ? 'animate-spin' : ''}`} />
+            {loadingOp === 'projects' ? 'Sincronizando...' : 'Sincronizar proyectos'}
           </button>
         </div>
 
@@ -74,18 +97,24 @@ export default function ManualSyncPanel() {
           <p className="text-xs text-slate-400 mb-3">
             Sincroniza entradas de tiempo con Zoho Books
           </p>
-          {results['time-entries'] && (
-            <p className={`text-xs mb-2 ${results['time-entries'].startsWith('✓') ? 'text-green-600' : 'text-red-600'}`}>
-              {results['time-entries']}
+          {loadingOp === 'time_entries' && (
+            <p className="text-xs text-violet-600 mb-2 flex items-center gap-1">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              Sincronizando horas…
+            </p>
+          )}
+          {entriesResult && (
+            <p className={`text-xs mb-2 ${entriesResult.ok ? 'text-green-600' : 'text-red-600'}`}>
+              {entriesResult.ok ? `✅ ${entriesResult.message}` : `❌ Error: ${entriesResult.message}`}
             </p>
           )}
           <button
             onClick={() => runSync('time-entries')}
-            disabled={syncing}
+            disabled={anySyncing}
             className="w-full flex items-center justify-center gap-2 py-2 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white rounded-lg text-sm font-medium transition-colors"
           >
-            <RefreshCw className={`w-4 h-4 ${syncingEntries ? 'animate-spin' : ''}`} />
-            {syncingEntries ? 'Sincronizando...' : 'Sincronizar horas'}
+            <RefreshCw className={`w-4 h-4 ${loadingOp === 'time_entries' ? 'animate-spin' : ''}`} />
+            {loadingOp === 'time_entries' ? 'Sincronizando...' : 'Sincronizar horas'}
           </button>
         </div>
       </div>
