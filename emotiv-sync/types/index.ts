@@ -31,7 +31,7 @@ export interface EverhourProject {
   created_at: string
 }
 
-export type TimeEntryStatus = 'pending' | 'approved' | 'rejected'
+export type TimeEntryStatus = 'pending' | 'approved' | 'rejected' | 'needs_justification'
 
 export interface TimeEntry {
   id: string
@@ -43,6 +43,7 @@ export interface TimeEntry {
   description: string | null
   billable: boolean
   status: TimeEntryStatus
+  justification: string | null
   approved_by: string | null
   approved_at: string | null
   rejection_reason: string | null

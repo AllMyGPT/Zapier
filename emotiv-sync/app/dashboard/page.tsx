@@ -30,6 +30,7 @@ export default async function DashboardPage() {
     { count: totalProjects },
     { count: syncedProjects },
     { count: pendingApprovals },
+    { count: myNeedsJustification },
     { data: recentLogs },
     { data: userEntries },
     { data: budgetProjects },
@@ -38,6 +39,8 @@ export default async function DashboardPage() {
     supabase.from('everhour_projects').select('*', { count: 'exact', head: true }),
     supabase.from('everhour_projects').select('*', { count: 'exact', head: true }).not('zoho_project_id', 'is', null),
     supabase.from('everhour_time_entries').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('everhour_time_entries').select('*', { count: 'exact', head: true })
+      .eq('user_id', user!.id).eq('status', 'needs_justification'),
     supabase.from('sync_logs').select('*').order('created_at', { ascending: false }).limit(5),
     supabase.from('everhour_time_entries')
       .select('hours, logged_date')
@@ -122,6 +125,25 @@ export default async function DashboardPage() {
         <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
         <p className="text-sm text-slate-500 mt-0.5">Resumen de sincronización Everhour ↔ Zoho Books</p>
       </div>
+
+      {/* Needs-justification call-to-action (own over-budget hours) */}
+      {(myNeedsJustification ?? 0) > 0 && (
+        <Link
+          href="/dashboard/time-entries"
+          className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-2xl p-4"
+        >
+          <div className="w-9 h-9 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Target className="w-5 h-5 text-orange-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-orange-900">
+              {myNeedsJustification} {myNeedsJustification === 1 ? 'registro supera' : 'registros superan'} el presupuesto
+            </p>
+            <p className="text-xs text-orange-700">Justifica tus horas para solicitar aprobación</p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-orange-400 flex-shrink-0" />
+        </Link>
+      )}
 
       {/* Pending approvals call-to-action (admin) */}
       {isAdmin && (pendingApprovals ?? 0) > 0 && (

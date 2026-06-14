@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { EverhourClient, secondsToHours } from '@/lib/everhour'
+import { reconcileBudgetApproval } from '@/lib/approval'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -65,6 +66,8 @@ export async function POST(request: Request) {
       }
     }
 
+    const touchedProjectIds = new Set<string>()
+
     let imported = 0
     for (const entry of entries) {
       const projectEverhourId = entry.task?.projects?.[0]
@@ -77,6 +80,8 @@ export async function POST(request: Request) {
             .single()
         : { data: null }
 
+      if (project?.id) touchedProjectIds.add(project.id)
+
       const everhourUserId = String(entry.user)
 
       // Prefer an already-known mapping, otherwise fall back to admin
@@ -86,8 +91,9 @@ export async function POST(request: Request) {
       // Billable: prefer the task flag, fall back to the project's setting
       const billable = entry.task?.billable ?? project?.billable ?? true
 
-      // Newly imported entries start as 'pending' and must be approved
-      // before they can sync to Zoho. Avoid overwriting an existing decision.
+      // New entries are auto-OK ('approved'); the budget reconciliation below
+      // flips over-budget projects to 'needs_justification'. Never overwrite an
+      // existing decision (admin approval/rejection or a submitted justification).
       const { data: existing } = await supabase
         .from('everhour_time_entries')
         .select('status')
@@ -105,11 +111,14 @@ export async function POST(request: Request) {
           logged_date: entry.date,
           description: entry.comment ?? entry.task?.name ?? null,
           billable,
-          status: existing?.status ?? 'pending',
+          status: existing?.status ?? 'approved',
         }, { onConflict: 'everhour_id' })
 
       if (!error) imported++
     }
+
+    // Apply the budget gate: over-budget projects require justification.
+    await reconcileBudgetApproval(supabase, Array.from(touchedProjectIds))
 
     return NextResponse.json({ imported, total: entries.length })
   } catch (err: unknown) {

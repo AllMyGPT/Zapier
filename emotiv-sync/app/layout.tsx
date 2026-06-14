@@ -10,7 +10,8 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: 'Emotiv Sync | Everhour ↔ Zoho Books',
   description: 'Sincronización de proyectos y horas entre Everhour y Zoho Books para Emotiv',
-  manifest: '/manifest.json',
+  manifest: '/team/manifest.json',
+  robots: { index: false, follow: false, nocache: true },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

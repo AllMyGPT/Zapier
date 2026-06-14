@@ -27,8 +27,10 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const isAuthPage = request.nextUrl.pathname.startsWith('/auth')
-  const isApiRoute = request.nextUrl.pathname.startsWith('/api')
+  const { pathname } = request.nextUrl
+  const isAuthPage = pathname.startsWith('/auth')
+  const isApiRoute = pathname.startsWith('/api')
+  const isLoginPage = pathname === '/auth/login'
 
   if (!user && !isAuthPage && !isApiRoute) {
     const url = request.nextUrl.clone()
@@ -36,7 +38,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && isAuthPage) {
+  // Only bounce already-authenticated users away from the login page itself —
+  // /auth/callback and /auth/set-password must remain reachable while logged in.
+  if (user && isLoginPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)

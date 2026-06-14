@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { formatDate, formatHours } from '@/lib/utils'
 import { Clock, CheckCircle2 } from 'lucide-react'
 import SyncTimeEntriesButton from '@/components/features/time-entries/SyncTimeEntriesButton'
+import JustifyPanel from '@/components/features/time-entries/JustifyPanel'
+import type { TimeEntry } from '@/types'
 
 export default async function TimeEntriesPage({
   searchParams,
@@ -38,6 +40,15 @@ export default async function TimeEntriesPage({
 
   const { data: entries } = await query
 
+  // The current user's own over-budget entries that need a justification
+  // (shown regardless of the date filter so nothing gets missed).
+  const { data: toJustify } = await supabase
+    .from('everhour_time_entries')
+    .select(`*, project:everhour_projects(name, client_name)`)
+    .eq('user_id', user!.id)
+    .eq('status', 'needs_justification')
+    .order('logged_date', { ascending: false })
+
   const totalHours = (entries ?? []).reduce((sum, e) => sum + (e.hours || 0), 0)
   const syncedCount = (entries ?? []).filter(e => e.synced_at).length
   const pendingCount = (entries ?? []).length - syncedCount
@@ -51,6 +62,9 @@ export default async function TimeEntriesPage({
         </div>
         {isAdmin && <SyncTimeEntriesButton from={from} to={to} />}
       </div>
+
+      {/* Over-budget entries awaiting the user's justification */}
+      <JustifyPanel entries={(toJustify ?? []) as TimeEntry[]} />
 
       {/* Date filter */}
       <form className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 flex items-center gap-2">
@@ -161,11 +175,12 @@ export default async function TimeEntriesPage({
   )
 }
 
-function StatusBadge({ status }: { status: 'pending' | 'approved' | 'rejected' }) {
+function StatusBadge({ status }: { status: TimeEntry['status'] }) {
   const map = {
-    pending: { text: 'Pendiente', cls: 'bg-amber-50 text-amber-700' },
-    approved: { text: 'Aprobada', cls: 'bg-green-50 text-green-700' },
+    pending: { text: 'En aprobación', cls: 'bg-amber-50 text-amber-700' },
+    approved: { text: 'OK', cls: 'bg-green-50 text-green-700' },
     rejected: { text: 'Rechazada', cls: 'bg-red-50 text-red-700' },
+    needs_justification: { text: 'Requiere justificación', cls: 'bg-orange-50 text-orange-700' },
   }
   const s = map[status]
   return (

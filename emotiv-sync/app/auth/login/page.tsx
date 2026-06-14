@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { appUrl } from '@/lib/config'
 import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
@@ -28,7 +29,7 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+          options: { emailRedirectTo: appUrl('/auth/callback') },
         })
         if (error) throw error
         setError('Revisa tu email para confirmar el registro.')

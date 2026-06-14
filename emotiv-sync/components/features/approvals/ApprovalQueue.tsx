@@ -191,6 +191,12 @@ export default function ApprovalQueue({ entries }: { entries: TimeEntry[] }) {
                           {entry.description}
                         </p>
                       )}
+                      {entry.justification && (
+                        <div className="mt-1.5 text-xs bg-amber-50 border border-amber-100 text-amber-800 rounded-lg px-2 py-1.5">
+                          <span className="font-medium">Justificación: </span>
+                          {entry.justification}
+                        </div>
+                      )}
                     </div>
                   </label>
                 )

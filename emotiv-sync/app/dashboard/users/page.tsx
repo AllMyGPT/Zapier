@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { formatDateTime } from '@/lib/utils'
 import { Users, Shield, User } from 'lucide-react'
 import ChangeRoleButton from '@/components/features/users/ChangeRoleButton'
+import CreateUserForm from '@/components/features/users/CreateUserForm'
 
 export default async function UsersPage() {
   const supabase = await createClient()
@@ -23,9 +24,12 @@ export default async function UsersPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Usuarios</h1>
-        <p className="text-sm text-slate-500 mt-0.5">{(users ?? []).length} usuarios registrados</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Usuarios</h1>
+          <p className="text-sm text-slate-500 mt-0.5">{(users ?? []).length} usuarios registrados</p>
+        </div>
+        <CreateUserForm />
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
