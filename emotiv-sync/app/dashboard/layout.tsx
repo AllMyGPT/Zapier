@@ -30,10 +30,20 @@ export default async function DashboardLayout({
     created_at: user.created_at,
   }
 
+  // Count pending approvals for admin badge
+  let pendingApprovals: number | undefined
+  if (userProfile.role === 'admin') {
+    const { count } = await supabase
+      .from('everhour_time_entries')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+    pendingApprovals = count ?? undefined
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       {/* Sidebar - desktop only */}
-      <Sidebar profile={userProfile} />
+      <Sidebar profile={userProfile} pendingApprovals={pendingApprovals} />
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -47,7 +57,7 @@ export default async function DashboardLayout({
       </div>
 
       {/* Mobile bottom nav */}
-      <MobileNav role={userProfile.role} />
+      <MobileNav role={userProfile.role} pendingApprovals={pendingApprovals} />
     </div>
   )
 }

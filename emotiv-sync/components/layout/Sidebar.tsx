@@ -20,13 +20,19 @@ const navItems = [
 ]
 
 const adminItems = [
-  { href: '/dashboard/approvals', icon: CheckSquare, label: 'Aprobaciones' },
-  { href: '/dashboard/reports', icon: BarChart3, label: 'Informes' },
-  { href: '/dashboard/users', icon: Users, label: 'Usuarios' },
-  { href: '/dashboard/settings', icon: Settings, label: 'Configuración' },
+  { href: '/dashboard/approvals', icon: CheckSquare, label: 'Aprobaciones', badge: true },
+  { href: '/dashboard/reports', icon: BarChart3, label: 'Informes', badge: false },
+  { href: '/dashboard/users', icon: Users, label: 'Usuarios', badge: false },
+  { href: '/dashboard/settings', icon: Settings, label: 'Configuración', badge: false },
 ]
 
-export default function Sidebar({ profile }: { profile: UserProfile }) {
+export default function Sidebar({
+  profile,
+  pendingApprovals,
+}: {
+  profile: UserProfile
+  pendingApprovals?: number
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -79,6 +85,7 @@ export default function Sidebar({ profile }: { profile: UserProfile }) {
             </div>
             {adminItems.map((item) => {
               const active = pathname.startsWith(item.href)
+              const showBadge = item.badge && pendingApprovals && pendingApprovals > 0
               return (
                 <Link
                   key={item.href}
@@ -92,6 +99,11 @@ export default function Sidebar({ profile }: { profile: UserProfile }) {
                 >
                   <item.icon className="w-4 h-4 flex-shrink-0" />
                   {item.label}
+                  {showBadge ? (
+                    <span className="ml-auto flex items-center justify-center w-5 h-5 rounded-full bg-violet-600 text-white text-xs font-bold">
+                      {pendingApprovals! > 99 ? '99+' : pendingApprovals}
+                    </span>
+                  ) : null}
                 </Link>
               )
             })}

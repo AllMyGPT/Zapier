@@ -10,21 +10,27 @@ import { cn } from '@/lib/utils'
 import type { UserRole } from '@/types'
 
 const adminItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Inicio' },
-  { href: '/dashboard/time-entries', icon: Clock, label: 'Horas' },
-  { href: '/dashboard/approvals', icon: CheckSquare, label: 'Aprobar' },
-  { href: '/dashboard/reports', icon: BarChart3, label: 'Informes' },
-  { href: '/dashboard/more', icon: MoreHorizontal, label: 'Más' },
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Inicio', badge: false },
+  { href: '/dashboard/time-entries', icon: Clock, label: 'Horas', badge: false },
+  { href: '/dashboard/approvals', icon: CheckSquare, label: 'Aprobar', badge: true },
+  { href: '/dashboard/reports', icon: BarChart3, label: 'Informes', badge: false },
+  { href: '/dashboard/more', icon: MoreHorizontal, label: 'Más', badge: false },
 ]
 
 const freelancerItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Inicio' },
-  { href: '/dashboard/projects', icon: FolderKanban, label: 'Proyectos' },
-  { href: '/dashboard/time-entries', icon: Clock, label: 'Horas' },
-  { href: '/dashboard/more', icon: MoreHorizontal, label: 'Más' },
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Inicio', badge: false },
+  { href: '/dashboard/projects', icon: FolderKanban, label: 'Proyectos', badge: false },
+  { href: '/dashboard/time-entries', icon: Clock, label: 'Horas', badge: false },
+  { href: '/dashboard/more', icon: MoreHorizontal, label: 'Más', badge: false },
 ]
 
-export default function MobileNav({ role }: { role: UserRole }) {
+export default function MobileNav({
+  role,
+  pendingApprovals,
+}: {
+  role: UserRole
+  pendingApprovals?: number
+}) {
   const pathname = usePathname()
   const items = role === 'admin' ? adminItems : freelancerItems
 
@@ -35,6 +41,7 @@ export default function MobileNav({ role }: { role: UserRole }) {
           const active =
             pathname === item.href ||
             (item.href !== '/dashboard' && pathname.startsWith(item.href))
+          const showBadge = item.badge && pendingApprovals && pendingApprovals > 0
           return (
             <Link
               key={item.href}
@@ -44,7 +51,14 @@ export default function MobileNav({ role }: { role: UserRole }) {
                 active ? 'text-violet-700' : 'text-slate-400'
               )}
             >
-              <item.icon className={cn('w-5 h-5', active && 'stroke-[2.5]')} />
+              <div className="relative">
+                <item.icon className={cn('w-5 h-5', active && 'stroke-[2.5]')} />
+                {showBadge && (
+                  <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[14px] h-[14px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold leading-none">
+                    {pendingApprovals! > 99 ? '99+' : pendingApprovals}
+                  </span>
+                )}
+              </div>
               <span>{item.label}</span>
               {active && (
                 <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-violet-600 rounded-full" />
