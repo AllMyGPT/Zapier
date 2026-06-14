@@ -36,7 +36,7 @@
 </head>
 <body>
   <div id="wrap">
-    <canvas id="game" width="512" height="448"></canvas>
+    <canvas id="game" width="512" height="432"></canvas>
     <div id="hint">Mover: WASD / Flechas &nbsp;·&nbsp; Disparar: ESPACIO o clic &nbsp;·&nbsp; Pausa: P</div>
   </div>
 <script>
@@ -70,7 +70,9 @@ addEventListener('keyup', e => {
 });
 cv.addEventListener('mousedown', e => {
   mouseDown = true;
-  if (state !== 'play') startGame();
+  // Only (re)start from non-play menu screens — never from pause, or a click
+  // (a documented fire control) would wipe the run.
+  if (state === 'title' || state === 'gameover' || state === 'win') startGame();
 });
 addEventListener('mouseup', () => mouseDown = false);
 cv.addEventListener('mousemove', e => {
@@ -106,7 +108,7 @@ function rnd(a,b){ return a + Math.random()*(b-a); }
 function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
 
 // ---- Level map: 0 floor, 1 wall, 2 hedge ----
-const COLS = W/TILE, ROWS = (H-48)/TILE; // 16 x 12.5 -> use 12 rows of play
+const COLS = W/TILE, ROWS = Math.floor((H-48)/TILE); // integral: 16 cols x 12 rows
 let map = [];
 function buildMap(){
   map = [];
