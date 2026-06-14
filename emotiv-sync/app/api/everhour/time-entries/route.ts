@@ -38,6 +38,33 @@ export async function POST(request: Request) {
     const client = new EverhourClient(settings.api_key)
     const entries = await client.getTimeEntries(from, to)
 
+    // Build a lookup map: everhour_user_id -> supabase user_id
+    const { data: allProfiles } = await supabase
+      .from('user_profiles')
+      .select('id, email')
+
+    // everhour_user_id is numeric; we try to match by stored everhour_user_id
+    // For users not yet mapped, fall back to the importing admin's id so the
+    // entry is still stored, but we preserve everhour_user_id for future mapping.
+    const everhourUserToSupabaseId = new Map<string, string>()
+    for (const p of allProfiles ?? []) {
+      // Will be populated if the user has their everhour user id stored
+      everhourUserToSupabaseId.set(p.id, p.id)
+    }
+
+    // Also fetch existing entries to find already-mapped everhour_user_ids
+    const { data: existingMappings } = await supabase
+      .from('everhour_time_entries')
+      .select('user_id, everhour_user_id')
+      .not('everhour_user_id', 'is', null)
+
+    const everhourIdToUserId = new Map<string, string>()
+    for (const m of existingMappings ?? []) {
+      if (m.everhour_user_id && m.user_id) {
+        everhourIdToUserId.set(m.everhour_user_id, m.user_id)
+      }
+    }
+
     let imported = 0
     for (const entry of entries) {
       const projectEverhourId = entry.task?.projects?.[0]
@@ -50,13 +77,19 @@ export async function POST(request: Request) {
             .single()
         : { data: null }
 
+      const everhourUserId = String(entry.user)
+
+      // Prefer an already-known mapping, otherwise fall back to admin
+      // (admin can later re-assign via the UI if needed)
+      const resolvedUserId = everhourIdToUserId.get(everhourUserId) ?? user.id
+
       const { error } = await supabase
         .from('everhour_time_entries')
         .upsert({
           everhour_id: String(entry.id),
           everhour_project_id: project?.id ?? null,
-          everhour_user_id: String(entry.user),
-          user_id: user.id,
+          everhour_user_id: everhourUserId,
+          user_id: resolvedUserId,
           hours: secondsToHours(entry.time),
           logged_date: entry.date,
           description: entry.comment ?? entry.task?.name ?? null,

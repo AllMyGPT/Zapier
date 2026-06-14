@@ -9,12 +9,14 @@ export default function SettingsForm({
   everhourActive,
   zohoToken,
   zohoOrgId,
+  zohoDefaultCustomerId,
   zohoActive,
 }: {
   everhourKey: string
   everhourActive: boolean
   zohoToken: string
   zohoOrgId: string
+  zohoDefaultCustomerId: string
   zohoActive: boolean
 }) {
   const [showEverhour, setShowEverhour] = useState(false)
@@ -23,6 +25,7 @@ export default function SettingsForm({
     everhourKey,
     zohoToken,
     zohoOrgId,
+    zohoDefaultCustomerId,
   })
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<string | null>(null)
@@ -97,7 +100,7 @@ export default function SettingsForm({
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-800">Zoho Books</p>
-            <p className="text-xs text-slate-400">Access Token y Organization ID</p>
+            <p className="text-xs text-slate-400">Access Token, Organization ID y cliente por defecto</p>
           </div>
         </div>
 
@@ -131,8 +134,22 @@ export default function SettingsForm({
               className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
             />
           </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1.5">
+              Customer ID por defecto
+              <span className="text-slate-400 font-normal ml-1">(para proyectos sin cliente en Everhour)</span>
+            </label>
+            <input
+              type="text"
+              value={form.zohoDefaultCustomerId}
+              onChange={e => setForm(f => ({ ...f, zohoDefaultCustomerId: e.target.value }))}
+              placeholder="ID del contacto en Zoho Books"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+            />
+          </div>
           <p className="text-xs text-slate-400">
-            Obtén el token en Zoho API Console. El Organization ID está en Zoho Books → Configuración.
+            El token se obtiene en Zoho API Console. El Organization ID está en Zoho Books → Configuración.
+            El Customer ID es obligatorio para sincronizar proyectos — búscalo en Contactos de Zoho Books.
           </p>
         </div>
       </div>

@@ -33,6 +33,7 @@ export default async function SettingsPage() {
         everhourActive={everhour?.is_active ?? false}
         zohoToken={zoho?.api_key ?? ''}
         zohoOrgId={zoho?.extra_config?.organization_id ?? ''}
+        zohoDefaultCustomerId={zoho?.extra_config?.default_customer_id ?? ''}
         zohoActive={zoho?.is_active ?? false}
       />
 

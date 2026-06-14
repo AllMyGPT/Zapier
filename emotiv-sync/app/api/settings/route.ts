@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { everhourKey, zohoToken, zohoOrgId } = body
+  const { everhourKey, zohoToken, zohoOrgId, zohoDefaultCustomerId } = body
 
   const updates = []
 
@@ -32,22 +32,29 @@ export async function POST(request: Request) {
     )
   }
 
-  if (zohoToken !== undefined || zohoOrgId !== undefined) {
+  if (zohoToken !== undefined || zohoOrgId !== undefined || zohoDefaultCustomerId !== undefined) {
     const { data: existing } = await supabase
       .from('integration_settings')
       .select('extra_config')
       .eq('type', 'zoho')
       .single()
 
+    const extraConfig: Record<string, string> = { ...(existing?.extra_config ?? {}) }
+    if (zohoOrgId) extraConfig.organization_id = zohoOrgId
+    if (zohoDefaultCustomerId !== undefined) {
+      if (zohoDefaultCustomerId) {
+        extraConfig.default_customer_id = zohoDefaultCustomerId
+      } else {
+        delete extraConfig.default_customer_id
+      }
+    }
+
     updates.push(
       supabase.from('integration_settings').upsert({
         type: 'zoho',
         api_key: zohoToken || null,
-        extra_config: {
-          ...(existing?.extra_config ?? {}),
-          ...(zohoOrgId ? { organization_id: zohoOrgId } : {}),
-        },
-        is_active: !!(zohoToken && zohoOrgId),
+        extra_config: extraConfig,
+        is_active: !!(zohoToken && extraConfig.organization_id),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'type' })
     )

@@ -7,8 +7,8 @@ interface ZohoProject {
   customer_name: string
   status: string
   billing_type: string
-
   rate?: number
+  description?: string
 }
 
 interface ZohoTimeEntry {
@@ -72,5 +72,11 @@ export class ZohoClient {
 
   async getTimeLogs(projectId: string) {
     return this.request(`/projects/${projectId}/timelogs`)
+  }
+
+  async getContacts() {
+    return this.request<{ contacts: Array<{ contact_id: string; contact_name: string }> }>(
+      '/contacts?contact_type=customer'
+    )
   }
 }
