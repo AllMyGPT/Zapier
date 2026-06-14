@@ -10,13 +10,11 @@ export async function GET() {
   } catch {}
 
   const { data: settings } = await supabase.from('integration_settings').select('type, is_active')
-  const everhourActive = settings?.find(s => s.type === 'everhour')?.is_active ?? false
   const zohoActive = settings?.find(s => s.type === 'zoho')?.is_active ?? false
 
   return NextResponse.json({
     status: dbOk ? 'ok' : 'degraded',
     supabase: dbOk,
-    everhour: everhourActive,
     zoho: zohoActive,
     timestamp: new Date().toISOString(),
   })

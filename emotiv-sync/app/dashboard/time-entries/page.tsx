@@ -3,6 +3,7 @@ import { formatDate, formatHours } from '@/lib/utils'
 import { Clock, CheckCircle2, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import SyncTimeEntriesButton from '@/components/features/time-entries/SyncTimeEntriesButton'
 import JustifyPanel from '@/components/features/time-entries/JustifyPanel'
+import TimerWidget from '@/components/features/time-entries/TimerWidget'
 import type { TimeEntry } from '@/types'
 import { BASE_PATH } from '@/lib/config'
 import Link from 'next/link'
@@ -63,6 +64,13 @@ export default async function TimeEntriesPage({
 
   const totalPages = Math.ceil((totalCount ?? 0) / PAGE_SIZE)
 
+  // Active projects for the timer widget
+  const { data: activeProjects } = await supabase
+    .from('everhour_projects')
+    .select('id, name, client_name')
+    .eq('status', 'active')
+    .order('name')
+
   // The current user's own over-budget entries that need a justification
   const { data: toJustify } = await supabase
     .from('everhour_time_entries')
@@ -112,6 +120,9 @@ export default async function TimeEntriesPage({
           {isAdmin && <SyncTimeEntriesButton from={from} to={to} />}
         </div>
       </div>
+
+      {/* Timer widget */}
+      <TimerWidget projects={(activeProjects ?? []) as { id: string; name: string; client_name: string | null }[]} />
 
       {/* Over-budget entries awaiting the user's justification */}
       <JustifyPanel entries={(toJustify ?? []) as TimeEntry[]} />

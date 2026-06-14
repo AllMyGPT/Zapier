@@ -12,7 +12,7 @@ export async function PATCH(
 
   const { id } = await params
   const body = await request.json()
-  const { role, weekly_capacity_hours, cost_rate, everhour_user_id } = body
+  const { role, weekly_capacity_hours, cost_rate, everhour_user_id, trello_member_id } = body
 
   // Build the update object from whichever fields were provided
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,6 +45,10 @@ export async function PATCH(
 
   if (everhour_user_id !== undefined) {
     update.everhour_user_id = everhour_user_id
+  }
+
+  if (trello_member_id !== undefined) {
+    update.trello_member_id = trello_member_id || null
   }
 
   if (Object.keys(update).length === 0) {

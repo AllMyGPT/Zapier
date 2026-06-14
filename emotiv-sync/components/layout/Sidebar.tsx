@@ -52,7 +52,7 @@ export default function Sidebar({
           </div>
           <div>
             <p className="font-bold text-slate-900 text-sm">Emotiv Sync</p>
-            <p className="text-xs text-slate-400">Everhour ↔ Zoho</p>
+            <p className="text-xs text-slate-400">Time tracking ↔ Zoho</p>
           </div>
         </div>
       </div>

@@ -41,7 +41,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-slate-900">Emotiv Sync</h1>
-          <p className="text-slate-500 text-sm mt-1">Everhour ↔ Zoho Books</p>
+          <p className="text-slate-500 text-sm mt-1">Time tracking ↔ Zoho Books</p>
         </div>
 
         {/* Card */}

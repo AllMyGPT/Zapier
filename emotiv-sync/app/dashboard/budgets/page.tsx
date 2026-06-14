@@ -106,7 +106,7 @@ export default async function BudgetsPage() {
             <Target className="w-10 h-10 text-slate-200 mx-auto mb-3" />
             <p className="text-slate-500 text-sm">Ningún proyecto tiene presupuesto.</p>
             <p className="text-slate-400 text-xs mt-1">
-              Define presupuestos en Everhour y vuelve a importar los proyectos.
+              Crea proyectos con presupuesto para activar el control automático.
             </p>
           </div>
         ) : (

@@ -1,30 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { RefreshCw, Download } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 export default function SyncProjectsButton() {
-  const [importing, setImporting] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const router = useRouter()
-
-  async function handleImport() {
-    setImporting(true)
-    setResult(null)
-    try {
-      const res = await fetch('/api/everhour/projects', { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Error')
-      setResult(`✓ ${data.imported} proyectos importados`)
-      router.refresh()
-    } catch (e: unknown) {
-      setResult(`✗ ${e instanceof Error ? e.message : 'Error'}`)
-    } finally {
-      setImporting(false)
-    }
-  }
 
   async function handleSync() {
     setSyncing(true)
@@ -50,16 +33,8 @@ export default function SyncProjectsButton() {
         </span>
       )}
       <button
-        onClick={handleImport}
-        disabled={importing || syncing}
-        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-50 transition-colors"
-      >
-        <Download className={`w-4 h-4 ${importing ? 'animate-bounce' : ''}`} />
-        <span className="hidden sm:inline">{importing ? 'Importando...' : 'Importar'}</span>
-      </button>
-      <button
         onClick={handleSync}
-        disabled={importing || syncing}
+        disabled={syncing}
         className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-violet-600 rounded-xl hover:bg-violet-700 disabled:opacity-50 transition-colors"
       >
         <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />

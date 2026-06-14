@@ -128,7 +128,7 @@ export default async function SyncPage({
                       <p className="text-sm font-semibold text-slate-800">
                         {log.sync_type === 'projects' ? 'Proyectos' : 'Horas'}
                         {' → '}
-                        {log.direction === 'everhour_to_zoho' ? 'Zoho Books' : 'Everhour'}
+                        {'Zoho Books'}
                       </p>
                       <p className="text-xs text-slate-400 mt-0.5">{formatDateTime(log.created_at)}</p>
                       {log.message && (

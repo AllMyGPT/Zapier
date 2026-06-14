@@ -9,6 +9,7 @@ export interface UserProfile {
   weekly_capacity_hours: number | null
   cost_rate: number | null
   everhour_user_id?: string | null
+  trello_member_id?: string | null
   created_at: string
 }
 

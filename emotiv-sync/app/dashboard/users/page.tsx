@@ -99,11 +99,11 @@ export default async function UsersPage() {
                     />
                   </div>
                   <div>
-                    <p className="text-xs text-slate-400 mb-1">ID Everhour</p>
+                    <p className="text-xs text-slate-400 mb-1">ID Trello</p>
                     <UserFieldEditor
                       userId={u.id}
-                      field="everhour_user_id"
-                      value={u.everhour_user_id}
+                      field="trello_member_id"
+                      value={u.trello_member_id}
                       type="text"
                     />
                   </div>

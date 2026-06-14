@@ -4,6 +4,7 @@ import { computeBudgetStatus, formatMoney, type BudgetStatus } from '@/lib/budge
 import { formatHours } from '@/lib/utils'
 import { FolderKanban, CheckCircle2, AlertCircle, ChevronRight } from 'lucide-react'
 import SyncProjectsButton from '@/components/features/projects/SyncProjectsButton'
+import CreateProjectButton from '@/components/features/projects/CreateProjectButton'
 import Link from 'next/link'
 import type { TimeEntry } from '@/types'
 
@@ -54,7 +55,12 @@ export default async function ProjectsPage() {
           <h1 className="text-xl font-bold text-slate-900">Proyectos</h1>
           <p className="text-sm text-slate-500 mt-0.5">{total} proyectos · {synced} en Zoho</p>
         </div>
-        {isAdmin && <SyncProjectsButton />}
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            <CreateProjectButton />
+            <SyncProjectsButton />
+          </div>
+        )}
       </div>
 
       {/* Quick stats */}
@@ -79,7 +85,7 @@ export default async function ProjectsPage() {
           <div className="p-10 text-center">
             <FolderKanban className="w-10 h-10 text-slate-200 mx-auto mb-3" />
             <p className="text-slate-500 text-sm">No hay proyectos aún.</p>
-            {isAdmin && <p className="text-slate-400 text-xs mt-1">Usa &laquo;Importar&raquo; para traer los proyectos de Everhour.</p>}
+            {isAdmin && <p className="text-slate-400 text-xs mt-1">Usa &laquo;Nuevo proyecto&raquo; para crear el primero.</p>}
           </div>
         ) : (
           <div className="divide-y divide-slate-50">

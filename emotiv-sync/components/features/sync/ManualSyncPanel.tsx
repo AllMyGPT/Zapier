@@ -65,7 +65,7 @@ export default function ManualSyncPanel() {
             <span className="text-sm font-medium text-slate-700">Proyectos</span>
           </div>
           <p className="text-xs text-slate-400 mb-3">
-            Importa de Everhour y sincroniza con Zoho Books
+            Sincroniza los proyectos con Zoho Books
           </p>
           {loadingOp === 'projects' && (
             <p className="text-xs text-blue-600 mb-2 flex items-center gap-1">

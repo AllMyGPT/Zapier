@@ -8,20 +8,9 @@ export async function POST(request: Request) {
   if (response) return response
 
   const body = await request.json()
-  const { everhourKey, zohoToken, zohoOrgId, zohoDefaultCustomerId } = body
+  const { zohoToken, zohoOrgId, zohoDefaultCustomerId } = body
 
   const updates = []
-
-  if (everhourKey !== undefined) {
-    updates.push(
-      supabase.from('integration_settings').upsert({
-        type: 'everhour',
-        api_key: everhourKey || null,
-        is_active: !!everhourKey,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'type' })
-    )
-  }
 
   if (zohoToken !== undefined || zohoOrgId !== undefined || zohoDefaultCustomerId !== undefined) {
     const { data: existing } = await supabase

@@ -5,7 +5,7 @@ import InlineEdit from './InlineEdit'
 
 interface UserFieldEditorProps {
   userId: string
-  field: 'weekly_capacity_hours' | 'cost_rate' | 'everhour_user_id'
+  field: 'weekly_capacity_hours' | 'cost_rate' | 'everhour_user_id' | 'trello_member_id'
   value: string | number | null
   type?: 'text' | 'number'
 }

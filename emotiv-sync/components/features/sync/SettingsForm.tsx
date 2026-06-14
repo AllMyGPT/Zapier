@@ -7,31 +7,20 @@ import { useRouter } from 'next/navigation'
 type VerifyStatus = { ok: boolean; error?: string } | null
 
 export default function SettingsForm({
-  everhourKey,
   zohoToken,
   zohoOrgId,
   zohoDefaultCustomerId,
 }: {
-  everhourKey: string
   zohoToken: string
   zohoOrgId: string
   zohoDefaultCustomerId: string
 }) {
-  const [showEverhour, setShowEverhour] = useState(false)
   const [showZoho, setShowZoho] = useState(false)
-  const [form, setForm] = useState({
-    everhourKey,
-    zohoToken,
-    zohoOrgId,
-    zohoDefaultCustomerId,
-  })
+  const [form, setForm] = useState({ zohoToken, zohoOrgId, zohoDefaultCustomerId })
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [verifying, setVerifying] = useState(false)
-  const [verifyResult, setVerifyResult] = useState<{
-    everhour: VerifyStatus
-    zoho: VerifyStatus
-  } | null>(null)
+  const [verifyResult, setVerifyResult] = useState<{ zoho: VerifyStatus } | null>(null)
   const router = useRouter()
 
   async function handleSave(e: React.FormEvent) {
@@ -63,15 +52,9 @@ export default function SettingsForm({
     try {
       const res = await fetch('/api/settings/verify', { method: 'POST' })
       const data = await res.json()
-      setVerifyResult({
-        everhour: data.everhour ?? null,
-        zoho: data.zoho ?? null,
-      })
+      setVerifyResult({ zoho: data.zoho ?? null })
     } catch {
-      setVerifyResult({
-        everhour: { ok: false, error: 'No se pudo conectar' },
-        zoho: { ok: false, error: 'No se pudo conectar' },
-      })
+      setVerifyResult({ zoho: { ok: false, error: 'No se pudo conectar' } })
     } finally {
       setVerifying(false)
     }
@@ -79,53 +62,6 @@ export default function SettingsForm({
 
   return (
     <form onSubmit={handleSave} className="space-y-4">
-      {/* Everhour */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center">
-              <span className="text-blue-600 font-bold text-xs">EV</span>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-800">Everhour</p>
-              <p className="text-xs text-slate-400">API Key para importar proyectos y horas</p>
-            </div>
-          </div>
-          {verifyResult?.everhour && (
-            <span className={`text-xs font-medium px-2 py-1 rounded-full flex-shrink-0 ${
-              verifyResult.everhour.ok
-                ? 'bg-green-50 text-green-700'
-                : 'bg-red-50 text-red-700'
-            }`}>
-              {verifyResult.everhour.ok ? '✓ Conectado' : `✗ Error: ${verifyResult.everhour.error}`}
-            </span>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1.5">API Key</label>
-          <div className="relative">
-            <input
-              type={showEverhour ? 'text' : 'password'}
-              value={form.everhourKey}
-              onChange={e => setForm(f => ({ ...f, everhourKey: e.target.value }))}
-              placeholder="ev_..."
-              className="w-full px-4 py-3 pr-10 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-            />
-            <button
-              type="button"
-              onClick={() => setShowEverhour(s => !s)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-            >
-              {showEverhour ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Obtén tu API key en Everhour → Configuración → API
-          </p>
-        </div>
-      </div>
-
       {/* Zoho Books */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
         <div className="flex items-center justify-between gap-2 mb-4">
@@ -182,7 +118,7 @@ export default function SettingsForm({
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">
               Customer ID por defecto
-              <span className="text-slate-400 font-normal ml-1">(para proyectos sin cliente en Everhour)</span>
+              <span className="text-slate-400 font-normal ml-1">(para proyectos sin cliente)</span>
             </label>
             <input
               type="text"
@@ -224,7 +160,7 @@ export default function SettingsForm({
           className="w-full flex items-center justify-center gap-2 py-3 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-semibold rounded-xl transition-colors"
         >
           <Wifi className={`w-4 h-4 ${verifying ? 'animate-pulse' : ''}`} />
-          {verifying ? 'Verificando...' : 'Verificar conexión'}
+          {verifying ? 'Verificando...' : 'Verificar conexión Zoho'}
         </button>
       </div>
     </form>

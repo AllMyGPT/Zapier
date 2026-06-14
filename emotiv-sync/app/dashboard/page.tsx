@@ -154,7 +154,7 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Resumen de sincronización Everhour ↔ Zoho Books</p>
+        <p className="text-sm text-slate-500 mt-0.5">Resumen de sincronización Time tracking ↔ Zoho Books</p>
       </div>
 
       {/* Needs-justification call-to-action (own over-budget hours) */}
