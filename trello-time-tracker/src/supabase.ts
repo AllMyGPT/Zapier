@@ -80,7 +80,7 @@ export async function getCurrentUserId(): Promise<string | null> {
 export async function getOrCreateProjectForCard(
   cardId: string,
   cardName: string,
-  userId: string,
+  _userId: string,
 ): Promise<Project | null> {
   // Look up existing project
   const { data: existing, error: findError } = await supabase

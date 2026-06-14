@@ -2,7 +2,6 @@ import {
   supabase,
   restoreSession,
   getCurrentUserId,
-  getOrCreateProjectForCard,
   getActiveTimer,
   getProjectTotalHours,
   type StoredSession,
