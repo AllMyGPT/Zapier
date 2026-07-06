@@ -1,20 +1,24 @@
-# Metricool MCP Connector
+# Metricool MCP Connector (oficial)
 
-Servidor **MCP (Model Context Protocol)** local que conecta tu cuenta de
-[Metricool](https://metricool.com/) con cualquier cliente compatible con MCP
-(Claude Desktop, Claude Code, Cursor, etc.). Permite consultar analíticas de
-redes sociales, competidores y programar publicaciones desde el chat.
+Este conector usa el **MCP oficial de Metricool**, mantenido por la propia
+Metricool y publicado en PyPI como
+[`mcp-metricool`](https://pypi.org/project/mcp-metricool/)
+([código fuente](https://github.com/metricool/mcp-metricool), licencia
+Apache-2.0).
 
-> Escrito en Python con el SDK oficial de MCP (`FastMCP`). Sin dependencias de
-> pago: funciona en local con tus credenciales de Metricool.
+> ℹ️ **Por qué el oficial:** lo mantiene Metricool, cubre ~28 herramientas
+> (reels, posts, competidores, campañas de Ads, best time to post, programación
+> de publicaciones, etc.) y se actualiza con la API. No necesitas mantener
+> código propio.
 
 ---
 
 ## 1. Requisitos
 
-- **Python 3.10+**
 - Una cuenta de Metricool con **acceso a la API** (planes *Advanced* o *Custom*).
-- Tus credenciales de API: *user token* y *user id*.
+- Tus credenciales de API: **User token** y **User id**.
+- Para el método recomendado: [`uv`](https://docs.astral.sh/uv/) instalado
+  (trae `uvx`). Alternativamente, Python 3.12+ y `pip`.
 
 ### Cómo obtener las credenciales
 
@@ -22,55 +26,12 @@ redes sociales, competidores y programar publicaciones desde el chat.
 2. Abre la pestaña **API**.
 3. Copia el **User token** (`METRICOOL_USER_TOKEN`) y el **User id**
    (`METRICOOL_USER_ID`).
-4. Opcionalmente, obtén el `blogId` de cada marca con la herramienta
-   `metricool_get_brands` una vez configurado (o desde la propia URL de la app).
-
-Documentación oficial de la API:
-<https://app.metricool.com/resources/apidocs/index.html>
 
 ---
 
-## 2. Instalación
+## 2. Configuración en el cliente MCP
 
-Clona/descarga el repositorio y entra en esta carpeta:
-
-```bash
-cd connectors/metricool-mcp
-```
-
-### Opción A — con `uv` (recomendado)
-
-```bash
-uv venv
-uv pip install -r requirements.txt
-```
-
-### Opción B — con `pip`
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-### Configura las credenciales
-
-```bash
-cp .env.example .env
-# edita .env y rellena METRICOOL_USER_TOKEN y METRICOOL_USER_ID
-```
-
-### Prueba rápida
-
-```bash
-python src/server.py        # arranca el servidor MCP (stdio); Ctrl+C para salir
-```
-
-Si arranca sin errores, ya está listo para conectarlo a tu cliente.
-
----
-
-## 3. Configuración en el cliente MCP
+No hace falta clonar nada: `uvx` descarga y ejecuta el paquete automáticamente.
 
 ### Claude Desktop
 
@@ -79,69 +40,80 @@ Edita el fichero de configuración:
 - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
-Añade el servidor (usa **rutas absolutas**):
-
 ```json
 {
   "mcpServers": {
-    "metricool": {
-      "command": "python",
-      "args": ["/ruta/absoluta/a/connectors/metricool-mcp/src/server.py"],
+    "mcp-metricool": {
+      "command": "uvx",
+      "args": ["mcp-metricool"],
       "env": {
         "METRICOOL_USER_TOKEN": "tu_user_token",
-        "METRICOOL_USER_ID": "tu_user_id",
-        "METRICOOL_BLOG_ID": ""
+        "METRICOOL_USER_ID": "tu_user_id"
       }
     }
   }
 }
 ```
 
-> Si usas el intérprete del entorno virtual, apunta `command` a
-> `/ruta/.venv/bin/python` (macOS/Linux) o `\.venv\Scripts\python.exe` (Windows).
+> Usa la ruta absoluta a `uvx` si tu cliente no encuentra el binario en el PATH
+> (`which uvx` en macOS/Linux, `where uvx` en Windows).
 
 ### Claude Code (CLI)
 
 ```bash
-claude mcp add metricool \
+claude mcp add mcp-metricool \
   -e METRICOOL_USER_TOKEN=tu_user_token \
   -e METRICOOL_USER_ID=tu_user_id \
-  -- python /ruta/absoluta/a/connectors/metricool-mcp/src/server.py
+  -- uvx mcp-metricool
 ```
 
 Reinicia el cliente para que cargue el servidor.
 
 ---
 
-## 4. Herramientas disponibles
+## 3. Alternativa: instalación con pip
 
-| Herramienta | Descripción |
-|---|---|
-| `metricool_get_brands` | Lista tus marcas y sus `blogId`. **Empieza por aquí.** |
-| `metricool_get_analytics` | Analíticas de un endpoint (Instagram, Facebook, X, LinkedIn, TikTok, YouTube…) entre dos fechas. |
-| `metricool_get_competitors` | Analíticas de competidores por red. |
-| `metricool_get_scheduled_posts` | Lista las publicaciones programadas en un rango. |
-| `metricool_schedule_post` | Programa (o guarda como borrador) una publicación en una o varias redes. |
-| `metricool_request` | *Escape hatch*: llama a cualquier endpoint de la API de Metricool. |
+Si prefieres no usar `uvx`:
 
-`userId` y la cabecera `X-Mc-Auth` se añaden automáticamente. En las
-herramientas de analítica/scheduling puedes omitir `blog_id` si defines
-`METRICOOL_BLOG_ID`.
+```bash
+cd connectors/metricool-mcp
+python3 -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt  # instala mcp-metricool
+cp .env.example .env             # rellena tus credenciales
+mcp-metricool                    # arranca el servidor (stdio)
+```
 
-### Ejemplos de uso (en lenguaje natural)
+Y en el cliente apunta `command` al binario `mcp-metricool` del entorno
+virtual (o a `python -m mcp_metricool`), en lugar de a `uvx`.
 
-- *"Lista mis marcas en Metricool."*
-- *"Dame las publicaciones programadas entre el 1 y el 15 de julio."*
-- *"Programa un post en Instagram y Facebook para el 10 de julio a las 18:30 con este texto…"*
+---
+
+## 4. Herramientas (proporcionadas por el paquete oficial)
+
+El servidor oficial expone ~28 herramientas, entre ellas:
+
+- Marcas: `get_brands`
+- Contenido por red: `get_instagram_reels`, `get_instagram_posts`,
+  `get_tiktok_videos`, `get_facebook_posts`, `get_x_posts`,
+  `get_linkedin_posts`, `get_youtube_videos`, `get_pinterest_boards`
+- Ads: `get_facebookads_campaigns`, `get_googleads_campaigns`,
+  `get_tiktokads_campaigns`
+- Competidores: `get_network_competitors`, `get_network_competitors_posts`
+- Programación: `post_schedule_post`, `get_scheduled_posts`,
+  `update_schedule_post`
+- Analítica: `get_analytics`, `get_metrics`, `get_best_time_to_post`
+
+La lista completa y actualizada está en el repositorio oficial:
+<https://github.com/metricool/mcp-metricool>
 
 ---
 
 ## 5. Notas
 
-- Los endpoints de analítica de Metricool evolucionan; por eso
-  `metricool_get_analytics` recibe el `endpoint` como parámetro y
-  `metricool_request` permite llamar a cualquier ruta de la documentación.
-- El esquema del cuerpo de `metricool_schedule_post` sigue el *scheduler v2*
-  (`/v2/scheduler/posts`). Usa el parámetro `extra` para campos adicionales.
-- Este conector no almacena tus credenciales: se leen del entorno / `.env`
-  (que está en `.gitignore`).
+- El acceso a la API de Metricool requiere plan **Advanced** o **Custom**.
+- Este conector no almacena tus credenciales: se pasan por variables de entorno
+  desde la configuración del cliente MCP (o `.env` para pruebas locales, que
+  está en `.gitignore`).
+- Los otros conectores de este repositorio (Meta y LinkedIn) sí son propios,
+  porque esas plataformas **no** publican un MCP oficial.
