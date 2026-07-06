@@ -12,6 +12,7 @@ es autocontenido: código + dependencias + instrucciones.
 |---|---|---|
 | **Meta** | Facebook / Instagram vía Graph API: leer y publicar en Páginas, cuenta de Instagram Business, insights. | [`connectors/meta-mcp`](connectors/meta-mcp) |
 | **Metricool** | Analíticas de redes sociales, competidores y programación de publicaciones vía API de Metricool. | [`connectors/metricool-mcp`](connectors/metricool-mcp) |
+| **LinkedIn** | Perfil, Páginas de empresa administradas y publicación en el feed (como persona o empresa) vía API de LinkedIn. | [`connectors/linkedin-mcp`](connectors/linkedin-mcp) |
 
 ### Puesta en marcha rápida
 
