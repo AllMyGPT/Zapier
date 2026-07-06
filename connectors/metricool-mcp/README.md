@@ -15,17 +15,25 @@ Apache-2.0).
 
 ## 1. Requisitos
 
-- Una cuenta de Metricool con **acceso a la API** (planes *Advanced* o *Custom*).
-- Tus credenciales de API: **User token** y **User id**.
+- Una cuenta de Metricool. **Funciona con cualquier plan, incluido el
+  gratuito** — solo aplican los límites de tu plan (p. ej., en el plan Free no
+  puedes ver datos de más de 30 días ni programar más de 20 publicaciones).
+- Tus credenciales: **User token** y **User id**.
 - Para el método recomendado: [`uv`](https://docs.astral.sh/uv/) instalado
   (trae `uvx`). Alternativamente, Python 3.12+ y `pip`.
+
+> ⚠️ **MCP ≠ API access.** El *MCP oficial* funciona en **cualquier plan**. Lo
+> que exige plan *Advanced/Custom* es la **API access** directa (peticiones
+> HTTP con token de API), que es un mecanismo distinto. Este conector usa el
+> MCP, así que **te vale con el plan básico/gratuito**.
+> Ver: <https://help.metricool.com/mcp-vs-api-access-what-is-the-difference-5y3ib>
 
 ### Cómo obtener las credenciales
 
 1. Entra en Metricool → **Ajustes / Settings**.
-2. Abre la pestaña **API**.
-3. Copia el **User token** (`METRICOOL_USER_TOKEN`) y el **User id**
-   (`METRICOOL_USER_ID`).
+2. Copia el **User token** (`METRICOOL_USER_TOKEN`) y el **User id**
+   (`METRICOOL_USER_ID`). Están en la configuración de tu cuenta; el MCP
+   oficial también documenta cómo obtenerlos.
 
 ---
 
@@ -111,7 +119,8 @@ La lista completa y actualizada está en el repositorio oficial:
 
 ## 5. Notas
 
-- El acceso a la API de Metricool requiere plan **Advanced** o **Custom**.
+- El MCP oficial funciona con **cualquier plan de Metricool, incluido el
+  gratuito** (con los límites propios de tu plan). No necesitas plan de pago.
 - Este conector no almacena tus credenciales: se pasan por variables de entorno
   desde la configuración del cliente MCP (o `.env` para pruebas locales, que
   está en `.gitignore`).
