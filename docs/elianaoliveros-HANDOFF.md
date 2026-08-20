@@ -1,6 +1,6 @@
 # HANDOFF — elianaoliveros.com
 
-> **Para:** sesión local de Claude Code en la máquina deDamián (Chrome local, IP propia).
+> **Para:** sesión local de Claude Code en la máquina de Damián (Chrome local, IP propia).
 > **De:** sesión remota del 20/08/2026 (Claude Code on the web).
 > **PR con el diagnóstico completo:** AllMyGPT/Zapier#12 · rama `claude/elianaoliveros-website-repair-g5nb0c`
 > **Lee primero:** `docs/elianaoliveros-diagnostico.md` (informe con evidencias).

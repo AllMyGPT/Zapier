@@ -15,7 +15,7 @@ y responde a dos causas independientes que se suman:
 | # | Causa | Severidad | Efecto |
 |---|-------|-----------|--------|
 | **A** | **Elementor Pro 3.19.0 sobre Elementor core 4.2.2** (desfase de una versión mayor) | Crítica | El editor de Elementor falla / no carga / pierde widgets |
-| **B** | **~10 % de las peticiones al servidor se cortan** (reset a los ~11 s) | Alta | Los guardados del editor fallan de forma aleatoria |
+| **B** | **~20 % de las peticiones al servidor se cortan** (timeout fijo a los ~11,3 s) — **en aumento** | Crítica | Los guardados del editor fallan de forma aleatoria |
 | C | Dos maquetadores activos a la vez (Elementor Pro + Thrive Suite) | Media | Conflictos JS, sobrecarga, comportamiento errático |
 | D | Firewall de Raiola bloquea `wp-login.php` (regla 201) | Media | Bloqueo de acceso al panel según la IP de conexión |
 
@@ -76,20 +76,33 @@ actualizándose y Pro se quedó congelado en 3.19.0. **Es lo primero que hay que
 
 ### B. Inestabilidad del servidor  ← agrava mucho la edición
 
-Test de 20 peticiones consecutivas a la home:
+Tres mediciones a lo largo del 20/08:
+
+| Hora UTC | Muestra | Fallos |
+|---|---|---|
+| ~10:25 | 20 peticiones | 2 (10 %) |
+| ~12:05 | 15 peticiones | 4 (27 %) |
+| ~12:08 | 30 peticiones | 6 (20 %) |
+
+**En unas 2 h la tasa de fallo se dobló.** La degradación es real y progresiva, no una
+lectura puntual.
+
+El corte es un **timeout determinista**, no pérdida aleatoria de red. Tiempos hasta el
+corte en las 6 muestras de la medición amplia:
 
 ```
-OK: 18/20    FALLOS: 2/20  (10 %)
-Fallos: code=000 (conexión cortada) tras ~11,1 s y ~11,3 s
-Tiempos OK: min 1,42 s | mediana 1,67 s | max 2,54 s
+11.08 s · 11.19 s · 11.34 s · 11.37 s · 11.45 s · 11.50 s
 ```
 
-El patrón es claro: o responde en ~1,7 s, o **muere a los ~11 s**. No es lentitud
-progresiva, es un corte por límite (workers PHP agotados o timeout de recurso del
-plan de hosting). Se reprodujo también en `/sobre-mi/` y en `/wp-json/`.
+Las peticiones que sí responden lo hacen en ~1,7 s de mediana (min 1,42 · max 2,63).
+O va rápido, o muere a los ~11,3 s: no hay término medio ni lentitud progresiva.
+
+Esa firma tan estrecha apunta a un **timeout fijo delante de PHP-FPM** (proxy o
+balanceador) mientras los workers PHP están saturados, o a un tope de recursos del plan
+de hosting. Se reprodujo también en `/sobre-mi/` y en `/wp-json/`.
 
 Esto es especialmente dañino al editar: el editor de Elementor guarda por AJAX, y
-un 10 % de peticiones perdidas se traduce en guardados fallidos aparentemente
+un ~20 % de peticiones perdidas se traduce en guardados fallidos aparentemente
 aleatorios — exactamente "me da problemas al editarla".
 
 ### C. Dos maquetadores activos simultáneamente
@@ -157,8 +170,9 @@ Elementor quede perfecto.
    (workers PHP / procesos concurrentes / límite de memoria).
 2. El corte constante a ~11 s apunta a agotamiento de workers PHP o a un límite del
    plan. Abrir **ticket a soporte de Raiola** aportando este dato concreto:
-   *"~10 % de las peticiones se cierran con connection reset a los ~11 s; el resto
-   responde en 1,7 s"*. Es un dato accionable para ellos.
+   *"~20 % de las peticiones se cierran con connection reset a los ~11,3 s de forma muy
+   consistente (11.08–11.50 s en 6 muestras); el resto responde en ~1,7 s. La tasa se
+   dobló entre las 10:25 y las 12:05 UTC del 20/08"*. Es un dato accionable para ellos.
 3. Instalar una **caché de páginas** (WP Rocket, LiteSpeed Cache o similar según
    soporte del servidor). Reduce peticiones a PHP y descarga el servidor.
 
@@ -194,6 +208,6 @@ Backup completo
                        └─> Paso 4 (accesos y limpieza)
 ```
 
-El **paso 2 va primero**: con un 10 % de peticiones cayéndose, cualquier
+El **paso 2 va primero**: con un ~20 % de peticiones cayéndose, cualquier
 actualización de plugins puede interrumpirse a mitad y dejar la instalación en un
 estado inconsistente.
