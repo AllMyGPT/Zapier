@@ -1,0 +1,4 @@
+# Official Metricool MCP server (maintained by Metricool).
+# Recommended: run with uvx (no install needed): `uvx mcp-metricool`
+# Or install it into a venv with pip using this file.
+mcp-metricool>=1.1.0
