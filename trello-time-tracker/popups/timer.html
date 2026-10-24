@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Timer</title>
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 16px;
+      background: #fff;
+      color: #172b4d;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 24px;
+      color: #5e6c84;
+      font-size: 14px;
+    }
+
+    .section {
+      margin-bottom: 16px;
+    }
+
+    /* Active timer panel */
+    .timer-panel {
+      background: #fff0f0;
+      border: 2px solid #ff5630;
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+
+    .timer-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #bf2600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    .timer-elapsed {
+      font-size: 28px;
+      font-weight: 700;
+      color: #bf2600;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+    }
+
+    .timer-desc {
+      font-size: 12px;
+      color: #5e6c84;
+      margin-top: 4px;
+    }
+
+    /* Divider */
+    .divider {
+      border: none;
+      border-top: 1px solid #dfe1e6;
+      margin: 14px 0;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 14px;
+      border-bottom: 2px solid #dfe1e6;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 8px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #5e6c84;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      transition: color 0.1s;
+    }
+
+    .tab.active {
+      color: #0052cc;
+      border-bottom-color: #0052cc;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #5e6c84;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 2px solid #dfe1e6;
+      border-radius: 3px;
+      font-size: 14px;
+      color: #172b4d;
+      outline: none;
+      transition: border-color 0.15s;
+      font-family: inherit;
+    }
+
+    input:focus, textarea:focus {
+      border-color: #0052cc;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 56px;
+    }
+
+    .field {
+      margin-bottom: 10px;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .row .field {
+      flex: 1;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: #97a0af;
+      margin-top: 3px;
+    }
+
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 3px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: #0052cc;
+      color: #fff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #0065ff;
+    }
+
+    .btn-danger {
+      background: #ff5630;
+      color: #fff;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: #ff7452;
+    }
+
+    .btn-success {
+      background: #00875a;
+      color: #fff;
+    }
+
+    .btn-success:hover:not(:disabled) {
+      background: #00a06a;
+    }
+
+    .error {
+      background: #ffebe6;
+      color: #bf2600;
+      border: 1px solid #ff8f73;
+      border-radius: 3px;
+      padding: 8px 10px;
+      font-size: 13px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .error.visible {
+      display: block;
+    }
+
+    .success {
+      background: #e3fcef;
+      color: #006644;
+      border: 1px solid #57d9a3;
+      border-radius: 3px;
+      padding: 8px 10px;
+      font-size: 13px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .success.visible {
+      display: block;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .checkbox-row label {
+      text-transform: none;
+      letter-spacing: 0;
+      font-size: 14px;
+      cursor: pointer;
+      margin-bottom: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading-state">Cargando...</div>
+  <div id="main-content" style="display:none">
+    <!-- Active timer panel (shown only when timer is running on this card) -->
+    <div class="timer-panel" id="active-timer-panel" style="display:none">
+      <div class="timer-label">⏱ Timer en curso</div>
+      <div class="timer-elapsed" id="timer-elapsed">0m</div>
+      <div class="timer-desc" id="timer-description"></div>
+    </div>
+
+    <!-- Tabs: Timer / Manual -->
+    <div class="tabs" id="tabs-container">
+      <button class="tab active" id="tab-timer" data-tab="timer-content">Timer</button>
+      <button class="tab" id="tab-manual" data-tab="manual-content">Manual</button>
+    </div>
+
+    <!-- Timer tab -->
+    <div class="tab-content active" id="timer-content">
+      <div class="field">
+        <label for="timer-description-input">Descripción (opcional)</label>
+        <textarea id="timer-description-input" rows="2" placeholder="¿En qué estás trabajando?"></textarea>
+      </div>
+
+      <button class="btn btn-primary" id="btn-start-timer">▶ Iniciar timer</button>
+      <button class="btn btn-danger" id="btn-stop-timer" style="display:none">⏹ Detener timer</button>
+    </div>
+
+    <!-- Manual tab -->
+    <div class="tab-content" id="manual-content">
+      <div class="row">
+        <div class="field">
+          <label for="manual-hours">Tiempo</label>
+          <input type="text" id="manual-hours" placeholder="1:30 ó 1.5 ó 90m" />
+          <div class="hint">Formato: 1:30, 1.5, 90m, 2h</div>
+        </div>
+        <div class="field">
+          <label for="manual-date">Fecha</label>
+          <input type="date" id="manual-date" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="manual-description">Descripción (opcional)</label>
+        <textarea id="manual-description" rows="2" placeholder="¿Qué hiciste?"></textarea>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="manual-billable" />
+        <label for="manual-billable">Facturable</label>
+      </div>
+
+      <button class="btn btn-success" id="btn-save-manual">💾 Guardar entrada</button>
+    </div>
+
+    <div class="error" id="error-msg"></div>
+    <div class="success" id="success-msg"></div>
+  </div>
+
+  <script type="module" src="/popups/timer.ts"></script>
+</body>
+</html>

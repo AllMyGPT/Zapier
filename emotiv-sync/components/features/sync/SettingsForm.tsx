@@ -1,0 +1,168 @@
+'use client'
+
+import { useState } from 'react'
+import { Eye, EyeOff, Save, Wifi } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+
+type VerifyStatus = { ok: boolean; error?: string } | null
+
+export default function SettingsForm({
+  zohoToken,
+  zohoOrgId,
+  zohoDefaultCustomerId,
+}: {
+  zohoToken: string
+  zohoOrgId: string
+  zohoDefaultCustomerId: string
+}) {
+  const [showZoho, setShowZoho] = useState(false)
+  const [form, setForm] = useState({ zohoToken, zohoOrgId, zohoDefaultCustomerId })
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<string | null>(null)
+  const [verifying, setVerifying] = useState(false)
+  const [verifyResult, setVerifyResult] = useState<{ zoho: VerifyStatus } | null>(null)
+  const router = useRouter()
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setResult(null)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (!res.ok) {
+        const d = await res.json()
+        throw new Error(d.error ?? 'Error')
+      }
+      setResult('✓ Configuración guardada')
+      router.refresh()
+    } catch (e: unknown) {
+      setResult(`✗ ${e instanceof Error ? e.message : 'Error'}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function verifyConnection() {
+    setVerifying(true)
+    setVerifyResult(null)
+    try {
+      const res = await fetch('/api/settings/verify', { method: 'POST' })
+      const data = await res.json()
+      setVerifyResult({ zoho: data.zoho ?? null })
+    } catch {
+      setVerifyResult({ zoho: { ok: false, error: 'No se pudo conectar' } })
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSave} className="space-y-4">
+      {/* Zoho Books */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-orange-50 rounded-xl flex items-center justify-center">
+              <span className="text-orange-600 font-bold text-xs">ZB</span>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Zoho Books</p>
+              <p className="text-xs text-slate-400">Access Token, Organization ID y cliente por defecto</p>
+            </div>
+          </div>
+          {verifyResult?.zoho && (
+            <span className={`text-xs font-medium px-2 py-1 rounded-full flex-shrink-0 ${
+              verifyResult.zoho.ok
+                ? 'bg-green-50 text-green-700'
+                : 'bg-red-50 text-red-700'
+            }`}>
+              {verifyResult.zoho.ok ? '✓ Conectado' : `✗ Error: ${verifyResult.zoho.error}`}
+            </span>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1.5">Access Token</label>
+            <div className="relative">
+              <input
+                type={showZoho ? 'text' : 'password'}
+                value={form.zohoToken}
+                onChange={e => setForm(f => ({ ...f, zohoToken: e.target.value }))}
+                placeholder="1000.xxx..."
+                className="w-full px-4 py-3 pr-10 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              />
+              <button
+                type="button"
+                onClick={() => setShowZoho(s => !s)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+              >
+                {showZoho ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1.5">Organization ID</label>
+            <input
+              type="text"
+              value={form.zohoOrgId}
+              onChange={e => setForm(f => ({ ...f, zohoOrgId: e.target.value }))}
+              placeholder="123456789"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1.5">
+              Customer ID por defecto
+              <span className="text-slate-400 font-normal ml-1">(para proyectos sin cliente)</span>
+            </label>
+            <input
+              type="text"
+              value={form.zohoDefaultCustomerId}
+              onChange={e => setForm(f => ({ ...f, zohoDefaultCustomerId: e.target.value }))}
+              placeholder="ID del contacto en Zoho Books"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+            />
+          </div>
+          <p className="text-xs text-slate-400">
+            El token se obtiene en Zoho API Console. El Organization ID está en Zoho Books → Configuración.
+            El Customer ID es obligatorio para sincronizar proyectos — búscalo en Contactos de Zoho Books.
+          </p>
+        </div>
+      </div>
+
+      {result && (
+        <div className={`text-sm p-3 rounded-xl text-center ${
+          result.startsWith('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+        }`}>
+          {result}
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3">
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white font-semibold rounded-xl transition-colors"
+        >
+          <Save className="w-4 h-4" />
+          {loading ? 'Guardando...' : 'Guardar configuración'}
+        </button>
+
+        <button
+          type="button"
+          onClick={verifyConnection}
+          disabled={verifying}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-semibold rounded-xl transition-colors"
+        >
+          <Wifi className={`w-4 h-4 ${verifying ? 'animate-pulse' : ''}`} />
+          {verifying ? 'Verificando...' : 'Verificar conexión Zoho'}
+        </button>
+      </div>
+    </form>
+  )
+}

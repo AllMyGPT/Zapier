@@ -1,0 +1,11 @@
+{
+  "name": "Emotiv Sync",
+  "short_name": "EmotivSync",
+  "description": "Sincronización Everhour - Zoho Books para Emotiv",
+  "start_url": "/team/dashboard",
+  "scope": "/team",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#7c3aed",
+  "orientation": "portrait"
+}
