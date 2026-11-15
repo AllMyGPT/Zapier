@@ -284,6 +284,12 @@ function training(gs: GameState, c: Club, ps: Player[], rng: Rng) {
       if (o2 > 70 && p.stats.apps < Math.floor(gs.day / 21) - 2) p.morale = clamp(p.morale - 1.5, 5, 100);
       if (t.focus === 'descanso') p.morale = clamp(p.morale + 1, 5, 100);
       p.morale = clamp(p.morale + (65 - p.morale) * 0.03, 5, 100);
+      // promised playing time: at least two matches before the deadline
+      if (p.promise && gs.day >= p.promise.until) {
+        if (p.stats.apps - p.promise.apps >= 2) { p.morale = clamp(p.morale + 4, 5, 100); news(gs, 'club', `${p.name} valora que cumplieras tu palabra`, 'Le prometiste minutos y los ha tenido. Su confianza en ti ha crecido.'); }
+        else { p.morale = clamp(p.morale - 14, 5, 100); news(gs, 'club', `${p.name} se siente engañado`, 'Le prometiste minutos y apenas ha jugado. Su moral se ha hundido y podría pedir salir.'); if (p.morale < 30) p.listed = true; }
+        p.promise = undefined;
+      }
     }
   }
 }

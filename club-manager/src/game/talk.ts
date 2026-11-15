@@ -64,3 +64,28 @@ export function halfTimeTalk(m: Match, si: 0 | 1, kind: TalkKind): TalkResult {
   m.sides[0].cache = undefined; m.sides[1].cache = undefined;
   return { ...r, msg: verdict(r) };
 }
+
+export type ChatKind = 'elogiar' | 'exigir' | 'minutos';
+export const CHAT_COOLDOWN = 10;
+/** One-to-one chat with a player: works or backfires depending on his form and mood. */
+export function playerChat(gs: GameState, id: number, kind: ChatKind): string {
+  const p = gs.players[id];
+  if (p.lastTalk != null && gs.day - p.lastTalk < CHAT_COOLDOWN) return 'Ya hablaste con él hace poco; dale unos días.';
+  p.lastTalk = gs.day;
+  const form = p.stats.apps ? p.stats.ratingSum / p.stats.apps : 6.5;
+  let d = 0, msg = '';
+  if (kind === 'elogiar') {
+    d = form >= 6.8 ? 6 : form >= 6.2 ? 3 : -1;
+    msg = d > 2 ? 'Agradece el reconocimiento y sale muy motivado.' : d > 0 ? 'Lo agradece, sin más.' : 'Sabe que no está jugando bien y el elogio le suena vacío.';
+  } else if (kind === 'exigir') {
+    d = p.morale >= 70 ? 4 : p.morale >= 45 ? 1 : -6;
+    msg = d > 2 ? 'Recoge el guante: quiere demostrarte que puede dar más.' : d > 0 ? 'Asiente, aunque no parece convencido.' : 'Se lo toma fatal: siente que le das la espalda.';
+  } else {
+    const inXI = gs.clubs[p.clubId ?? '']?.lineup.includes(id);
+    d = inXI ? 1 : 7;
+    msg = inXI ? 'Ya es titular, así que la promesa apenas le cambia nada.' : 'Se ilusiona con la promesa de minutos: espera jugar al menos dos partidos en 30 días.';
+    if (!inXI) p.promise = { until: gs.day + 30, apps: p.stats.apps };
+  }
+  p.morale = clamp(p.morale + d, 5, 100);
+  return `${msg} (moral ${d >= 0 ? '+' : ''}${d})`;
+}

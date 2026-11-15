@@ -42,6 +42,8 @@ export interface Player {
   history: { season: number; club: string; apps: number; goals: number; rating: number }[];
   num: number;       // shirt number
   loanFrom?: string;
+  lastTalk?: number; // game day of the last one-to-one chat with the manager
+  promise?: { until: number; apps: number }; // promised playing time: deadline day and apps at promise time
 }
 
 export type Mentality = -2 | -1 | 0 | 1 | 2;

@@ -8,6 +8,7 @@ import { fmtMoney } from '@/game/season';
 import { askingPrice, makeBid, offerContract, releasePlayer, wageDemand } from '@/game/market';
 import { inWindow } from '@/game/calendar';
 import { potStars } from './screens/Squad';
+import { playerChat, CHAT_COOLDOWN, type ChatKind } from '@/game/talk';
 
 const attrColor = (v: number) => (v >= 85 ? '#46d2ff' : v >= 75 ? '#3ddc84' : v >= 65 ? '#c6f432' : v >= 55 ? '#ffb020' : '#ff5468');
 
@@ -83,6 +84,13 @@ export default function PlayerModal({ id, onClose }: { id: number; onClose: () =
                 <button className="btn sm primary" onClick={() => act(offerContract(gs, id, wage * 1000, years).msg)}>Ofrecer</button>
               </div>
               <div className="small muted">Pide aprox. {fmtMoney(wageDemand(gs, p) * 0.95)}/sem.</div>
+              <div className="chat">
+                <span className="small muted">Hablar con él:</span>
+                {([['elogiar', 'Elogiar'], ['exigir', 'Exigir más'], ['minutos', 'Prometer minutos']] as [ChatKind, string][]).map(([k, l]) => (
+                  <button key={k} className="btn sm" disabled={p.lastTalk != null && gs.day - p.lastTalk < CHAT_COOLDOWN} onClick={() => act(playerChat(gs, id, k))}>{l}</button>
+                ))}
+                {p.promise && <span className="pill warn">Promesa de minutos: {Math.max(0, p.promise.until - gs.day)} días</span>}
+              </div>
               <div><button className="btn sm danger" onClick={() => { if (confirm(`¿Rescindir el contrato de ${p.name}?`)) { act(releasePlayer(gs, id)); } }}>Rescindir contrato</button></div>
             </div>
           ) : (

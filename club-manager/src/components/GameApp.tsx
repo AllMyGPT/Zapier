@@ -5,6 +5,10 @@ import { advance, endSeason, fmtMoney, simFixture, buildMatch, applyResult } fro
 import { compName, dateLabel, seasonLabel, table, inWindow } from '@/game/calendar';
 import { Crest, Modal, SceneHero, TalkBar } from './ui';
 import { PRE_TALKS, preMatchTalk, type TalkKind, type TalkResult } from '@/game/talk';
+import { pressQuestion, answerPress, type PressQuestion } from '@/game/press';
+import { PlayerCard } from './ui';
+import { avgRating, ovr } from '@/game/player';
+import type { Player } from '@/game/types';
 import { Icon } from './Icons';
 import TitleScreen from './TitleScreen';
 import Office from './screens/Office';
@@ -57,6 +61,8 @@ export default function GameApp() {
   const [match, setMatch] = useState<{ m: Match; f: Fixture } | null>(null);
   const [summary, setSummary] = useState<{ f: Fixture; m: Match } | null>(null);
   const [seasonEnd, setSeasonEnd] = useState<string[] | null>(null);
+  const [press, setPress] = useState<{ q: PressQuestion; done?: string } | null>(null);
+  const [awards, setAwards] = useState<{ label: string; p: Player; stat: string }[]>([]);
   const toastT = useRef<ReturnType<typeof setTimeout>>();
 
   const refresh = useCallback(() => setV(x => x + 1), []);
@@ -77,7 +83,7 @@ export default function GameApp() {
       const r = advance(gs);
       setBusy(false);
       if (r.type === 'match') { setTalk(null); setPre(r.fixture); }
-      else if (r.type === 'seasonEnd') { const s = endSeason(gs); setSeasonEnd(s); }
+      else if (r.type === 'seasonEnd') { setAwards(seasonAwards(gs)); const s = endSeason(gs); setSeasonEnd(s); }
       else if (r.type === 'sacked') { /* handled by office banner */ setTab('office'); }
       else toast(r.reason);
       refresh();
@@ -176,13 +182,32 @@ export default function GameApp() {
 
       {match && <MatchView m={match.m} f={match.f} onFinish={finishMatch} />}
 
-      {summary && <MatchSummary f={summary.f} m={summary.m} onClose={() => setSummary(null)} />}
+      {summary && <MatchSummary f={summary.f} m={summary.m} onClose={() => { if (gs.leagues[summary.f.comp] || gs.cups[summary.f.comp]) setPress({ q: pressQuestion(gs, summary.f) }); setSummary(null); }} />}
+
+      {press && (
+        <Modal onClose={() => setPress(null)}>
+          <span className="matchday-kicker">Rueda de prensa</span>
+          <div className="press-q"><span className="press-mic">🎙️</span><div><div className="small muted">{press.q.journalist}</div><b>{press.q.q}</b></div></div>
+          {!press.done ? (
+            <div className="col" style={{ gap: 8 }}>{press.q.answers.map((a, i) => (
+              <button key={i} className="press-a" onClick={() => { answerPress(gs, press.q, a); setPress({ ...press, done: a.headline }); refresh(); }}>«{a.text}»</button>
+            ))}<button className="btn ghost sm" style={{ alignSelf: 'flex-end' }} onClick={() => setPress(null)}>No comparecer</button></div>
+          ) : (
+            <div className="col"><div className="press-head">{press.done}</div><div className="row"><button className="btn primary right" onClick={() => setPress(null)}>Salir de la sala</button></div></div>
+          )}
+        </Modal>
+      )}
 
       {seasonEnd && (
         <Modal onClose={() => setSeasonEnd(null)} scene="trophies">
           <span className="matchday-kicker">Balance</span>
           <h1 style={{ marginTop: 10 }}>Fin de temporada</h1>
           <p className="muted">Comienza la temporada {seasonLabel(gs.season)}. Se ha abierto el mercado de verano y ha llegado una nueva hornada de juveniles.</p>
+          {awards.length > 0 && (
+            <div className="awards">{awards.map(a => (
+              <div key={a.label} className="award" onClick={() => setPlayer(a.p.id)}><div className="award-l">{a.label}</div><PlayerCard p={a.p} club={a.p.clubId ? gs.clubs[a.p.clubId] : null} rating={ovr(a.p)} /><div className="award-s">{a.p.name} · {a.stat}</div></div>
+            ))}</div>
+          )}
           <div className="col" style={{ gap: 6 }}>{seasonEnd.map((s, i) => <div key={i} className="news-item" style={{ cursor: 'default' }}>{s}</div>)}</div>
           <div className="row" style={{ marginTop: 16 }}><button className="btn primary right" onClick={() => setSeasonEnd(null)}>Empezar nueva temporada</button></div>
         </Modal>
@@ -205,6 +230,12 @@ function MatchSummary({ f, m, onClose }: { f: Fixture; m: Match; onClose: () => 
         <div className="team away"><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</span><Crest club={a} size={46} /></div>
       </div>
       {f.pens && <p style={{ textAlign: 'center' }} className="muted">Penaltis: {f.pens[0]} - {f.pens[1]}</p>}
+      {(() => {
+        const all = [0, 1].flatMap(si => [...m.sides[si].played].map(id => ({ id, r: m.sides[si].rating[id] ?? 6 })));
+        const best = all.sort((a, b) => b.r - a.r)[0]; const p = best && gs.players[best.id];
+        if (!p) return null;
+        return <div className="motm"><PlayerCard p={p} club={p.clubId ? gs.clubs[p.clubId] : null} rating={ovr(p)} /><div><div className="kicker-sm">Jugador del partido</div><h2 style={{ margin: '4px 0' }}>{p.name}</h2><div className="kpi" style={{ color: 'var(--accent)' }}>{best.r.toFixed(1)}</div><div className="small muted">{m.events.filter(e => e.pid === p.id && e.kind === 'goal').length} goles · {m.events.filter(e => e.pid2 === p.id && e.kind === 'goal').length} asistencias</div></div></div>;
+      })()}
       <div className="grid g2">
         {[0, 1].map(si => {
           const s = m.sides[si];
@@ -232,3 +263,18 @@ function MatchSummary({ f, m, onClose }: { f: Fixture; m: Match; onClose: () => 
 }
 
 export { simFixture };
+
+/** Season awards for the user's league, computed before stats are reset. */
+function seasonAwards(gs: import('@/game/types').GameState) {
+  const L = gs.leagues[gs.clubs[gs.manager.clubId].leagueId];
+  const ps = Object.values(gs.players).filter(p => p.clubId && L.clubIds.includes(p.clubId));
+  const out: { label: string; p: Player; stat: string }[] = [];
+  const minApps = Math.max(5, Math.round(Math.max(...ps.map(p => p.stats.apps)) * 0.5));
+  const best = ps.filter(p => p.stats.apps >= minApps).sort((a, b) => avgRating(b) - avgRating(a))[0];
+  if (best) out.push({ label: 'Mejor jugador', p: best, stat: `nota ${avgRating(best).toFixed(2)}` });
+  const top = ps.slice().sort((a, b) => b.stats.goals - a.stats.goals)[0];
+  if (top?.stats.goals) out.push({ label: 'Pichichi', p: top, stat: `${top.stats.goals} goles` });
+  const young = ps.filter(p => gs.season - p.born <= 21 && p.stats.apps >= minApps / 2).sort((a, b) => avgRating(b) - avgRating(a))[0];
+  if (young) out.push({ label: 'Mejor joven', p: young, stat: `${gs.season - young.born} años · nota ${avgRating(young).toFixed(2)}` });
+  return out;
+}

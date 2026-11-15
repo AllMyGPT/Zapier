@@ -437,3 +437,23 @@ table.t td.r, table.t th.r { text-align: right; }
 .tslot .shirt.photo { position: relative; width: 46px; height: 46px; padding: 0; overflow: visible; }
 .tslot .shirt.photo img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; object-position: 50% 18%; background: #0b1a3a; }
 .tslot .shirt.photo .sn { position: absolute; right: -6px; bottom: -4px; min-width: 19px; height: 19px; border-radius: 50%; border: 2px solid; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+
+/* ---------- press conference ---------- */
+.press-q { display: flex; gap: 14px; align-items: flex-start; margin: 16px 0; padding: 14px; border-radius: 10px; background: rgba(0, 0, 0, .3); border: 1px solid var(--line2); font-size: 16px; }
+.press-mic { font-size: 30px; filter: drop-shadow(0 0 10px rgba(70, 210, 255, .5)); }
+.press-a { cursor: pointer; text-align: left; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(0, 0, 0, .55); color: var(--text); font-size: 14px; font-style: italic;
+  background: var(--gloss), linear-gradient(90deg, #1f3f7a, #13285a); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .15); transition: transform .12s, filter .12s; border-left: 4px solid var(--electric); }
+.press-a:hover { transform: translateX(6px); filter: brightness(1.2); border-left-color: var(--accent); }
+.press-head { font-family: var(--font-head); font-size: 26px; font-weight: 800; font-style: italic; text-transform: uppercase; line-height: 1.05; padding: 14px; border-radius: 8px;
+  background: linear-gradient(90deg, rgba(198, 244, 50, .18), transparent); border-left: 5px solid var(--accent); animation: rise .3s ease; }
+.chat { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.motm { display: flex; gap: 18px; align-items: center; justify-content: center; margin: 8px 0 16px; }
+.motm .pcard { width: 130px; height: 182px; }
+.motm .pcard-photo { width: 92px; height: 118px; bottom: 40px; }
+.motm .pcard-sil { width: 90px; height: 90px; bottom: 44px; }
+.motm .pcard-ovr { font-size: 34px; } .motm .pcard-name { font-size: 16px; }
+.awards { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin: 14px 0 18px; }
+.award { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; animation: rise .4s ease both; }
+.award:nth-child(2) { animation-delay: .12s; } .award:nth-child(3) { animation-delay: .24s; }
+.award-l { font-family: var(--font-head); font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); text-shadow: 0 0 12px rgba(255, 207, 74, .5); }
+.award-s { font-size: 12px; color: #cfe0ff; text-align: center; max-width: 170px; }
