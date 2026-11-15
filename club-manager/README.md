@@ -29,16 +29,19 @@ npm run sim -- rma 2         # simula 2 temporadas en consola (calibración del 
 
 Sin variables de Supabase el juego funciona entero y guarda solo en el navegador.
 
-## Supabase
+## Supabase (tenant aislado)
 
-1. Crea un proyecto en Supabase.
-2. Ejecuta `supabase/migrations/20261115000000_init.sql` (SQL Editor o `supabase db push`). Crea la tabla `saves` con RLS (cada usuario solo ve sus partidas) y una tabla opcional `hall_of_fame`.
-3. En Authentication activa Email. Copia `Project URL` y la clave `anon`/publishable.
+El juego no usa un proyecto propio: vive como **tenant independiente en el esquema `pizarra`** de la base EmotivOS ya contratada.
+
+- Migración: `supabase/migrations/20261115160000_pizarra_tenant_init.sql` (ya aplicada). Crea `pizarra.saves`, con RLS para que cada usuario solo vea sus partidas, y `pizarra.hall_of_fame`.
+- El esquema está añadido a los esquemas expuestos de la API, junto a `public`, `extensions`, `clara` y `contabilidad`. Si alguien edita "Exposed schemas" en el panel, hay que conservar `pizarra`.
+- El cliente usa `db.schema = 'pizarra'` (`NEXT_PUBLIC_SUPABASE_SCHEMA`).
+- Auth es la de EmotivOS: los jugadores que creen cuenta aparecerán en `auth.users` de ese proyecto.
 
 ## Despliegue en Vercel
 
 1. Importa el repositorio en Vercel y pon **Root Directory = `club-manager`** (framework: Next.js).
-2. Variables de entorno: `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+2. Variables de entorno: las tres de `.env.example` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_SCHEMA=pizarra`).
 3. Deploy. Toda la simulación corre en el navegador, así que no hay coste de servidor por partido.
 
 ## Estructura

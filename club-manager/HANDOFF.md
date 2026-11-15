@@ -27,26 +27,19 @@ npx tsc --noEmit && npx next build   # comprobaciones
 
 ## Qué falta (siguiente paso)
 
-### 1. Supabase: proyecto nuevo e independiente
-Crearlo desde MCP falló tres veces (la confirmación de coste nunca llegó a la app). No se creó nada.
-- Panel → organización **Emotiv** (`stctnnykbxyqyvahsajr`) → New project
-- Nombre `pizarra-club-manager`, región **eu-central-1 (Frankfurt)**
-- No tocar EmotivOS ni el resto de proyectos.
-
-### 2. Base de datos
-Aplicar `club-manager/supabase/migrations/20261115000000_init.sql`. Se puede pegar en el SQL Editor, usar `supabase db push` o `apply_migration` vía MCP. Crea:
-- `saves`, con RLS para que cada usuario solo vea sus partidas.
-- `hall_of_fame`, opcional.
-
-Después, revisar los avisos de seguridad (`get_advisors`) y activar Auth → Email.
+### 1-2. Supabase: HECHO
+- El usuario pidió no crear un proyecto nuevo. El juego es un **tenant aislado en el esquema `pizarra`** del proyecto EmotivOS (`fpjsbjybsnnyanxgygvn`, eu-central-1).
+- La migración `pizarra_tenant_init` está aplicada: `pizarra.saves` y `pizarra.hall_of_fame` con RLS, y el esquema expuesto en la API (`public, extensions, clara, contabilidad, pizarra`).
+- Verificado por REST: se puede leer `hall_of_fame` sin sesión y `saves` queda denegado sin login.
+- Los avisos de seguridad no señalan nada en `pizarra`; los avisos que hay son de esquemas anteriores.
+- URL y clave publishable en `.env.example` (son públicas por diseño).
+- Pendiente de decidir: la Auth es compartida con EmotivOS. Comprobar si el registro por email está habilitado, porque si no los jugadores no podrán crear cuenta. Revisar también la Site URL o las Redirect URLs para el dominio de Vercel.
 
 ### 3. Vercel
 - Importar `AllMyGPT/Zapier` con **Root Directory = `club-manager`** (framework Next.js).
-- Variables de entorno:
-  - `NEXT_PUBLIC_SUPABASE_URL` = Project URL
-  - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = la clave anon o publishable (pública, no la service_role)
+- Variables de entorno: las tres de `.env.example` (incluida `NEXT_PUBLIC_SUPABASE_SCHEMA=pizarra`)
 - Rama de producción: `main` cuando se fusione el PR #14, o desplegar antes una preview de la rama.
-- Después, en Supabase → Auth → URL Configuration, poner la URL de Vercel como Site URL.
+- Después, en Supabase → Auth → URL Configuration, AÑADIR la URL de Vercel a Redirect URLs (no cambiar la Site URL de EmotivOS).
 
 ## Ideas pendientes (opcionales)
 - Arte de portada o promo con Canva (el usuario lo ofreció; Gemini y Google Flow no estaban conectados en la sesión).
