@@ -27,10 +27,14 @@ cat <<GUIDE
   2. En la Switch: Jugar → pestaña "Amigos" → "Partidas LAN":
      aparecerá "Imperio Romano". Al entrar, acepta descargar los
      paquetes (texturepack-required=true lo fuerza).
-     IP de este Mac: ${IP:-<desconocida>}  ·  Puerto UDP 19132
-  3. Si NO aparece en "Partidas LAN" (Docker Desktop en Mac a veces no
-     reenvía los anuncios LAN):   make server-down && make server-up-bridge
-     (levanta el servidor en 19134 y un puente LAN nativo en 19132).
+     IP de este Mac: ${IP:-<desconocida>}  ·  TCP 19132 + UDP 19140-19147/7551
+  3. Si NO aparece en "Partidas LAN" (Docker Desktop en Mac corre en una
+     VM y puede no recibir los broadcasts de la Switch):
+       a) Docker Desktop → Settings → Resources → Network →
+          activa "Enable host networking" y reinicia Docker.
+       b) make server-down && make server-up-host
+     Comprueba también: Mac y Switch en la misma Wi-Fi (no la de
+     invitados) y el firewall del Mac permite conexiones a Docker.
   4. Otros comandos: make logs · make server-down · make console
   En la partida: /roma:coliseo  o pulsa sobre un Altar del Coliseo.
 ══════════════════════════════════════════════════════════════════════

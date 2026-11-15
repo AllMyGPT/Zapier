@@ -1,6 +1,12 @@
 # Servidor oficial de Minecraft Bedrock (BDS) con el mod Imperio Romano inyectado.
 # Imagen: https://github.com/itzg/docker-minecraft-bedrock-server
 # En Mac con Apple Silicon (M1/M2/M3/M4) la imagen arm64 emula BDS con box64: funciona sin cambios.
+#
+# Red (BDS 1.26.50+ usa NetherNet en lugar de RakNet):
+#   TCP 19132          handshake de conexión
+#   UDP 19140-19147    tráfico de juego (1 puerto por jugador; MAX_PLAYERS=8)
+#   UDP 7551           descubrimiento LAN por broadcast ("Amigos → Partidas LAN")
+# HOST_IP es la IP del Mac en la Wi-Fi: `make server-up` la detecta y la exporta.
 services:
   bedrock:
     image: itzg/minecraft-bedrock-server:latest
@@ -16,16 +22,19 @@ services:
       GAMEMODE: "survival"
       DIFFICULTY: "normal"
       ALLOW_CHEATS: "false"
+      ALLOW_LIST: "false"            # BDS reciente activa la allowlist por defecto y rechazaría a todos
       ONLINE_MODE: "true"
       MAX_PLAYERS: "8"
       DEFAULT_PLAYER_PERMISSION_LEVEL: "member"
       TEXTUREPACK_REQUIRED: "true"   # la Switch descarga texturas, modelos y scripts al unirse
       ENABLE_LAN_VISIBILITY: "true"  # aparece en "Amigos → Partidas LAN"
       SERVER_PORT: "19132"
-      SERVER_PORT_V6: "19133"
+      SERVER_UDP_PORTS: "${HOST_IP:?Falta HOST_IP: usa make server-up}:19140-19147:19140-19147"
       CONTENT_LOG_FILE_ENABLED: "true"
       TZ: "Europe/Madrid"
     ports:
-      - "${HOST_PORT:-19132}:19132/udp"
+      - "19132:19132/tcp"
+      - "19140-19147:19140-19147/udp"
+      - "7551:7551/udp"
     volumes:
       - ./server-data:/data

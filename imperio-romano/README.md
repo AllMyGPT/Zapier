@@ -15,22 +15,27 @@ Requisitos: Xcode Command Line Tools (`python3`, `zip`), Node 18+ y [Docker Desk
 ```bash
 git clone <este repo> && cd Zapier/imperio-romano
 make all          # dependencias + comprobación del entorno + build + .mcaddon + checklist + guía
-make server-up    # levanta el servidor (Docker) en el puerto UDP 19132
+make server-up    # levanta el servidor (Docker) (TCP 19132)
 ```
 
-Si la Switch no ve la partida en **Partidas LAN** (Docker Desktop corre en una VM y a veces no
-reenvía los anuncios de red local):
+`make server-up` detecta la IP del Mac en la Wi-Fi (`ipconfig getifaddr en0`); si falla, pásala a mano:
+`make server-up HOST_IP=192.168.1.20`. El servidor Bedrock actual (1.26.50+, transporte NetherNet) usa
+**TCP 19132** para conectar, **UDP 19140-19147** para el juego y **UDP 7551** para anunciarse en la LAN.
+
+Si la Switch no ve la partida en **Partidas LAN** (Docker Desktop corre en una VM y puede no recibir
+los broadcasts de la consola): en Docker Desktop → Settings → Resources → Network activa
+**Enable host networking**, reinicia Docker y luego:
 
 ```bash
 make server-down
-make server-up-bridge   # servidor en 19134 + puente LAN nativo (phantom) en 19132
+make server-up-host     # mismo servidor, con la red del host
 ```
 
 Otros comandos: `make help`, `make logs`, `make console`, `make server-down`, `make guide`.
 
 > La Switch y el servidor deben tener **la misma versión de Minecraft**. El contenedor usa
 > `VERSION=LATEST`, así que actualiza el juego en la Switch. Mac → Ajustes → Red → Firewall:
-> permite las conexiones entrantes de Docker (y de `phantom-macos` si usas el puente).
+> permite las conexiones entrantes de Docker.
 
 ## Contenido del mod
 
@@ -46,7 +51,7 @@ Otros comandos: `make help`, `make logs`, `make console`, `make server-down`, `m
 
 ```
 imperio-romano/
-├── Makefile, docker-compose.yml, package.json, tsconfig.json
+├── Makefile, docker-compose.yml, docker-compose.host.yml, package.json, tsconfig.json
 ├── src/main.ts                  # mecánicas (TypeScript → behavior_pack/scripts/main.js)
 ├── behavior_pack/               # manifest, items/, blocks/, entities/, trading/, loot_tables/
 ├── resource_pack/               # manifest, textures/ (PNG generados), entity/, texts/, blocks.json
@@ -55,7 +60,6 @@ imperio-romano/
 │   ├── generate_assets.py       # FASE 2: texturas pixel-art (Pillow)
 │   ├── bundle.sh                # FASE 6: .mcaddon/.mcpack + inyección en server-data/
 │   ├── validate.sh              # checklist de aceptación
-│   ├── lan_bridge.sh            # puente LAN nativo (phantom) para macOS
 │   └── guide.sh                 # guía rápida de conexión
 ├── dist/                        # (generado) ImperioRomano.mcaddon
 └── server-data/                 # (generado) datos del servidor y mundo

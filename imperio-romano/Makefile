@@ -2,9 +2,12 @@
 SHELL := /bin/bash
 PY ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 COMPOSE := docker compose
+# IP del Mac en la red local (Wi-Fi en0, si no Ethernet en1). Se puede forzar: make server-up HOST_IP=192.168.1.20
+HOST_IP ?= $(shell ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
+export HOST_IP
 
 .PHONY: help setup venv check-env assets build typecheck bundle validate all \
-        server-up server-up-bridge bridge server-down logs console guide clean
+        server-up server-up-host server-down logs console guide clean
 
 help:            ## Lista de comandos
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-18s %s\n", $$1, $$2}'
@@ -36,20 +39,18 @@ validate:        ## Checklist de aceptación
 
 all: setup check-env bundle validate guide  ## Todo de una vez
 
-server-up: bundle  ## Levanta el servidor Bedrock en Docker (puerto 19132)
+server-up: bundle  ## Levanta el servidor Bedrock en Docker (TCP 19132 + UDP 19140-19147/7551)
+	@[ -n "$(HOST_IP)" ] || { echo "No se pudo detectar la IP del Mac. Usa: make server-up HOST_IP=192.168.x.y"; exit 1; }
 	$(COMPOSE) up -d
-	@echo "Servidor arrancando… primera vez tarda 1-2 min en descargar BDS. 'make logs' para verlo."
+	@echo "Servidor arrancando en $(HOST_IP)… la primera vez tarda 1-2 min en descargar BDS. 'make logs' para verlo."
 	@bash tools/guide.sh | sed -n '/OPCIÓN B/,$$p'
 
-server-up-bridge: bundle  ## Servidor en 19134 + puente LAN nativo (si la Switch no lo ve)
-	HOST_PORT=19134 $(COMPOSE) up -d
-	HOST_PORT=19134 bash tools/lan_bridge.sh
-
-bridge:          ## Solo el puente LAN (servidor ya levantado con HOST_PORT=19134)
-	bash tools/lan_bridge.sh
+server-up-host: bundle  ## Igual pero con red del host (si la Switch no ve la partida LAN)
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.host.yml up -d
+	@echo "Servidor arrancando con red del host (requiere 'Enable host networking' en Docker Desktop)."
 
 server-down:     ## Para el servidor
-	$(COMPOSE) down
+	$(COMPOSE) down --remove-orphans
 
 logs:            ## Logs del servidor
 	$(COMPOSE) logs -f --tail=100

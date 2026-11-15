@@ -5,7 +5,7 @@
     "description": "Gladius, pilum, denarios, legionarios y el Coliseo. SPQR.",
     "uuid": "fc60f689-482e-47c2-b55b-dac5a9a77c4f",
     "version": [1, 0, 0],
-    "min_engine_version": [1, 21, 80]
+    "min_engine_version": [1, 21, 100]
   },
   "modules": [
     {
