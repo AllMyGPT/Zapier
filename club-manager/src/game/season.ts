@@ -1,4 +1,4 @@
-import type { Club, Fixture, GameState, NewsItem, Player } from './types';
+import type { Club, Fixture, GameState, League, NewsItem, Player } from './types';
 import { Rng, hashStr } from './rng';
 import { createMatch, runToEnd, type Match } from './engine';
 import { autoPick, clubPlayers, ensureLineup } from './lineup';
@@ -52,6 +52,7 @@ export function expectedPos(gs: GameState, clubId: string) {
 export function expectationLabel(gs: GameState, clubId: string) {
   const L = gs.leagues[gs.clubs[clubId].leagueId]; const e = expectedPos(gs, clubId);
   if (L.tier === 2) return e <= 3 ? 'conseguir el ascenso' : 'quedar en la mitad alta';
+  if (L.tier === 3) return e <= 2 ? 'conseguir el ascenso' : e <= 8 ? 'pelear por el ascenso' : 'quedar en la mitad alta';
   if (e === 1) return 'ganar la liga';
   if (e <= 4) return 'terminar entre los 4 primeros';
   if (e <= L.euroSpots) return 'clasificarse para Europa';
@@ -216,7 +217,7 @@ function weekly(gs: GameState, rng: Rng) {
     const wages = ps.reduce((a, p) => a + p.wage, 0);
     const staffW = Object.values(c.staff).reduce((a, l) => a + l * l * 6000, 0);
     const tier = gs.leagues[c.leagueId].tier;
-    const tv = tier === 1 ? TV_WEEKLY[c.country] * (0.6 + c.reputation / 160) : 120_000 + c.reputation * 1500;
+    const tv = tier === 1 ? TV_WEEKLY[c.country] * (0.6 + c.reputation / 160) : tier === 2 ? 120_000 + c.reputation * 1500 : 25_000 + c.reputation * 500;
     const merch = Math.pow(c.reputation / 10, 3.3) * 220 * (0.7 + c.fans / 200);
     money(gs, c.id, -wages, 'Salarios jugadores');
     money(gs, c.id, -staffW, 'Salarios cuerpo técnico');
@@ -379,7 +380,7 @@ export function endSeason(gs: GameState): string[] {
   const summary: string[] = [];
   const u = gs.manager.clubId;
   const prevEuro: string[] = [];
-  const promoted: Record<string, string[]> = {}, relegated: Record<string, string[]> = {};
+  const order: Record<string, string[]> = {}; // final standings per league, best first
   for (const L of Object.values(gs.leagues)) {
     const rows = table(gs, L.id);
     const champ = rows[0].id;
@@ -387,13 +388,13 @@ export function endSeason(gs: GameState): string[] {
     summary.push(`${L.name}: campeón ${gs.clubs[champ].name}`);
     rows.forEach((r, i) => {
       const c = gs.clubs[r.id];
-      const prize = (L.tier === 1 ? (TV_WEEKLY[L.country] / 1e6) * 20_000_000 : 3_000_000) * (1 - i / rows.length) * 0.5;
+      const prize = (L.tier === 1 ? (TV_WEEKLY[L.country] / 1e6) * 20_000_000 : L.tier === 2 ? 3_000_000 : 600_000) * (1 - i / rows.length) * 0.5;
       money(gs, c.id, Math.round(prize), `Premio clasificación (${i + 1}º)`);
       const exp = expectedPos(gs, c.id);
-      c.reputation = clamp(c.reputation + (exp - (i + 1)) * 0.35 + (i === 0 ? 2 : 0) + (L.tier === 2 ? -0.3 : 0), 30, 99);
+      c.reputation = clamp(c.reputation + (exp - (i + 1)) * 0.35 + (i === 0 ? 2 : 0) + (L.tier === 2 ? -0.3 : L.tier === 3 ? -0.5 : 0), 30, 99);
     });
-    if (L.tier === 1) { prevEuro.push(...rows.slice(0, L.euroSpots).map(r => r.id)); relegated[L.country] = rows.slice(-L.relegate).map(r => r.id); }
-    else promoted[L.country] = rows.slice(0, L.promote).map(r => r.id);
+    order[L.id] = rows.map(r => r.id);
+    if (L.tier === 1) prevEuro.push(...rows.slice(0, L.euroSpots).map(r => r.id));
     if (L.clubIds.includes(u)) {
       const pos = rows.findIndex(r => r.id === u) + 1; const exp = expectedPos(gs, u);
       const trophies = gs.trophies.filter(t => t.season === gs.season && t.club === u).map(t => t.comp);
@@ -405,15 +406,35 @@ export function endSeason(gs: GameState): string[] {
       if (pos === 1) news(gs, 'board', `¡CAMPEONES DE LIGA!`, `${gs.clubs[u].name} gana ${L.name} ${seasonLabel(gs.season)}.`);
     }
   }
-  for (const country of Object.keys(promoted)) {
-    const l1 = gs.leagues[country + '1'], l2 = gs.leagues[country + '2'];
-    for (const id of relegated[country]) { l1.clubIds = l1.clubIds.filter(x => x !== id); l2.clubIds.push(id); gs.clubs[id].leagueId = l2.id; }
-    const baseline = l1.clubIds.map(id => strengthOf(gs, id)).sort((a, b) => a - b);
-    const target = (baseline[2] ?? 71);
-    for (const id of promoted[country]) { l2.clubIds = l2.clubIds.filter(x => x !== id); l1.clubIds.push(id); gs.clubs[id].leagueId = l1.id; strengthenPromoted(gs, gs.clubs[id], rng, target); }
-    if (relegated[country].includes(u)) summary.unshift('Tu equipo ha DESCENDIDO.');
-    if (promoted[country].includes(u)) summary.unshift('¡Tu equipo ha conseguido el ASCENSO!');
-    summary.push(`${gs.leagues[country + '1'].name}: ascienden ${promoted[country].map(i => gs.clubs[i].name).join(', ')}; descienden ${relegated[country].map(i => gs.clubs[i].name).join(', ')}`);
+  // promotion / relegation between each pair of adjacent tiers (lower tiers may be split in groups)
+  const countries = [...new Set(Object.values(gs.leagues).map(l => l.country))];
+  for (const country of countries) {
+    const ls = Object.values(gs.leagues).filter(l => l.country === country);
+    const maxTier = Math.max(...ls.map(l => l.tier));
+    const moves: { up: string[]; down: string[]; upper: League; lowers: League[] }[] = [];
+    for (let t = 1; t < maxTier; t++) {
+      const upper = ls.find(l => l.tier === t)!; const lowers = ls.filter(l => l.tier === t + 1);
+      const down = upper.relegate ? order[upper.id].slice(-upper.relegate) : [];
+      const up = lowers.flatMap(l => order[l.id].slice(0, l.promote));
+      moves.push({ up, down, upper, lowers });
+    }
+    for (const { up, down, upper, lowers } of moves) {
+      for (const id of down) {
+        upper.clubIds = upper.clubIds.filter(x => x !== id);
+        const dest = lowers.slice().sort((a, b) => a.clubIds.length - b.clubIds.length)[0]; // keep groups balanced
+        dest.clubIds.push(id); gs.clubs[id].leagueId = dest.id;
+      }
+      const baseline = upper.clubIds.map(id => strengthOf(gs, id)).sort((a, b) => a - b);
+      const target = baseline[2] ?? 71;
+      for (const id of up) {
+        const from = gs.leagues[gs.clubs[id].leagueId];
+        from.clubIds = from.clubIds.filter(x => x !== id); upper.clubIds.push(id); gs.clubs[id].leagueId = upper.id;
+        strengthenPromoted(gs, gs.clubs[id], rng, target);
+      }
+      if (down.includes(u)) summary.unshift('Tu equipo ha DESCENDIDO.');
+      if (up.includes(u)) summary.unshift('¡Tu equipo ha conseguido el ASCENSO!');
+      if (up.length || down.length) summary.push(`${upper.name}: ascienden ${up.map(i => gs.clubs[i].name).join(', ') || '—'}; descienden ${down.map(i => gs.clubs[i].name).join(', ') || '—'}`);
+    }
   }
   // players: history, retirements, contracts
   const nextSeason = gs.season + 1;

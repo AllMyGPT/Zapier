@@ -7,6 +7,8 @@ import { FORMATIONS, FORMATION_KEYS, MENTALITY_LABEL, LEVEL3 } from '@/game/tact
 import { autoPick, clubPlayers } from '@/game/lineup';
 import { available, ovr, ovr as o2, slotRating, POS_LABEL, playerStatus } from '@/game/player';
 import { ovrColor } from '../ui';
+import { useMedia, isBroken, markBroken } from '@/lib/media';
+import type { Player as TPlayer } from '@/game/types';
 import type { Mentality, Player } from '@/game/types';
 
 type Sel = { kind: 'slot'; i: number } | { kind: 'pl'; id: number } | null;
@@ -73,7 +75,7 @@ export default function TacticsScreen() {
     const isSel = sel?.kind === 'slot' && sel.i === i;
     return (
       <div key={i} className={`tslot ${isSel ? 'sel' : ''}`} style={{ left: `${slot.y * 100}%`, top: `${(1 - slot.x) * 88 + 6}%` }} onClick={() => place({ kind: 'slot', i })}>
-        <div className="shirt" style={{ background: slot.pos === 'GK' ? '#f5c84b' : club.colors[0], borderColor: club.colors[1], color: slot.pos === 'GK' ? '#222' : textOn(club.colors[0]) }}>{p?.num ?? '?'}</div>
+        <Shirt p={p} bg={slot.pos === 'GK' ? '#f5c84b' : club.colors[0]} border={club.colors[1]} fg={slot.pos === 'GK' ? '#222' : textOn(club.colors[0])} />
         <div className="nm">{p ? shortName(p.name) : 'Vacío'}{p && !available(p) ? ' ⚠️' : ''}</div>
         <div className="row" style={{ gap: 3 }}><span className="rt" style={{ background: bg, color: fg }}>{r || '-'}</span><span className="rt" style={{ background: 'rgba(0,0,0,.55)' }}>{POS_LABEL[slot.pos]}</span></div>
       </div>
@@ -140,3 +142,17 @@ export default function TacticsScreen() {
 const nm = (gs: ReturnType<typeof useGame>['gs'], id?: number) => (id && gs.players[id]?.clubId === gs.manager.clubId ? gs.players[id].name : 'automático');
 export function shortName(n: string) { const p = n.split(' '); return p.length > 1 ? p.slice(-1)[0].length > 3 ? p.slice(-1)[0] : p.slice(-2).join(' ') : n; }
 export function textOn(hex: string) { const n = parseInt(hex.replace('#', '').slice(0, 6), 16); return ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) > 150 ? '#0b1220' : '#ffffff'; }
+
+/** Pitch token: the player's photo framed in club colours, or a numbered shirt disc. */
+function Shirt({ p, bg, border, fg }: { p?: TPlayer | null; bg: string; border: string; fg: string }) {
+  const photo = useMedia().photo(p?.name ?? '', p?.born ?? 0);
+  if (p && photo && !isBroken(photo)) {
+    return (
+      <div className="shirt photo" style={{ borderColor: bg, background: bg }}>
+        <img src={photo} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => markBroken(photo)} />
+        <span className="sn" style={{ background: bg, color: fg, borderColor: border }}>{p.num}</span>
+      </div>
+    );
+  }
+  return <div className="shirt" style={{ background: bg, borderColor: border, color: fg }}>{p?.num ?? '?'}</div>;
+}

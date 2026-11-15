@@ -72,6 +72,25 @@ npx tsc --noEmit && npx next build   # comprobaciones
   - `emblem.svg`: dibujado a mano en vector.
 - Los originales a máxima resolución están en `art/raw/`, excluido de git. Son imágenes generadas, sin logos ni personas identificables.
 
+## Escudos y fotos reales; tercera categoría en España (15 nov 2026)
+- `scripts/fetch-media.ts` busca en Wikipedia el escudo de cada club y la foto de cada jugador real, y guarda las URLs (upload.wikimedia.org) en `public/media.json`.
+  - El juego carga ese archivo al arrancar: `src/lib/media.ts`.
+  - Si falta una imagen o no carga, se usa el escudo generado o la silueta.
+  - En «Partida» hay un interruptor «Reales / Generados».
+- Cobertura actual: unas 3/4 partes de los jugadores tienen foto. Se puede volver a ejecutar el script: solo busca lo que falta, en lotes de 50 títulos y con pausas, porque Wikipedia limita las peticiones.
+- Derechos:
+  - Los escudos son marcas de los clubes.
+  - Muchas fotos de jugadores son libres en Commons pero piden atribución, y las de clubes suelen ser «non-free».
+  - Antes de publicar el juego en abierto o con ingresos, revisar las licencias o dejar «Generados» por defecto.
+- España tiene ahora tres categorías:
+  - Liga, con 20 clubes.
+  - Segunda, con los 22 clubes reales 2025/26.
+  - Primera Federación, en dos grupos de 20 con los clubes reales 2025/26.
+- Ascensos y descensos: suben los 2 primeros de cada grupo y bajan 4 de Segunda (`endSeason`, generalizado a N categorías y grupos).
+- Las plantillas de Segunda y Primera Federación son generadas.
+- La copa nacional tiene como máximo 32 equipos: toda Primera más un sorteo entre las categorías inferiores.
+- Datos sin verificar: los estadios y aforos del Grupo 2 salieron de un resumen de Wikipedia, no de la tabla literal.
+
 ## Ideas pendientes (opcionales)
 - Revisar plantillas dudosas en `src/data/leagues/*.ts` (formato `Nombre|POS|año|NAC|media|potencial`), p. ej. canteranos poco seguros en `esp.ts`: David Otorbi, Ismael Bekhoucha, Yellu Santiago, Dani Budesca.
 - Los escudos son generados a propósito (no logos oficiales). Si se publica o monetiza, revisar los derechos de imagen de los nombres de jugadores.

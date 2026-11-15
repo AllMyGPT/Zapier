@@ -89,7 +89,7 @@ export interface Club {
 export interface Training { intensity: 1 | 2 | 3; focus: 'general' | 'ataque' | 'defensa' | 'fisico' | 'tactica' | 'balon_parado' | 'descanso' }
 
 export interface League {
-  id: string; name: string; country: string; tier: 1 | 2; clubIds: string[];
+  id: string; name: string; country: string; tier: 1 | 2 | 3; clubIds: string[];
   promote: number; relegate: number; euroSpots: number;
 }
 

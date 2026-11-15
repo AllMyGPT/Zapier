@@ -431,3 +431,9 @@ table.t td.r, table.t th.r { text-align: right; }
 .card-grid .pcard-sil { width: 104px; height: 104px; bottom: 48px; }
 .card-grid .pcard-name { font-size: 17px; }
 .card-meta { width: 150px; display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
+.pcard-photo { position: absolute; left: 50%; bottom: 40px; transform: translateX(-38%); width: 120px; height: 150px; z-index: 1; object-fit: cover; object-position: 50% 15%;
+  -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent); mask-image: linear-gradient(180deg, #000 70%, transparent); filter: saturate(1.05) contrast(1.05); border-radius: 8px 8px 0 0; }
+.card-grid .pcard-photo { width: 106px; height: 136px; }
+.tslot .shirt.photo { position: relative; width: 46px; height: 46px; padding: 0; overflow: visible; }
+.tslot .shirt.photo img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; object-position: 50% 18%; background: #0b1a3a; }
+.tslot .shirt.photo .sn { position: absolute; right: -6px; bottom: -4px; min-width: 19px; height: 19px; border-radius: 50%; border: 2px solid; font-size: 11px; display: flex; align-items: center; justify-content: center; }

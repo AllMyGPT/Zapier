@@ -4,6 +4,7 @@ import { useGame } from '../GameApp';
 import { cloudList, deleteCloud, deleteLocal, loadCloud, loadLocal, localList, saveCloud, saveLocal, type SaveMeta } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import AuthBox from '../AuthBox';
+import { MediaToggle } from '../ui';
 
 export default function SaveScreen() {
   const { gs, toast, setGs } = useGame();
@@ -31,7 +32,7 @@ export default function SaveScreen() {
   };
   return (
     <div className="grid g2">
-      <div className="panel col"><h3 style={{ margin: 0 }}>En este navegador</h3><div className="small muted">La partida también se autoguarda tras cada acción.</div>{slots.map(s => <Slot key={s} where="local" slot={s} />)}</div>
+      <div className="col"><MediaToggle /><div className="panel col"><h3 style={{ margin: 0 }}>En este navegador</h3><div className="small muted">La partida también se autoguarda tras cada acción.</div>{slots.map(s => <Slot key={s} where="local" slot={s} />)}</div></div>
       <div className="col">
         <div className="panel col"><h3 style={{ margin: 0 }}>En la nube (Supabase)</h3>{supabase() ? slots.map(s => <Slot key={s} where="cloud" slot={s} />) : <div className="small muted">No configurado.</div>}</div>
         <AuthBox onChange={reload} />

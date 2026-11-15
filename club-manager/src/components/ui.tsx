@@ -2,6 +2,7 @@
 import React from 'react';
 import type { Club, Player } from '@/game/types';
 import { POS_GROUP, POS_LABEL, flag, ovr } from '@/game/player';
+import { useMedia, isBroken, markBroken, setRealMedia } from '@/lib/media';
 
 export function ovrColor(v: number) {
   if (v >= 85) return ['#1a7f4b', '#b8ffd6'];
@@ -29,6 +30,17 @@ function initials(name: string) {
 
 /** Procedurally generated crest (not the official badge). */
 export function Crest({ club, size = 36 }: { club: Pick<Club, 'colors' | 'name' | 'short' | 'id'>; size?: number }) {
+  const media = useMedia();
+  const real = media.crest(club.id);
+  if (real && !isBroken(real)) {
+    return <img src={real} alt={club.name} title={club.name} width={size} height={size * 1.15} loading="lazy" referrerPolicy="no-referrer" onError={() => markBroken(real)}
+      style={{ width: size, height: size * 1.15, objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,.45))' }} />;
+  }
+  return <GenCrest club={club} size={size} />;
+}
+
+/** Procedurally generated crest, used when there is no real one (or real media is off). */
+export function GenCrest({ club, size = 36 }: { club: Pick<Club, 'colors' | 'name' | 'short' | 'id'>; size?: number }) {
   const [a, b] = club.colors;
   let h = 0; for (const ch of club.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   const style = h % 4;
@@ -89,6 +101,7 @@ export function TalkBar({ title, options, result, onPick }: { title: string; opt
 /** Collectible-style player card: club colours, rating, position, silhouette and holographic sheen. */
 export function PlayerCard({ p, club, rating }: { p: Player; club: Pick<Club, 'colors' | 'name' | 'short' | 'id'> | null; rating: number }) {
   const [a, b] = club ? club.colors : ['#2a3550', '#141c2e'];
+  const photo = useMedia().photo(p.name, p.born);
   const tier = rating >= 85 ? 'elite' : rating >= 78 ? 'gold' : rating >= 70 ? 'silver' : 'bronze';
   return (
     <div className={`pcard ${tier}`} style={{ ['--ca' as string]: a, ['--cb' as string]: b } as React.CSSProperties}>
@@ -99,15 +112,39 @@ export function PlayerCard({ p, club, rating }: { p: Player; club: Pick<Club, 'c
         <div className="pcard-flag">{flag(p.nat)}</div>
         {club && <div className="pcard-crest"><Crest club={club} size={26} /></div>}
       </div>
-      <svg className="pcard-sil" viewBox="0 0 100 100" aria-hidden="true">
-        <circle cx="50" cy="34" r="17" />
-        <path d="M14 100 C16 70 32 58 50 58 C68 58 84 70 86 100 Z" />
-      </svg>
+      {photo && !isBroken(photo) ? (
+        <img className="pcard-photo" src={photo} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => markBroken(photo)} />
+      ) : (
+        <svg className="pcard-sil" viewBox="0 0 100 100" aria-hidden="true">
+          <circle cx="50" cy="34" r="17" />
+          <path d="M14 100 C16 70 32 58 50 58 C68 58 84 70 86 100 Z" />
+        </svg>
+      )}
       <div className="pcard-num">{p.num || '–'}</div>
       <div className="pcard-name">{p.name.includes(' ') ? p.name.split(' ').slice(1).join(' ') : p.name}</div>
       <div className="pcard-sheen" />
     </div>
   );
+}
+
+/** Switch between real crests/photos and the generated art. */
+export function MediaToggle() {
+  const m = useMedia();
+  return (
+    <div className="panel col">
+      <h3>Escudos y fotos</h3>
+      <div className="seg" style={{ alignSelf: 'flex-start' }}><button className={m.on ? 'on' : ''} onClick={() => setRealMedia(true)}>Reales</button><button className={!m.on ? 'on' : ''} onClick={() => setRealMedia(false)}>Generados</button></div>
+      <div className="small muted">Los escudos y fotos reales se cargan desde Wikipedia y Wikimedia Commons. Pertenecen a sus titulares y cada imagen tiene su propia licencia en su página de Wikipedia. Los clubes y jugadores sin imagen usan el arte generado.</div>
+    </div>
+  );
+}
+
+/** Small round player face for tables and lists (falls back to shirt number). */
+export function Face({ p, size = 26 }: { p: Player; size?: number }) {
+  const photo = useMedia().photo(p.name, p.born);
+  const st: React.CSSProperties = { width: size, height: size, borderRadius: '50%', flexShrink: 0, verticalAlign: 'middle', marginRight: 6, border: '1px solid rgba(160,196,255,.35)', boxShadow: '0 1px 3px rgba(0,0,0,.5)' };
+  if (photo && !isBroken(photo)) return <img src={photo} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => markBroken(photo)} style={{ ...st, objectFit: 'cover', objectPosition: '50% 20%', background: '#0b1a3a' }} />;
+  return <span style={{ ...st, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.42, fontWeight: 800, background: 'linear-gradient(180deg,#24467f,#13285a)', color: '#cfe0ff' }}>{p.num || '·'}</span>;
 }
 
 /** Cinematic banner at the top of each management screen. */

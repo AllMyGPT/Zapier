@@ -1,7 +1,7 @@
 'use client';
 import React, { useMemo, useState } from 'react';
 import { useGame } from '../GameApp';
-import { Crest, Flag, Ovr, PosBadge, useSort } from '../ui';
+import { Crest, Flag, Ovr, PosBadge, useSort, Face } from '../ui';
 import { age, marketValue, ovr, POS_LABEL } from '@/game/player';
 import { fmtMoney } from '@/game/season';
 import { acceptIncoming, askingPrice, rejectIncoming } from '@/game/market';
@@ -69,7 +69,7 @@ export default function Transfers() {
             <thead><tr><th>Pos</th>{th('name', 'Nombre')}{th('age', 'Edad', 'c')}{th('ovr', 'Med', 'c')}{th('club', 'Club')}{th('val', 'Valor', 'r')}<th className="r">Precio pedido</th>{th('wage', 'Sueldo', 'r')}<th className="c">Contrato</th></tr></thead>
             <tbody>{sorted.slice(0, 200).map(p => (
               <tr key={p.id} className="click" onClick={() => openPlayer(p.id)}>
-                <td><PosBadge pos={p.pos} /></td><td><Flag nat={p.nat} /><b>{p.name}</b> {p.listed && <span className="pill warn">Transferible</span>}</td><td className="c">{age(p, gs.season)}</td><td className="c"><Ovr v={ovr(p)} /></td>
+                <td><PosBadge pos={p.pos} /></td><td><Face p={p} /><Flag nat={p.nat} /><b>{p.name}</b> {p.listed && <span className="pill warn">Transferible</span>}</td><td className="c">{age(p, gs.season)}</td><td className="c"><Ovr v={ovr(p)} /></td>
                 <td>{p.clubId ? <span className="row" style={{ gap: 6 }}><Crest club={gs.clubs[p.clubId]} size={16} />{gs.clubs[p.clubId].name}</span> : <span className="pill good">Libre</span>}</td>
                 <td className="r num">{fmtMoney(marketValue(p, gs.season))}</td><td className="r num">{p.clubId ? fmtMoney(askingPrice(gs, p)) : '—'}</td><td className="r num">{fmtMoney(p.wage)}</td><td className="c">{p.contractEnd}</td>
               </tr>

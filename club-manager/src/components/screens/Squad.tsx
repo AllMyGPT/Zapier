@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { useGame } from '../GameApp';
-import { Ovr, PosBadge, Flag, Bar, useSort, Stars, PlayerCard } from '../ui';
+import { Ovr, PosBadge, Flag, Bar, useSort, Stars, PlayerCard, Face } from '../ui';
 import { clubPlayers } from '@/game/lineup';
 import { age, avgRating, marketValue, ovr, playerStatus, POS_ORDER } from '@/game/player';
 import { fmtMoney } from '@/game/season';
@@ -50,7 +50,7 @@ export default function Squad() {
                 <tr key={p.id} className="click" onClick={() => openPlayer(p.id)}>
                   <td className="c muted num">{p.num}</td>
                   <td><PosBadge pos={p.pos} /></td>
-                  <td><Flag nat={p.nat} /><b>{p.name}</b> {inXI.has(p.id) && <span className="pill blue">XI</span>} {p.listed && <span className="pill warn">En venta</span>}</td>
+                  <td><Face p={p} /><Flag nat={p.nat} /><b>{p.name}</b> {inXI.has(p.id) && <span className="pill blue">XI</span>} {p.listed && <span className="pill warn">En venta</span>}</td>
                   <td className="c num">{age(p, gs.season)}</td>
                   <td className="c"><Ovr v={ovr(p)} /></td>
                   <td><Stars v={st.mid} /></td>

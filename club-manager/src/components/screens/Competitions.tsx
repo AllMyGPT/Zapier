@@ -24,7 +24,7 @@ export default function Competitions() {
     <div className="col">
       <div className="panel tight row wrap">
         <select value={comp} onChange={e => { setComp(e.target.value); setRound(null); }}>
-          <optgroup label="Ligas">{Object.values(gs.leagues).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</optgroup>
+          <optgroup label="Ligas">{Object.values(gs.leagues).sort((a, b) => a.country.localeCompare(b.country) || a.tier - b.tier || a.id.localeCompare(b.id)).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</optgroup>
           <optgroup label="Copas">{Object.values(gs.cups).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>
         </select>
         <span className="muted small">Temporada {seasonLabel(gs.season)}</span>
@@ -71,7 +71,7 @@ function LeagueTable({ comp }: { comp: string }) {
       <table className="t">
         <thead><tr><th>#</th><th>Equipo</th><th className="c">PJ</th><th className="c">G</th><th className="c">E</th><th className="c">P</th><th className="c">GF</th><th className="c">GC</th><th className="c">DG</th><th className="c">Pts</th><th>Forma</th></tr></thead>
         <tbody>{rows.map((r, i) => {
-          const zone = L.tier === 1 ? (i < 4 ? 'var(--accent)' : i < L.euroSpots ? 'var(--blue)' : i >= rows.length - L.relegate ? 'var(--bad)' : 'transparent') : (i < L.promote ? 'var(--good)' : 'transparent');
+          const zone = L.tier === 1 ? (i < 4 ? 'var(--accent)' : i < L.euroSpots ? 'var(--blue)' : i >= rows.length - L.relegate ? 'var(--bad)' : 'transparent') : (i < L.promote ? 'var(--good)' : L.relegate && i >= rows.length - L.relegate ? 'var(--bad)' : 'transparent');
           return (
             <tr key={r.id} className={r.id === me ? 'me' : ''}>
               <td style={{ borderLeft: `3px solid ${zone}` }}>{i + 1}</td>
@@ -81,7 +81,7 @@ function LeagueTable({ comp }: { comp: string }) {
           );
         })}</tbody>
       </table>
-      <div className="small muted" style={{ padding: 8 }}>{L.tier === 1 ? <>▍<span style={{ color: 'var(--accent)' }}>Top 4</span> ▍<span style={{ color: 'var(--blue)' }}>Copa de Campeones (hasta {L.euroSpots}º)</span> ▍<span style={{ color: 'var(--bad)' }}>Descenso</span></> : <>▍<span style={{ color: 'var(--good)' }}>Ascenso</span></>}</div>
+      <div className="small muted" style={{ padding: 8 }}>{L.tier === 1 ? <>▍<span style={{ color: 'var(--accent)' }}>Top 4</span> ▍<span style={{ color: 'var(--blue)' }}>Copa de Campeones (hasta {L.euroSpots}º)</span> ▍<span style={{ color: 'var(--bad)' }}>Descenso</span></> : <>▍<span style={{ color: 'var(--good)' }}>Ascenso</span>{L.relegate > 0 && <> ▍<span style={{ color: 'var(--bad)' }}>Descenso</span></>}</>}</div>
     </div>
   );
 }

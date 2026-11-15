@@ -25,5 +25,9 @@ export interface RawLeague {
   tier2Name: string;   // display name of the second division
   clubs: RawClub[];    // top-flight clubs
   // Real second-division clubs used as the promotion pool (squads are generated procedurally)
-  tier2: { id: string; name: string; short: string; city: string; stadium: string; capacity: number; colors: [string, string]; reputation: number }[];
+  tier2: RawLowerClub[];
+  // Optional third tier split in groups (e.g. Primera Federación); squads are generated procedurally
+  tier3?: { name: string; groups: { name: string; clubs: RawLowerClub[] }[] };
 }
+
+export type RawLowerClub = { id: string; name: string; short: string; city: string; stadium: string; capacity: number; colors: [string, string]; reputation: number };

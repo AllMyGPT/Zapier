@@ -38,11 +38,17 @@ export function scheduleSeason(gs: GameState, rng: Rng, euroTeams: string[]) {
   gs.cups = {};
   for (const L of Object.values(gs.leagues)) {
     const rounds = roundRobin(L.clubIds, rng);
-    rounds.forEach((rd, r) => rd.forEach(([h, a]) => addFixture(gs, { comp: L.id, round: r + 1, date: L.tier === 1 ? leagueDay(r) : T2_DAY(r), home: h, away: a })));
+    const gap = Math.min(14, (SEASON_END_DAY - 14 - LEAGUE_START) / rounds.length);
+    const day = (r: number) => (L.tier === 1 ? leagueDay(r) : rounds.length <= 18 ? T2_DAY(r) : LEAGUE_START + Math.round(r * gap) + L.tier - 1);
+    rounds.forEach((rd, r) => rd.forEach(([h, a]) => addFixture(gs, { comp: L.id, round: r + 1, date: day(r), home: h, away: a })));
   }
   // domestic cups
   for (const country of ['esp', 'eng', 'ita', 'ger', 'fra']) {
-    const ids = Object.values(gs.leagues).filter(l => l.country === country).flatMap(l => l.clubIds);
+    // up to 32 entrants: the whole top flight plus a random draw from the lower tiers
+    const ls = Object.values(gs.leagues).filter(l => l.country === country);
+    const top = ls.filter(l => l.tier === 1).flatMap(l => l.clubIds);
+    const rest = rng.shuffle(ls.filter(l => l.tier > 1).flatMap(l => l.clubIds));
+    const ids = [...top, ...rest].slice(0, 32);
     const id = 'cup_' + country;
     gs.cups[id] = { id, name: CUP_NAME[country], country, stage: 0, rounds: CUP_ROUNDS, alive: ids.slice() };
     drawCupRound(gs, rng, id);

@@ -97,6 +97,18 @@ export function createWorld(managerName: string, seed = Date.now() % 1e9): GameS
       gs.clubs[club.id] = club; l2.clubIds.push(club.id);
       genSquad(gs, rng, club, L.nat, 62 + (rc.reputation - 55) * 0.4);
     }
+    if (L.tier3) {
+      l2.relegate = 4; // Segunda sends four down when there is a third tier
+      L.tier3.groups.forEach((g, gi) => {
+        const l3: League = { id: L.id + '3' + 'abcdefgh'[gi], name: `${L.tier3!.name} · ${g.name}`, country: L.id, tier: 3, clubIds: [], promote: 2, relegate: 0, euroSpots: 0 };
+        gs.leagues[l3.id] = l3;
+        for (const rc of g.clubs) {
+          const club = newClub(rc, l3.id, L.id, 0.5 + rc.reputation / 40, rng);
+          gs.clubs[club.id] = club; l3.clubIds.push(club.id);
+          genSquad(gs, rng, club, L.nat, 55 + (rc.reputation - 48) * 0.45);
+        }
+      });
+    }
   }
   // free agents pool
   for (let i = 0; i < 60; i++) {

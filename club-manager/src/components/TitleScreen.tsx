@@ -57,7 +57,7 @@ export default function TitleScreen({ onStart }: { onStart: (g: GameState) => vo
           <AuthBox onChange={reloadCloud} />
         </div>
       </div>
-      <p className="legal">Juego independiente sin afiliación con clubes, ligas ni editores. Escudos y arte generados; datos de jugadores aproximados (temporada 2025/26).</p>
+      <p className="legal">Juego independiente sin afiliación con clubes, ligas ni editores. Escudos y fotos de Wikipedia/Wikimedia Commons, propiedad de sus titulares (se pueden desactivar en Partida); arte de escenarios generado; datos de jugadores aproximados (temporada 2025/26).</p>
     </div>
   );
 }
@@ -86,11 +86,11 @@ function NewGame({ onBack, onStart }: { onBack: () => void; onStart: (g: GameSta
               <input type="text" placeholder="Tu nombre de mánager" value={name} onChange={e => setName(e.target.value)} style={{ width: 240 }} maxLength={30} />
               <div className="seg">{RAW_LEAGUES.map(l => <button key={l.id} className={league === l.id ? 'on' : ''} onClick={() => { setLeague(l.id); setClub(null); }}>{l.country}</button>)}</div>
             </div>
-            {[1, 2].map(tier => (
-              <div key={tier} style={{ marginBottom: 12 }}>
-                <h3>{world.leagues[league + tier].name}</h3>
-                <div className="club-pick" style={{ maxHeight: tier === 1 ? '40vh' : '22vh' }}>
-                  {clubs.filter(c => world.leagues[c.leagueId].tier === tier).map(c => (
+            {Object.values(world.leagues).filter(l => l.country === league).sort((a, b) => a.tier - b.tier || a.id.localeCompare(b.id)).map(l => (
+              <div key={l.id} style={{ marginBottom: 12 }}>
+                <h3>{l.name}</h3>
+                <div className="club-pick" style={{ maxHeight: l.tier === 1 ? '40vh' : '22vh' }}>
+                  {clubs.filter(c => c.leagueId === l.id).map(c => (
                     <button key={c.id} className={`club-card ${club === c.id ? 'on' : ''}`} onClick={() => setClub(c.id)}>
                       <Crest club={c} size={34} />
                       <div className="grow" style={{ minWidth: 0 }}><b style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</b><Stars v={(strengthOf(world, c.id) - 60) / 5} /></div>
