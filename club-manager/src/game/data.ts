@@ -16,7 +16,7 @@ export const TV_WEEKLY: Record<string, number> = { esp: 1_400_000, eng: 2_600_00
 export const START_SEASON = 2026;
 const POSITIONS: Pos[] = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'];
 
-export function newClub(raw: { id: string; name: string; short: string; city: string; stadium: string; capacity: number; colors: [string, string]; reputation: number }, leagueId: string, country: string, budgetM: number, rng: Rng): Club {
+export function newClub(raw: { id: string; name: string; short: string; city: string; stadium: string; capacity: number; colors: [string, string]; reputation: number; parent?: string }, leagueId: string, country: string, budgetM: number, rng: Rng): Club {
   const rep = raw.reputation;
   return {
     id: raw.id, name: raw.name, short: raw.short, city: raw.city, stadium: raw.stadium, capacity: raw.capacity, colors: raw.colors,
@@ -31,6 +31,7 @@ export function newClub(raw: { id: string; name: string; short: string; city: st
     sponsor: { name: rng.pick(SPONSORS), weekly: Math.round(Math.pow(rep / 10, 3.2) * 120 / 1000) * 1000, until: START_SEASON + 2 },
     training: { intensity: 2, focus: 'general' },
     cohesion: 70,
+    parentId: raw.parent,
   };
 }
 
@@ -43,16 +44,18 @@ export function makePlayer(gs: GameState, rng: Rng, o: { name: string; pos: Pos;
     generated: o.generated, youth: o.youth,
   };
   p.wage = fairWage(p, gs.season, o.rep);
+  p.startOvr = o.ovr;
   gs.players[p.id] = p;
   return p;
 }
 
 export function genSquad(gs: GameState, rng: Rng, club: Club, nat: string, level: number) {
   const plan: Pos[] = ['GK', 'GK', 'GK', 'CB', 'CB', 'CB', 'CB', 'LB', 'LB', 'RB', 'RB', 'DM', 'DM', 'CM', 'CM', 'CM', 'AM', 'LW', 'RW', 'LW', 'ST', 'ST', 'ST'];
+  const reserve = !!club.parentId; // B teams are young squads with more upside
   for (const pos of plan) {
-    const age = rng.int(18, 34);
+    const age = reserve ? rng.int(18, 23) : rng.int(18, 34);
     const o = Math.round(level + rng.gauss(0, 3.5) - (age < 21 ? 4 : 0) - (age > 31 ? 2 : 0));
-    const pot = age < 24 ? o + rng.int(2, 12) : o + rng.int(0, 2);
+    const pot = age < 24 ? o + rng.int(2, reserve ? 18 : 12) : o + rng.int(0, 2);
     makePlayer(gs, rng, { name: genName(nat, rng), pos, born: gs.season - age, nat: rng.chance(0.85) ? nat : rng.pick(FOREIGN_NATS), ovr: Math.max(48, o), pot, clubId: club.id, rep: club.reputation, generated: true });
   }
 }

@@ -44,6 +44,7 @@ export interface Player {
   loanFrom?: string;
   lastTalk?: number; // game day of the last one-to-one chat with the manager
   promise?: { until: number; apps: number }; // promised playing time: deadline day and apps at promise time
+  startOvr?: number; // overall at the start of the season, to show progress
 }
 
 export type Mentality = -2 | -1 | 0 | 1 | 2;
@@ -86,6 +87,7 @@ export interface Club {
   sponsor: { name: string; weekly: number; until: number };
   training: Training;
   cohesion: number;     // 0-100 tactical familiarity
+  parentId?: string;    // reserve (B) team: id of its first team
 }
 
 export interface Training { intensity: 1 | 2 | 3; focus: 'general' | 'ataque' | 'defensa' | 'fisico' | 'tactica' | 'balon_parado' | 'descanso' }
@@ -149,7 +151,14 @@ export interface GameState {
   lastResults?: number[];
   seasonSummary?: string[];
   objectives?: Objectives;
+  pending?: Decision[]; // events waiting for the manager's decision
+  eventLog?: Record<string, number>; // last day each decision kind fired (cooldowns)
+  preseason?: { season: number; plan: string; results: { opp: string; gf: number; ga: number; home: boolean }[] };
 }
+
+/** Effects of a decision option (serialisable, applied by events.applyEffect). */
+export interface Effect { board?: number; fans?: number; money?: number; teamMorale?: number; teamFitness?: number; pid?: number; morale?: number; wageMul?: number; listed?: boolean; sellTo?: string; fee?: number; extendYears?: number; budget?: number; news?: string; listTopWages?: number }
+export interface Decision { id: number; date: number; kind: string; title: string; body: string; pid?: number; options: { label: string; hint: string; effect: Effect }[] }
 
 /** Board objectives for the current season: league position, cup round reached and minimum balance. */
 export interface Objectives { season: number; pos: number; cup: number; minBalance: number }

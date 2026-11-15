@@ -2,7 +2,18 @@ import type { Club, GameState, Player, Pos } from './types';
 import { FORMATIONS } from './tactics';
 import { available, ovr, slotRating } from './player';
 
+/** Optional per-club index used during batch work where no player changes club (match days, finance). */
+let index: { gs: GameState; by: Map<string, Player[]> } | null = null;
+export function withPlayerIndex<T>(gs: GameState, fn: () => T): T {
+  if (index) return fn();
+  const by = new Map<string, Player[]>();
+  for (const id in gs.players) { const p = gs.players[id]; if (!p.clubId) continue; let a = by.get(p.clubId); if (!a) by.set(p.clubId, a = []); a.push(p); }
+  index = { gs, by };
+  try { return fn(); } finally { index = null; }
+}
+
 export function clubPlayers(gs: GameState, clubId: string, includeYouth = false): Player[] {
+  if (index && index.gs === gs) { const a = index.by.get(clubId) ?? []; return includeYouth ? a.slice() : a.filter(p => !p.youth); }
   const out: Player[] = [];
   for (const id in gs.players) { const p = gs.players[id]; if (p.clubId === clubId && (includeYouth || !p.youth)) out.push(p); }
   return out;

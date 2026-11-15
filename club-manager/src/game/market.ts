@@ -120,7 +120,7 @@ export function releasePlayer(gs: GameState, pid: number): string {
 /** AI-to-AI market activity, weekly while the window is open */
 export function aiTransfers(gs: GameState, rng: Rng) {
   const clubs = Object.values(gs.clubs).filter(c => c.id !== gs.manager.clubId);
-  const pool = Object.values(gs.players).filter(p => !p.youth && (p.clubId === null || p.clubId !== gs.manager.clubId));
+  const pool = Object.values(gs.players).filter(p => !p.youth && !p.loanFrom && (p.clubId === null || p.clubId !== gs.manager.clubId));
   let deals = 0;
   for (const c of rng.shuffle(clubs.slice())) {
     if (deals > 12) break;
@@ -138,7 +138,7 @@ export function aiTransfers(gs: GameState, rng: Rng) {
     const fromName = t.clubId ? gs.clubs[t.clubId].name : null;
     transferPlayer(gs, t, c.id, fee);
     deals++;
-    if (squad.length > 27) { const worst = squad.sort((a, b) => ovr(a) - ovr(b))[0]; worst.clubId = null; }
+    if (squad.length > 27) { const worst = squad.filter(p => !p.loanFrom).sort((a, b) => ovr(a) - ovr(b))[0]; if (worst) worst.clubId = null; }
     if (ovr(t) >= 80) news(gs, 'info', `Bombazo: ${t.name} al ${c.name}`, `${t.name} ficha por el ${c.name}${fromName ? ` procedente del ${fromName} por ${fmtMoney(fee)}` : ' como agente libre'}.`);
   }
 }

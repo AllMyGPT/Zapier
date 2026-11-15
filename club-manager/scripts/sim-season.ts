@@ -1,5 +1,6 @@
 import { createWorld } from '../src/game/data';
 import { startCareer, advance, simFixture, endSeason, fmtMoney } from '../src/game/season';
+import { resolveDecision } from '../src/game/events';
 import { table } from '../src/game/calendar';
 import { ovr } from '../src/game/player';
 
@@ -14,6 +15,7 @@ for (let s = 0; s < seasons; s++) {
   while (guard++ < 3000) {
     const r = advance(gs);
     if (r.type === 'match') { simFixture(gs, r.fixture); continue; }
+    if (r.type === 'decision') { resolveDecision(gs, gs.pending![0].id, 0); continue; }
     if (r.type === 'seasonEnd' || r.type === 'sacked') { console.log(r.type); break; }
   }
   const played = gs.fixtures.filter(f => f.played);

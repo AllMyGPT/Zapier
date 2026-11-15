@@ -30,4 +30,4 @@ export interface RawLeague {
   tier3?: { name: string; groups: { name: string; clubs: RawLowerClub[] }[] };
 }
 
-export type RawLowerClub = { id: string; name: string; short: string; city: string; stadium: string; capacity: number; colors: [string, string]; reputation: number };
+export type RawLowerClub = { id: string; name: string; short: string; city: string; stadium: string; capacity: number; colors: [string, string]; reputation: number; parent?: string };

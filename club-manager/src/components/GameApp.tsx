@@ -6,6 +6,8 @@ import { compName, dateLabel, seasonLabel, table, inWindow } from '@/game/calend
 import { Crest, Modal, SceneHero, TalkBar } from './ui';
 import { PRE_TALKS, preMatchTalk, type TalkKind, type TalkResult } from '@/game/talk';
 import { pressQuestion, answerPress, type PressQuestion } from '@/game/press';
+import { resolveDecision } from '@/game/events';
+import { PLANS, preseasonPending, runPreseason, type PlanId } from '@/game/preseason';
 import { PlayerCard } from './ui';
 import { avgRating, ovr } from '@/game/player';
 import type { Player } from '@/game/types';
@@ -85,6 +87,7 @@ export default function GameApp() {
       if (r.type === 'match') { setTalk(null); setPre(r.fixture); }
       else if (r.type === 'seasonEnd') { setAwards(seasonAwards(gs)); const s = endSeason(gs); setSeasonEnd(s); }
       else if (r.type === 'sacked') { /* handled by office banner */ setTab('office'); }
+      else if (r.type === 'decision') { /* the decision modal opens from gs.pending */ }
       else toast(r.reason);
       refresh();
     }, 30);
@@ -183,6 +186,43 @@ export default function GameApp() {
       {match && <MatchView m={match.m} f={match.f} onFinish={finishMatch} />}
 
       {summary && <MatchSummary f={summary.f} m={summary.m} onClose={() => { if (gs.leagues[summary.f.comp] || gs.cups[summary.f.comp]) setPress({ q: pressQuestion(gs, summary.f) }); setSummary(null); }} />}
+
+      {!pre && !match && !summary && !press && !seasonEnd && preseasonPending(gs) && (
+        <div className="overlay">
+          <div className="modal scene" style={{ width: 'min(1000px, 100%)' }}>
+            <div className="scene-bg" style={{ backgroundImage: 'url(/art/training.webp)' }} />
+            <div className="inner">
+              <span className="matchday-kicker">Pretemporada {seasonLabel(gs.season)}</span>
+              <h1 style={{ margin: '10px 0 4px' }}>Planifica el verano</h1>
+              <p className="muted" style={{ marginTop: 0 }}>Elige cómo preparar la temporada. Se jugarán tres amistosos que no cuentan en las estadísticas oficiales.</p>
+              <div className="plans">{PLANS.map(pl => (
+                <button key={pl.id} className="plan" onClick={() => { runPreseason(gs, pl.id as PlanId); setTab('office'); refresh(); toast('Pretemporada completada: mira los resultados en la bandeja de entrada.'); }}>
+                  <b>{pl.title}</b><span>{pl.desc}</span><span className="pro">▲ {pl.pros}</span><span className="con">▼ {pl.cons}</span>
+                </button>
+              ))}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!pre && !match && !summary && !press && gs.pending?.[0] && (() => {
+        const d = gs.pending[0]; const p = d.pid != null ? gs.players[d.pid] : undefined;
+        return (
+          <div className="overlay">
+            <div className="modal decision">
+              <span className="matchday-kicker">Decisión del míster</span>
+              <div className="row" style={{ alignItems: 'flex-start', gap: 18, marginTop: 14 }}>
+                {p && <div onClick={() => setPlayer(p.id)} style={{ cursor: 'pointer' }}><PlayerCard p={p} club={p.clubId ? gs.clubs[p.clubId] : null} rating={ovr(p)} /></div>}
+                <div className="grow"><h2 style={{ marginBottom: 6 }}>{d.title}</h2><p style={{ color: '#d3e0f7', marginTop: 0 }}>{d.body}</p>
+                  <div className="col" style={{ gap: 8 }}>{d.options.map((o, i) => (
+                    <button key={i} className="press-a" onClick={() => { resolveDecision(gs, d.id, i); toast(`Decisión tomada: ${o.label}`); refresh(); }}><b style={{ fontStyle: 'normal' }}>{o.label}</b><div className="small muted" style={{ fontStyle: 'normal' }}>{o.hint}</div></button>
+                  ))}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {press && (
         <Modal onClose={() => setPress(null)}>

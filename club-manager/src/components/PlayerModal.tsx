@@ -8,6 +8,7 @@ import { fmtMoney } from '@/game/season';
 import { askingPrice, makeBid, offerContract, releasePlayer, wageDemand } from '@/game/market';
 import { inWindow } from '@/game/calendar';
 import { potStars } from './screens/Squad';
+import { reserveOf, sendToReserve, callUp, loanOut, RESERVE_MAX_AGE } from '@/game/academy';
 import { playerChat, CHAT_COOLDOWN, type ChatKind } from '@/game/talk';
 
 const attrColor = (v: number) => (v >= 85 ? '#46d2ff' : v >= 75 ? '#3ddc84' : v >= 65 ? '#c6f432' : v >= 55 ? '#ffb020' : '#ff5468');
@@ -19,6 +20,9 @@ export default function PlayerModal({ id, onClose }: { id: number; onClose: () =
   const p = gs.players[id];
   const me = gs.clubs[gs.manager.clubId];
   const own = p.clubId === me.id;
+  const myReserve = reserveOf(gs, me.id);
+  const inReserve = !!myReserve && p.clubId === myReserve.id;
+  const onLoan = p.loanFrom === me.id;
   const club = p.clubId ? gs.clubs[p.clubId] : null;
   const value = marketValue(p, gs.season);
   const ask = p.clubId && !own ? askingPrice(gs, p) : 0;
@@ -67,12 +71,21 @@ export default function PlayerModal({ id, onClose }: { id: number; onClose: () =
             </div>
             {p.history.length > 0 && <table className="t" style={{ marginTop: 8 }}><thead><tr><th>Temp.</th><th>Club</th><th className="c">PJ</th><th className="c">G</th><th className="c">Nota</th></tr></thead><tbody>{p.history.slice(-5).reverse().map((h, i) => <tr key={i}><td>{h.season}/{(h.season + 1) % 100}</td><td>{h.club}</td><td className="c">{h.apps}</td><td className="c">{h.goals}</td><td className="c">{h.rating.toFixed(2)}</td></tr>)}</tbody></table>}
           </div>
+          {(inReserve || onLoan) && (
+            <div className="panel tight col">
+              <h3 style={{ margin: 0 }}>{inReserve ? `Jugador del filial (${myReserve!.name})` : `Cedido en el ${club!.name}`}</h3>
+              <div className="small muted">{onLoan ? `Vuelve al final de la temporada. Esta campaña: ${p.stats.apps} partidos, ${p.stats.goals} goles${p.stats.apps ? `, nota ${avgRating(p).toFixed(2)}` : ''}.` : 'Juega con el filial para sumar minutos. Puedes subirlo cuando quieras.'}</div>
+              {inReserve && <div><button className="btn sm primary" onClick={() => act(callUp(gs, id))}>Subir al primer equipo</button></div>}
+            </div>
+          )}
           {own ? (
             <div className="panel tight col">
               <h3 style={{ margin: 0 }}>Gestión</h3>
               <div className="row wrap">
                 <button className={`btn sm ${p.listed ? 'active' : ''}`} onClick={() => { p.listed = !p.listed; act(p.listed ? 'Jugador en la lista de transferibles.' : 'Retirado de la lista.'); }}>{p.listed ? '✓ Transferible' : 'Poner a la venta'}</button>
-                {p.youth ? <button className="btn sm" onClick={() => { p.youth = false; act('Sube al primer equipo.'); }}>Subir al primer equipo</button> : age(p, gs.season) < 19 && <button className="btn sm" onClick={() => { p.youth = true; me.lineup = me.lineup.map(x => (x === id ? -1 : x)); me.bench = me.bench.filter(x => x !== id); act('Enviado a la cantera.'); }}>Bajar a la cantera</button>}
+                {myReserve && !p.youth && age(p, gs.season) <= RESERVE_MAX_AGE && <button className="btn sm" onClick={() => act(sendToReserve(gs, id))}>Bajar al filial</button>}
+                {!p.youth && <button className="btn sm" onClick={() => act(loanOut(gs, id))}>Ceder una temporada</button>}
+                {p.youth ? <button className="btn sm" onClick={() => act(callUp(gs, id))}>Subir al primer equipo</button> : age(p, gs.season) < 19 && <button className="btn sm" onClick={() => { p.youth = true; me.lineup = me.lineup.map(x => (x === id ? -1 : x)); me.bench = me.bench.filter(x => x !== id); act('Enviado a la cantera.'); }}>Bajar a la cantera</button>}
                 {(['captain', 'penalty', 'freekick', 'corner'] as const).map(k => (
                   <button key={k} className={`btn sm ${me.tactics[k] === id ? 'active' : ''}`} onClick={() => { me.tactics[k] = id; act('Asignado.'); }}>{({ captain: 'Capitán', penalty: 'Penaltis', freekick: 'Faltas', corner: 'Córners' })[k]}</button>
                 ))}
@@ -93,7 +106,7 @@ export default function PlayerModal({ id, onClose }: { id: number; onClose: () =
               </div>
               <div><button className="btn sm danger" onClick={() => { if (confirm(`¿Rescindir el contrato de ${p.name}?`)) { act(releasePlayer(gs, id)); } }}>Rescindir contrato</button></div>
             </div>
-          ) : (
+          ) : !(inReserve || onLoan) && (
             <div className="panel tight col">
               <h3 style={{ margin: 0 }}>Fichaje</h3>
               <button className={`btn sm ${short ? 'active' : ''}`} style={{ alignSelf: 'flex-start' }} onClick={() => { gs.shortlist = short ? gs.shortlist.filter(x => x !== id) : [...gs.shortlist, id]; act(short ? 'Eliminado de la lista de seguimiento.' : 'Añadido a la lista de seguimiento.'); }}>{short ? '★ En seguimiento' : '☆ Seguir'}</button>

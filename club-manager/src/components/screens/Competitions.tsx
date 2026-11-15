@@ -33,10 +33,10 @@ export default function Competitions() {
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)' }}>
         <div className="col">
           {isLeague && <LeagueTable comp={comp} />}
-          {comp === 'euro' && gs.cups.euro.groups && (
-            <div className="grid g2">{gs.cups.euro.groups.map((g, i) => (
+          {(comp === 'euro' || comp === 'euro2') && gs.cups[comp]?.groups && (
+            <div className="grid g2">{gs.cups[comp].groups!.map((g, i) => (
               <div className="panel tight" key={i}><h3>Grupo {'ABCDEFGH'[i]}</h3>
-                <table className="t"><tbody>{table(gs, 'euro', g).map((r, j) => <tr key={r.id} className={r.id === me.id ? 'me' : ''}><td style={{ color: j < 2 ? 'var(--good)' : undefined }}>{j + 1}</td><td><span className="row" style={{ gap: 6 }}><Crest club={gs.clubs[r.id]} size={16} />{gs.clubs[r.id].name}</span></td><td className="r">{r.p}</td><td className="r">{r.gf - r.ga}</td><td className="r"><b>{r.pts}</b></td></tr>)}</tbody></table>
+                <table className="t"><tbody>{table(gs, comp, g).map((r, j) => <tr key={r.id} className={r.id === me.id ? 'me' : ''}><td style={{ color: j < 2 ? 'var(--good)' : undefined }}>{j + 1}</td><td><span className="row" style={{ gap: 6 }}><Crest club={gs.clubs[r.id]} size={16} />{gs.clubs[r.id].name}</span></td><td className="r">{r.p}</td><td className="r">{r.gf - r.ga}</td><td className="r"><b>{r.pts}</b></td></tr>)}</tbody></table>
               </div>
             ))}</div>
           )}
@@ -71,7 +71,7 @@ function LeagueTable({ comp }: { comp: string }) {
       <table className="t">
         <thead><tr><th>#</th><th>Equipo</th><th className="c">PJ</th><th className="c">G</th><th className="c">E</th><th className="c">P</th><th className="c">GF</th><th className="c">GC</th><th className="c">DG</th><th className="c">Pts</th><th>Forma</th></tr></thead>
         <tbody>{rows.map((r, i) => {
-          const zone = L.tier === 1 ? (i < 4 ? 'var(--accent)' : i < L.euroSpots ? 'var(--blue)' : i >= rows.length - L.relegate ? 'var(--bad)' : 'transparent') : (i < L.promote ? 'var(--good)' : L.relegate && i >= rows.length - L.relegate ? 'var(--bad)' : 'transparent');
+          const zone = L.tier === 1 ? (i < 4 ? 'var(--accent)' : i < L.euroSpots ? 'var(--blue)' : i < L.euroSpots * 2 ? 'var(--cyan)' : i >= rows.length - L.relegate ? 'var(--bad)' : 'transparent') : (i < L.promote ? 'var(--good)' : L.relegate && i >= rows.length - L.relegate ? 'var(--bad)' : 'transparent');
           return (
             <tr key={r.id} className={r.id === me ? 'me' : ''}>
               <td style={{ borderLeft: `3px solid ${zone}` }}>{i + 1}</td>
@@ -81,16 +81,16 @@ function LeagueTable({ comp }: { comp: string }) {
           );
         })}</tbody>
       </table>
-      <div className="small muted" style={{ padding: 8 }}>{L.tier === 1 ? <>▍<span style={{ color: 'var(--accent)' }}>Top 4</span> ▍<span style={{ color: 'var(--blue)' }}>Copa de Campeones (hasta {L.euroSpots}º)</span> ▍<span style={{ color: 'var(--bad)' }}>Descenso</span></> : <>▍<span style={{ color: 'var(--good)' }}>Ascenso</span>{L.relegate > 0 && <> ▍<span style={{ color: 'var(--bad)' }}>Descenso</span></>}</>}</div>
+      <div className="small muted" style={{ padding: 8 }}>{L.tier === 1 ? <>▍<span style={{ color: 'var(--accent)' }}>Top 4</span> ▍<span style={{ color: 'var(--blue)' }}>Copa de Campeones (hasta {L.euroSpots}º)</span> ▍<span style={{ color: 'var(--cyan)' }}>Copa Continental (hasta {L.euroSpots * 2}º)</span> ▍<span style={{ color: 'var(--bad)' }}>Descenso</span></> : <>▍<span style={{ color: 'var(--good)' }}>Ascenso</span>{L.relegate > 0 && <> ▍<span style={{ color: 'var(--bad)' }}>Descenso</span></>}</>}</div>
     </div>
   );
 }
 
 function CupRounds({ comp }: { comp: string }) {
   const { gs } = useGame();
-  const fx = gs.fixtures.filter(f => f.comp === comp && !(comp === 'euro' && f.roundName?.startsWith('Grupo')));
+  const fx = gs.fixtures.filter(f => f.comp === comp && !((comp === 'euro' || comp === 'euro2') && f.roundName?.startsWith('Grupo')));
   const names = Array.from(new Set(fx.map(f => f.roundName ?? '')));
-  if (!fx.length) return <div className="panel empty">{comp === 'euro' ? 'Las eliminatorias empiezan tras la fase de grupos.' : 'Sin partidos.'}</div>;
+  if (!fx.length) return <div className="panel empty">{comp === 'euro' || comp === 'euro2' ? 'Las eliminatorias empiezan tras la fase de grupos.' : 'Sin partidos.'}</div>;
   return (
     <div className="col">{names.map(n => (
       <div className="panel tight" key={n}><h3>{n}</h3><table className="t"><tbody>{fx.filter(f => f.roundName === n).map(f => <FixtureRow key={f.id} f={f} showDate />)}</tbody></table></div>
@@ -111,3 +111,5 @@ function FixtureRow({ f, showDate }: { f: Fixture; showDate?: boolean }) {
     </tr>
   );
 }
+
+function stageOf(gs: import('@/game/types').GameState, comp: string) { return gs.cups[comp]?.stage ?? 0; }

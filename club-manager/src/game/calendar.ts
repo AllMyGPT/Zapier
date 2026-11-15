@@ -31,9 +31,30 @@ export function roundRobin(ids: string[], rng: Rng): [string, string][][] {
   return [...rounds, ...rounds.map(rd => rd.map(([a, b]) => [b, a] as [string, string]))];
 }
 
+function scheduleEuro(gs: GameState, rng: Rng, id: string, teams: string[], offset: number) {
+  const groups: string[][] = Array.from({ length: 8 }, () => []);
+  const pots = teams.slice().sort((a, b) => gs.clubs[b].reputation - gs.clubs[a].reputation);
+  for (let pot = 0; pot < 4; pot++) {
+    const chunk = rng.shuffle(pots.slice(pot * 8, pot * 8 + 8));
+    for (const c of chunk) {
+      // avoid same country in group when possible
+      const order = rng.shuffle([0, 1, 2, 3, 4, 5, 6, 7]).sort((x, y) => groups[x].length - groups[y].length);
+      const g = order.find(i => groups[i].length === pot && !groups[i].some(o => gs.clubs[o].country === gs.clubs[c].country)) ?? order.find(i => groups[i].length === pot)!;
+      groups[g].push(c);
+    }
+  }
+  gs.cups[id] = { id, name: EURO_NAMES[id], stage: 0, rounds: EURO_ROUNDS, alive: teams.slice(), groups };
+  const pairs: [number, number][][] = [[[0, 1], [2, 3]], [[0, 2], [3, 1]], [[0, 3], [1, 2]], [[1, 0], [3, 2]], [[2, 0], [1, 3]], [[3, 0], [2, 1]]];
+  groups.forEach((g, gi) => pairs.forEach((md, k) => md.forEach(([a, b]) => addFixture(gs, { comp: id, round: k + 1, roundName: `Grupo ${'ABCDEFGH'[gi]} · J${k + 1}`, date: EURO_GROUP_DAYS[k] + offset, home: g[a], away: g[b] }))));
+}
+
 export function addFixture(gs: GameState, f: Omit<Fixture, 'id'>) { const fx = { ...f, id: gs.nextId++ } as Fixture; gs.fixtures.push(fx); return fx; }
 
-export function scheduleSeason(gs: GameState, rng: Rng, euroTeams: string[]) {
+export const EURO_NAMES: Record<string, string> = { euro: 'Copa de Campeones', euro2: 'Copa Continental' };
+export const EURO_DAY_OFFSET: Record<string, number> = { euro: 0, euro2: 2 }; // +2 keeps clear of domestic cup days
+export const isEuro = (comp: string) => comp === 'euro' || comp === 'euro2';
+
+export function scheduleSeason(gs: GameState, rng: Rng, euroTeams: string[], euro2Teams: string[] = []) {
   gs.fixtures = [];
   gs.cups = {};
   for (const L of Object.values(gs.leagues)) {
@@ -53,21 +74,9 @@ export function scheduleSeason(gs: GameState, rng: Rng, euroTeams: string[]) {
     gs.cups[id] = { id, name: CUP_NAME[country], country, stage: 0, rounds: CUP_ROUNDS, alive: ids.slice() };
     drawCupRound(gs, rng, id);
   }
-  // european cup
-  const groups: string[][] = Array.from({ length: 8 }, () => []);
-  const pots = euroTeams.slice().sort((a, b) => gs.clubs[b].reputation - gs.clubs[a].reputation);
-  for (let pot = 0; pot < 4; pot++) {
-    const chunk = rng.shuffle(pots.slice(pot * 8, pot * 8 + 8));
-    for (const c of chunk) {
-      // avoid same country in group when possible
-      const order = rng.shuffle([0, 1, 2, 3, 4, 5, 6, 7]).sort((x, y) => groups[x].length - groups[y].length);
-      const g = order.find(i => groups[i].length === pot && !groups[i].some(o => gs.clubs[o].country === gs.clubs[c].country)) ?? order.find(i => groups[i].length === pot)!;
-      groups[g].push(c);
-    }
-  }
-  gs.cups.euro = { id: 'euro', name: 'Copa de Campeones', stage: 0, rounds: EURO_ROUNDS, alive: euroTeams.slice(), groups };
-  const pairs: [number, number][][] = [[[0, 1], [2, 3]], [[0, 2], [3, 1]], [[0, 3], [1, 2]], [[1, 0], [3, 2]], [[2, 0], [1, 3]], [[3, 0], [2, 1]]];
-  groups.forEach((g, gi) => pairs.forEach((md, k) => md.forEach(([a, b]) => addFixture(gs, { comp: 'euro', round: k + 1, roundName: `Grupo ${'ABCDEFGH'[gi]} · J${k + 1}`, date: EURO_GROUP_DAYS[k], home: g[a], away: g[b] }))));
+  // european cups: Copa de Campeones and, two days later in the week, Copa Continental
+  scheduleEuro(gs, rng, 'euro', euroTeams, 0);
+  if (euro2Teams.length >= 32) scheduleEuro(gs, rng, 'euro2', euro2Teams.slice(0, 32), EURO_DAY_OFFSET.euro2);
 }
 
 export const CUP_NAME: Record<string, string> = { esp: 'Copa Nacional (ESP)', eng: 'Copa Inglesa', ita: 'Copa Italiana', ger: 'Copa Alemana', fra: 'Copa Francesa' };
@@ -94,7 +103,7 @@ export function table(gs: GameState, compId: string, clubIds?: string[]): Row[] 
   for (const id of ids) rows[id] = { id, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0, form: [] };
   for (const f of gs.fixtures) {
     if (f.comp !== compId || !f.played || !rows[f.home] || !rows[f.away]) continue;
-    if (compId === 'euro' && !f.roundName?.startsWith('Grupo')) continue;
+    if (isEuro(compId) && !f.roundName?.startsWith('Grupo')) continue;
     const h = rows[f.home], a = rows[f.away];
     h.p++; a.p++; h.gf += f.hg!; h.ga += f.ag!; a.gf += f.ag!; a.ga += f.hg!;
     if (f.hg! > f.ag!) { h.w++; a.l++; h.pts += 3; h.form.push('V'); a.form.push('D'); }
