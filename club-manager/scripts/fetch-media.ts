@@ -18,7 +18,11 @@ import { LEAGUE as FRA } from '../src/data/leagues/fra';
 
 const OUT = 'public/media.json';
 const UA = 'PizarraClubManager/0.1 (personal fan project; low-volume batched lookups)';
-const LEAGUES = [ESP, ENG, ITA, GER, FRA];
+// WORLD=1 also covers public/world/leagues.json (rest of Europe and South America): crests, and photos of
+// players worth at least MIN_WORLD_VALUE M€ (thousands of lesser-known players would take hours to look up)
+const WORLD = process.env.WORLD === '1' && existsSync('public/world/leagues.json') ? JSON.parse(readFileSync('public/world/leagues.json', 'utf8')) as typeof ESP[] : [];
+const MIN_WORLD_VALUE = 1.5;
+const LEAGUES = [ESP, ENG, ITA, GER, FRA, ...WORLD];
 const GAP = 1100; // ms between requests
 
 type Hit = { url: string; page: string };
@@ -107,7 +111,7 @@ async function main() {
   console.log('  sin escudo:', allClubs.filter(c => !media.clubs[c.id]).map(c => c.name).join(', ') || '—');
 
   // ---- player photos
-  const players = LEAGUES.flatMap(L => L.clubs.flatMap(c => c.players.split('\n').map(l => l.trim().split('|')).filter(p => p.length >= 6).map(p => ({ key: `${p[0]}|${p[2]}`, name: p[0], born: p[2] }))));
+  const players = LEAGUES.flatMap(L => L.clubs.flatMap(c => c.players.split('\n').map(l => l.trim().split('|')).filter(p => p.length >= 6 && (!WORLD.includes(L) || +(p[6] ?? 0) >= MIN_WORLD_VALUE)).map(p => ({ key: `${p[0]}|${p[2]}`, name: p[0], born: p[2] }))));
   const pv = (p: { name: string; born: string }) => [p.name, `${p.name} (footballer)`, `${p.name} (footballer, born ${p.born})`, `${p.name} (soccer)`];
   for (let v = 0; v < 4; v++) {
     const todo = players.filter(p => !media.players[p.key]);

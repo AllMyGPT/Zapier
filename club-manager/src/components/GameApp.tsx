@@ -73,7 +73,8 @@ export default function GameApp() {
   const toast = useCallback((s: string) => { setToast(s); clearTimeout(toastT.current); toastT.current = setTimeout(() => setToast(null), 3800); }, []);
   const setGs = useCallback((g: GameState | null) => { if (g && g.manager.clubId && (!g.objectives || g.objectives.season !== g.season)) setObjectives(g); setGsState(g); setTab('office'); setV(x => x + 1); }, []);
 
-  useEffect(() => { if (gs && v % 1 === 0) { const t = setTimeout(() => { saveLocal(gs, 0); }, 400); return () => clearTimeout(t); } }, [gs, v]);
+  // autosave once the user pauses: big worlds take a moment to serialise, so wait longer when there are many players
+  useEffect(() => { if (gs) { const big = gs.nextId > 15000; const t = setTimeout(() => { saveLocal(gs, 0); }, big ? 2500 : 400); return () => clearTimeout(t); } }, [gs, v]);
 
   if (!gs) return <TitleScreen onStart={g => setGs(g)} />;
   const club = gs.clubs[gs.manager.clubId];

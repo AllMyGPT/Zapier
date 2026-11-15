@@ -133,6 +133,19 @@ npx tsc --noEmit && npx next build   # comprobaciones
 - Ligue 1: suben Troyes y Le Mans (nuevo); bajan Nantes y Metz.
 - Motor: el peso de remate del delantero centro baja de 1 a 0,85 para que los goles se repartan algo más.
 
+## Resto de Europa y Sudamérica (15 nov 2026)
+- 49 primeras divisiones europeas y 10 sudamericanas en `public/world/leagues.json` (817 clubes, ~23.000 jugadores), cargadas al crear partida.
+  - Generadas con `scripts/build-world.py <export>`. El export sale de Transfermarkt desde el navegador: plantilla (temporada 2026 o 2025 en ligas de año natural), estadio y aforo, ciudad y colores del club.
+  - Reputación por valor de plantilla (ajuste sobre los clubes de las 5 grandes) y medias por valor y edad. Un club con plantilla incompleta se completa con jugadores generados.
+  - Sin segunda división: estas ligas no tienen ascensos ni descensos. Argentina (30 clubes) juega a una vuelta.
+- Copas: Copa de Campeones de América (32 clubes sudamericanos). Con el resto de Europa, las 5 grandes pasan a 21+10 plazas europeas y el resto se reparte entre las demás ligas (`EURO` en el script). Copa nacional en cada país con 16 o más clubes.
+- Nueva partida: regiones (grandes ligas, resto de Europa, Sudamérica) y opción «Ligas simuladas» (5 grandes, toda Europa, Europa y Sudamérica; tu liga siempre está).
+- Rendimiento con todo: ~33 s de simulación por temporada en Node, ~1 s por semana en el navegador, guardado de ~3 MB comprimido.
+  - `strengthOf` se cachea por día (las transferencias llaman a `invalidateStrength`).
+  - El fin de temporada usa índices por club en lugar de recorrer todos los jugadores.
+- Guardado local en IndexedDB (las partidas antiguas de localStorage se siguen leyendo). El autoguardado espera 2,5 s en mundos grandes.
+- Escudos y fotos: `WORLD=1 npx tsx scripts/fetch-media.ts`. Busca escudos de todos los clubes y fotos solo de los jugadores de estas ligas que valen 1,5 M€ o más.
+
 ## Ideas pendientes (opcionales)
 - Revisar plantillas dudosas en `src/data/leagues/*.ts` (formato `Nombre|POS|año|NAC|media|potencial`), p. ej. canteranos poco seguros en `esp.ts`: David Otorbi, Ismael Bekhoucha, Yellu Santiago, Dani Budesca.
 - Los escudos son generados a propósito (no logos oficiales). Si se publica o monetiza, revisar los derechos de imagen de los nombres de jugadores.

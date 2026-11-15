@@ -117,6 +117,8 @@ export function createWorld(managerName: string, seed = Date.now() % 1e9, extra:
         const prng = new Rng(hashStr(name + rc.id) ^ seed);
         makePlayer(gs, prng, { name, pos: pos as Pos, born: +born, nat, ovr: +o, pot: +pot, clubId: club.id, rep: club.reputation, tmValue: mv ? +mv : undefined, contractEnd: ct ? +ct : undefined });
       }
+      // a squad that the source left short (data gaps) is completed with generated players
+      if (Object.values(gs.players).filter(p => p.clubId === club.id).length < 16) genSquad(gs, rng, club, L.nat, 52 + (rc.reputation - 40) * 0.5);
     }
     for (const rc of L.tier2) {
       const club = newClub(rc, l2.id, L.id, 2 + rc.reputation / 20, rng);
