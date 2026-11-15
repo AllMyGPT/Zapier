@@ -1,0 +1,9 @@
+item.roma:gladius=Gladius
+item.roma:pilum=Pilum
+item.roma:denarius=Imperial Denarius
+tile.roma:marble_pillar.name=Marble Pillar
+tile.roma:colosseum_altar.name=Colosseum Altar
+entity.roma:legionary.name=Legionary
+item.spawn_egg.entity.roma:legionary.name=Spawn Legionary
+pack.name=Roman Empire
+pack.description=SPQR

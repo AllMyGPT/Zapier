@@ -1,0 +1,17 @@
+{
+  "name": "imperio-romano",
+  "version": "1.0.0",
+  "description": "Mod Imperio Romano para Minecraft Bedrock (Switch via Realms o servidor LAN)",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "assets": "python3 tools/generate_assets.py",
+    "bundle": "bash tools/bundle.sh"
+  },
+  "devDependencies": {
+    "@minecraft/server": "2.1.0",
+    "typescript": "^5.9.3"
+  },
+  "private": true,
+  "license": "UNLICENSED"
+}

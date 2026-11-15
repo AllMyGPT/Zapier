@@ -1,0 +1,5 @@
+{
+  "format_version": "1.21.40",
+  "roma:marble_pillar": { "sound": "stone", "textures": "roma_marble_pillar" },
+  "roma:colosseum_altar": { "sound": "stone", "textures": "roma_colosseum_altar" }
+}

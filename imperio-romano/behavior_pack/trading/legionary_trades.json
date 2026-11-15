@@ -1,0 +1,12 @@
+{
+  "tiers": [
+    {
+      "trades": [
+        { "wants": [{ "item": "roma:denarius", "quantity": 2 }], "gives": [{ "item": "minecraft:bread", "quantity": 4 }] },
+        { "wants": [{ "item": "roma:denarius", "quantity": 8 }], "gives": [{ "item": "roma:gladius", "quantity": 1 }] },
+        { "wants": [{ "item": "roma:denarius", "quantity": 4 }], "gives": [{ "item": "roma:pilum", "quantity": 4 }] },
+        { "wants": [{ "item": "roma:denarius", "quantity": 16 }], "gives": [{ "item": "minecraft:golden_apple", "quantity": 1 }] }
+      ]
+    }
+  ]
+}

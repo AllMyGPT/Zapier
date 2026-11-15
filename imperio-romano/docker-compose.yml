@@ -1,0 +1,31 @@
+# Servidor oficial de Minecraft Bedrock (BDS) con el mod Imperio Romano inyectado.
+# Imagen: https://github.com/itzg/docker-minecraft-bedrock-server
+# En Mac con Apple Silicon (M1/M2/M3/M4) la imagen arm64 emula BDS con box64: funciona sin cambios.
+services:
+  bedrock:
+    image: itzg/minecraft-bedrock-server:latest
+    container_name: imperio-romano
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment:
+      EULA: "TRUE"
+      VERSION: "LATEST"            # la Switch debe tener la misma versión (actualízala)
+      SERVER_NAME: "Imperio Romano"
+      LEVEL_NAME: "${LEVEL_NAME:-ImperioRomano}"
+      GAMEMODE: "survival"
+      DIFFICULTY: "normal"
+      ALLOW_CHEATS: "false"
+      ONLINE_MODE: "true"
+      MAX_PLAYERS: "8"
+      DEFAULT_PLAYER_PERMISSION_LEVEL: "member"
+      TEXTUREPACK_REQUIRED: "true"   # la Switch descarga texturas, modelos y scripts al unirse
+      ENABLE_LAN_VISIBILITY: "true"  # aparece en "Amigos → Partidas LAN"
+      SERVER_PORT: "19132"
+      SERVER_PORT_V6: "19133"
+      CONTENT_LOG_FILE_ENABLED: "true"
+      TZ: "Europe/Madrid"
+    ports:
+      - "${HOST_PORT:-19132}:19132/udp"
+    volumes:
+      - ./server-data:/data
