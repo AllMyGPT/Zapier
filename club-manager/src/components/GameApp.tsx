@@ -3,7 +3,8 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import type { Fixture, GameState } from '@/game/types';
 import { advance, endSeason, fmtMoney, simFixture, buildMatch, applyResult } from '@/game/season';
 import { compName, dateLabel, seasonLabel, table, inWindow } from '@/game/calendar';
-import { Crest, Modal, SceneHero } from './ui';
+import { Crest, Modal, SceneHero, TalkBar } from './ui';
+import { PRE_TALKS, preMatchTalk, type TalkKind, type TalkResult } from '@/game/talk';
 import { Icon } from './Icons';
 import TitleScreen from './TitleScreen';
 import Office from './screens/Office';
@@ -41,7 +42,7 @@ const SCENES: Record<Tab, [string, string, string]> = {
   finances: ['negotiation', 'Cuentas del club', 'Ingresos, gastos y presupuesto'],
   club: ['exterior', 'Instalaciones', 'Estadio, personal y cantera'],
   comps: ['trophies', 'Sala de trofeos', 'Clasificaciones, copas y calendario'],
-  save: ['stadium', 'Partida', 'Guarda y carga tu carrera'],
+  save: ['manager', 'Partida', 'Guarda y carga tu carrera'],
 };
 
 export default function GameApp() {
@@ -52,6 +53,7 @@ export default function GameApp() {
   const [player, setPlayer] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [pre, setPre] = useState<Fixture | null>(null);
+  const [talk, setTalk] = useState<TalkResult | null>(null);
   const [match, setMatch] = useState<{ m: Match; f: Fixture } | null>(null);
   const [summary, setSummary] = useState<{ f: Fixture; m: Match } | null>(null);
   const [seasonEnd, setSeasonEnd] = useState<string[] | null>(null);
@@ -74,7 +76,7 @@ export default function GameApp() {
     setTimeout(() => {
       const r = advance(gs);
       setBusy(false);
-      if (r.type === 'match') { setPre(r.fixture); }
+      if (r.type === 'match') { setTalk(null); setPre(r.fixture); }
       else if (r.type === 'seasonEnd') { const s = endSeason(gs); setSeasonEnd(s); }
       else if (r.type === 'sacked') { /* handled by office banner */ setTab('office'); }
       else toast(r.reason);
@@ -162,6 +164,7 @@ export default function GameApp() {
               <div className="col" style={{ alignItems: 'center', width: 220 }}><Crest club={away} size={96} /><h2 style={{ textAlign: 'center', fontStyle: 'italic', textTransform: 'uppercase' }}>{away.name}</h2></div>
             </div>
             <p className="muted" style={{ textAlign: 'center' }}>{home.stadium} · Rival: {opp.name} ({opp.tactics.formation})</p>
+            <TalkBar title="Charla en el vestuario" options={PRE_TALKS} result={talk} onPick={k => { setTalk(preMatchTalk(gs, club.id, opp.id, pre.home === club.id, k as TalkKind)); refresh(); }} />
             <div className="row" style={{ justifyContent: 'center', marginTop: 18 }}>
               <button className="btn" onClick={() => { setPre(null); setTab('tactics'); }}>Revisar tácticas</button>
               <button className="btn" onClick={() => startMatch(false)}>Resultado rápido</button>

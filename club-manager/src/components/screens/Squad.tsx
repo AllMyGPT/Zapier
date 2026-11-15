@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { useGame } from '../GameApp';
-import { Ovr, PosBadge, Flag, Bar, useSort, Stars } from '../ui';
+import { Ovr, PosBadge, Flag, Bar, useSort, Stars, PlayerCard } from '../ui';
 import { clubPlayers } from '@/game/lineup';
 import { age, avgRating, marketValue, ovr, playerStatus, POS_ORDER } from '@/game/player';
 import { fmtMoney } from '@/game/season';
@@ -15,6 +15,7 @@ export function potStars(p: Player, scout: number, own: boolean) {
 export default function Squad() {
   const { gs, openPlayer } = useGame();
   const [view, setView] = useState<'first' | 'youth'>('first');
+  const [mode, setMode] = useState<'table' | 'cards'>('table');
   const club = gs.clubs[gs.manager.clubId];
   const players = clubPlayers(gs, club.id, true).filter(p => (view === 'youth' ? p.youth : !p.youth));
   const { sorted, th } = useSort(players, 'pos', {
@@ -26,8 +27,19 @@ export default function Squad() {
     <div className="panel">
       <div className="card-title">
         <div className="seg"><button className={view === 'first' ? 'on' : ''} onClick={() => setView('first')}>Primer equipo ({clubPlayers(gs, club.id).length})</button><button className={view === 'youth' ? 'on' : ''} onClick={() => setView('youth')}>Cantera ({clubPlayers(gs, club.id, true).filter(p => p.youth).length})</button></div>
-        <span className="small muted">Haz clic en un jugador para ver su ficha, renovarlo o ponerlo en venta.</span>
+        <div className="seg"><button className={mode === 'table' ? 'on' : ''} onClick={() => setMode('table')}>Tabla</button><button className={mode === 'cards' ? 'on' : ''} onClick={() => setMode('cards')}>Cromos</button></div>
       </div>
+      {mode === 'cards' ? (
+        <div className="card-grid">
+          {sorted.map(p => (
+            <div key={p.id} onClick={() => openPlayer(p.id)}>
+              <PlayerCard p={p} club={club} rating={ovr(p)} />
+              <div className="card-meta"><span>{age(p, gs.season)} años</span><span>{inXI.has(p.id) ? 'Titular' : p.listed ? 'En venta' : fmtMoney(marketValue(p, gs.season))}</span></div>
+            </div>
+          ))}
+          {!sorted.length && <div className="empty">No hay jugadores en esta sección.</div>}
+        </div>
+      ) : (
       <div className="tablewrap">
         <table className="t">
           <thead><tr>{th('num', '#', 'c')}{th('pos', 'Pos')}{th('name', 'Nombre')}{th('age', 'Edad', 'c')}{th('ovr', 'Med', 'c')}{th('pot', 'Pot')}{th('fit', 'Físico')}{th('mor', 'Moral')}{th('apps', 'PJ', 'c')}{th('goals', 'G', 'c')}{th('rat', 'Nota', 'c')}{th('val', 'Valor', 'r')}{th('wage', 'Sueldo/sem', 'r')}{th('ct', 'Contrato', 'c')}<th>Estado</th></tr></thead>
@@ -58,6 +70,7 @@ export default function Squad() {
         </table>
         {!sorted.length && <div className="empty">No hay jugadores en esta sección.</div>}
       </div>
+      )}
     </div>
   );
 }

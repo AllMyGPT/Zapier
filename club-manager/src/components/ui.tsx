@@ -70,6 +70,22 @@ export function Modal({ onClose, children, wide, scene }: { onClose: () => void;
   );
 }
 
+/** Row of team-talk options; once used, shows the dressing-room reaction. */
+export function TalkBar({ title, options, result, onPick }: { title: string; options: [string, string, string][]; result: { msg: string; up: number; same: number; down: number } | null; onPick: (k: string) => void }) {
+  return (
+    <div className="talk">
+      <div className="talk-h">{title}</div>
+      {!result ? (
+        <div className="talk-opts">{options.map(([k, label, hint]) => (
+          <button key={k} className="talk-opt" onClick={() => onPick(k)}><b>{label}</b><span>{hint}</span></button>
+        ))}</div>
+      ) : (
+        <div className="talk-res"><span className="tr-msg">{result.msg}</span><span className="tr-n up">▲ {result.up}</span><span className="tr-n same">● {result.same}</span><span className="tr-n down">▼ {result.down}</span></div>
+      )}
+    </div>
+  );
+}
+
 /** Collectible-style player card: club colours, rating, position, silhouette and holographic sheen. */
 export function PlayerCard({ p, club, rating }: { p: Player; club: Pick<Club, 'colors' | 'name' | 'short' | 'id'> | null; rating: number }) {
   const [a, b] = club ? club.colors : ['#2a3550', '#141c2e'];
@@ -88,7 +104,7 @@ export function PlayerCard({ p, club, rating }: { p: Player; club: Pick<Club, 'c
         <path d="M14 100 C16 70 32 58 50 58 C68 58 84 70 86 100 Z" />
       </svg>
       <div className="pcard-num">{p.num || '–'}</div>
-      <div className="pcard-name">{p.name.split(' ').slice(-1)[0]}</div>
+      <div className="pcard-name">{p.name.includes(' ') ? p.name.split(' ').slice(1).join(' ') : p.name}</div>
       <div className="pcard-sheen" />
     </div>
   );

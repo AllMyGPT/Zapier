@@ -70,9 +70,36 @@ export default function ClubScreen() {
         </div>
       </div>
       <div className="grid g2">
-        <div className="panel"><h3>Palmarés (en tu partida)</h3>{trophies.length ? trophies.map((t, i) => <div key={i}>🏆 {t.comp} {seasonLabel(t.season)}</div>) : <div className="muted small">Sin títulos todavía.</div>}</div>
-        <div className="panel"><h3>Carrera de {gs.manager.name}</h3>{gs.manager.history.length ? <table className="t"><tbody>{gs.manager.history.map((h, i) => <tr key={i}><td>{seasonLabel(h.season)}</td><td>{h.club}</td><td>{h.league}</td><td>{h.pos}º</td><td>{h.trophies.join(', ')}</td></tr>)}</tbody></table> : <div className="muted small">Primera temporada en curso.</div>}</div>
+        <div className="panel cabinet"><h3>Vitrina del club (en tu partida)</h3>
+          <div className="shelf">
+            {trophies.length ? trophies.map((t, i) => <div className="cup" key={i} style={{ animationDelay: `${i * 0.06}s` }}><Cup kind={t.comp} /><div className="cn">{t.comp}</div><div className="cs">{seasonLabel(t.season)}</div></div>) : <div className="empty-shelf">La vitrina espera su primer título.</div>}
+          </div>
+        </div>
+        <div className="panel"><h3>Carrera de {gs.manager.name}</h3>
+          <div className="career-kpis">
+            <div className="statbox"><span>Temporadas</span><b>{gs.manager.history.length + 1}</b></div>
+            <div className="statbox"><span>Títulos</span><b>{gs.manager.history.reduce((a, h) => a + h.trophies.length, 0) + gs.trophies.filter(t => t.club === club.id && t.season === gs.season).length}</b></div>
+            <div className="statbox"><span>Mejor puesto</span><b>{gs.manager.history.length ? `${Math.min(...gs.manager.history.map(h => h.pos))}º` : '—'}</b></div>
+            <div className="statbox"><span>Reputación</span><b>{Math.round(gs.manager.reputation)}</b></div>
+          </div>{gs.manager.history.length ? <table className="t"><tbody>{gs.manager.history.map((h, i) => <tr key={i}><td>{seasonLabel(h.season)}</td><td>{h.club}</td><td>{h.league}</td><td>{h.pos}º</td><td>{h.trophies.join(', ')}</td></tr>)}</tbody></table> : <div className="muted small">Primera temporada en curso.</div>}</div>
       </div>
     </div>
+  );
+}
+
+/** Trophy silhouette: league shields are wide plates, cups are tall chalices. */
+function Cup({ kind }: { kind: string }) {
+  const league = /liga|league|serie|bundes|ligue|division|división/i.test(kind) && !/copa|cup|coupe|pokal|coppa|campeones/i.test(kind);
+  const gold = !/segunda|2\.|championship|serie b|ligue 2/i.test(kind);
+  const a = gold ? '#fff2b0' : '#f1f5fb', b = gold ? '#d4a017' : '#9aa8bf', c = gold ? '#8a6408' : '#5d6b82';
+  return (
+    <svg viewBox="0 0 54 64" aria-hidden="true">
+      <defs><linearGradient id={`cg${kind.length}${gold ? 1 : 0}`} x1="0" x2="1"><stop offset="0" stopColor={c} /><stop offset=".35" stopColor={a} /><stop offset=".6" stopColor={b} /><stop offset="1" stopColor={c} /></linearGradient></defs>
+      {league ? (
+        <g fill={`url(#cg${kind.length}${gold ? 1 : 0})`}><ellipse cx="27" cy="26" rx="22" ry="22" /><ellipse cx="27" cy="26" rx="14" ry="14" fill={c} opacity=".35" /><rect x="22" y="46" width="10" height="8" /><rect x="12" y="54" width="30" height="8" rx="2" /></g>
+      ) : (
+        <g fill={`url(#cg${kind.length}${gold ? 1 : 0})`}><path d="M12 4h30v14c0 10-7 18-15 18S12 28 12 18z" /><path d="M12 8H5c0 9 4 14 9 15M42 8h7c0 9-4 14-9 15" fill="none" stroke={b} strokeWidth="3" /><rect x="23" y="35" width="8" height="12" /><rect x="14" y="47" width="26" height="6" rx="1" /><rect x="11" y="53" width="32" height="9" rx="2" /></g>
+      )}
+    </svg>
   );
 }

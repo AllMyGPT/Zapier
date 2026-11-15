@@ -3,7 +3,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { Fixture } from '@/game/types';
 import { type Match, type Tick, stepMatch, substitute, setTactics, minuteOf, possessionPct, runToEnd } from '@/game/engine';
 import { useGame } from './GameApp';
-import { Crest } from './ui';
+import { Crest, TalkBar } from './ui';
+import { HALF_TALKS, halfTimeTalk, type TalkKind, type TalkResult } from '@/game/talk';
 import { compName } from '@/game/calendar';
 import { FORMATION_KEYS, MENTALITY_LABEL } from '@/game/tactics';
 import { POS_LABEL } from '@/game/player';
@@ -104,6 +105,8 @@ export default function MatchView({ m, f, onFinish }: { m: Match; f: Fixture; on
   const [flash, setFlash] = useState<string | null>(null);
   const [lower, setLower] = useState<{ name: string; club: Fixture['home']; min: number; side: number } | null>(null);
   const [panel, setPanel] = useState(false);
+  const [halfTalk, setHalfTalk] = useState<TalkResult | null>(null);
+  const [halfOpen, setHalfOpen] = useState(false);
   const [subOut, setSubOut] = useState<number | null>(null);
   const st = useRef({ ti: 0, from: new Map<number, Pt>(), to: new Map<number, Pt>(), ballFrom: { x: .5, y: .5 }, ballTo: { x: .5, y: .5 }, t0: 0, dur: 600, arc: 0, hold: 0 });
   const playingRef = useRef(playing); playingRef.current = playing;
@@ -143,7 +146,7 @@ export default function MatchView({ m, f, onFinish }: { m: Match; f: Fixture; on
         if (ev) { setLower({ name: ev.pid != null ? gs.players[ev.pid]?.name ?? '' : '', club: m.sides[ev.side].club.id, min: ev.min, side: ev.side }); setTimeout(() => setLower(null), 4200); }
         s.hold = speedRef.current < 4 ? 2200 : 600; }
       else if (tk.kind === 'save' || tk.kind === 'miss' || tk.kind === 'red' || tk.kind === 'pen') s.hold = speedRef.current < 3 ? 700 : 150;
-      if (tk.kind === 'half' && m.userSide != null) { setPlaying(false); setPanel(true); }
+      if (tk.kind === 'half' && m.userSide != null) { setPlaying(false); setPanel(true); setHalfOpen(true); }
       if (tk.kind === 'injury' && m.userSide != null && gs.players[tk.holder]?.clubId === gs.manager.clubId) { /* auto sub happened */ }
     }
     setUi(x => x + 1);
@@ -241,8 +244,9 @@ export default function MatchView({ m, f, onFinish }: { m: Match; f: Fixture; on
                   <select value={mine.tactics.formation} onChange={e => { setTactics(m, us, { ...mine.tactics, formation: e.target.value }); setUi(x => x + 1); }}>{FORMATION_KEYS.map(k => <option key={k}>{k}</option>)}</select>
                   <div className="seg">{([-2, -1, 0, 1, 2] as const).map(v => <button key={v} className={mine.tactics.mentality === v ? 'on' : ''} onClick={() => { setTactics(m, us, { ...mine.tactics, mentality: v }); setUi(x => x + 1); }}>{MENTALITY_LABEL[v]}</button>)}</div>
                   <div className="seg">{([1, 2, 3] as const).map(v => <button key={v} className={mine.tactics.pressing === v ? 'on' : ''} onClick={() => { setTactics(m, us, { ...mine.tactics, pressing: v }); setUi(x => x + 1); }}>Presión {['baja', 'media', 'alta'][v - 1]}</button>)}</div>
-                  <button className="btn primary right" onClick={() => { setPanel(false); setPlaying(true); }}>Volver al partido ▶</button>
+                  <button className="btn primary right" onClick={() => { setPanel(false); setHalfOpen(false); setPlaying(true); }}>Volver al partido ▶</button>
                 </div>
+                {halfOpen && <div style={{ marginBottom: 12 }}><TalkBar title="Charla del descanso" options={HALF_TALKS} result={halfTalk} onPick={k => { setHalfTalk(halfTimeTalk(m, us, k as TalkKind)); setUi(x => x + 1); }} /></div>}
                 <div className="grid g2">
                   <table className="t"><thead><tr><th>En el campo (elige quién sale)</th><th>Pos</th><th>Energía</th><th>Nota</th></tr></thead><tbody>
                     {mine.onPitch.map((id, i) => id == null ? null : (
