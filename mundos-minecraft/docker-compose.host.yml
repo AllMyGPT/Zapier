@@ -1,0 +1,10 @@
+# Variante con red del host: el contenedor recibe directamente los broadcasts LAN
+# de la Switch (UDP 7551). Requiere Docker Desktop ≥ 4.34 con
+# Settings → Resources → Network → "Enable host networking" activado.
+# Uso: make server-up-host
+services:
+  bedrock:
+    network_mode: host
+    ports: !reset []
+    environment:
+      SERVER_UDP_PORTS: "19140-19147"

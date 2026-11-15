@@ -1,0 +1,28 @@
+{
+  "format_version": "1.21.10",
+  "minecraft:recipe_shaped": {
+    "description": {
+      "identifier": "galaxia:espada_plasma_verde"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "pattern": [
+      " D ",
+      " D ",
+      " C "
+    ],
+    "key": {
+      "D": {
+        "item": "minecraft:emerald"
+      },
+      "C": {
+        "item": "galaxia:credito"
+      }
+    },
+    "result": {
+      "item": "galaxia:espada_plasma_verde",
+      "count": 1
+    }
+  }
+}

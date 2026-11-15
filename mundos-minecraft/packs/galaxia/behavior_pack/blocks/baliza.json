@@ -1,0 +1,30 @@
+{
+  "format_version": "1.21.60",
+  "minecraft:block": {
+    "description": {
+      "identifier": "galaxia:baliza",
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "galaxia_baliza",
+          "render_method": "opaque"
+        }
+      },
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 3.0
+      },
+      "minecraft:destructible_by_explosion": {
+        "explosion_resistance": 30
+      },
+      "minecraft:light_emission": 15,
+      "minecraft:map_color": "#2A9DF4",
+      "minecraft:custom_components": [
+        "galaxia:baliza"
+      ]
+    }
+  }
+}

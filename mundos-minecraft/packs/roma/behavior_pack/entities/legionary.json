@@ -1,0 +1,69 @@
+{
+  "format_version": "1.21.10",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "roma:legionary",
+      "is_spawnable": true,
+      "is_summonable": true,
+      "is_experimental": false
+    },
+    "components": {
+      "minecraft:type_family": { "family": ["legionary", "roman", "mob"] },
+      "minecraft:health": { "value": 40, "max": 40 },
+      "minecraft:attack": { "damage": 7 },
+      "minecraft:collision_box": { "width": 0.6, "height": 1.9 },
+      "minecraft:movement": { "value": 0.3 },
+      "minecraft:movement.basic": {},
+      "minecraft:navigation.walk": { "can_path_over_water": true, "avoid_damage_blocks": true, "can_open_doors": true },
+      "minecraft:jump.static": {},
+      "minecraft:can_climb": {},
+      "minecraft:physics": {},
+      "minecraft:pushable": { "is_pushable": true, "is_pushable_by_piston": true },
+      "minecraft:nameable": {},
+      "minecraft:persistent": {},
+      "minecraft:knockback_resistance": { "value": 0.4 },
+      "minecraft:follow_range": { "value": 24, "max": 32 },
+      "minecraft:damage_sensor": {
+        "triggers": [
+          { "on_damage": { "filters": { "test": "is_family", "subject": "other", "value": "player" } }, "deals_damage": "no" }
+        ]
+      },
+      "minecraft:equipment": { "table": "loot_tables/legionary_equipment.json" },
+      "minecraft:trade_table": {
+        "display_name": "entity.roma:legionary.name",
+        "table": "trading/legionary_trades.json",
+        "new_screen": true,
+        "persist_trades": true
+      },
+      "minecraft:behavior.float": { "priority": 0 },
+      "minecraft:behavior.trade_with_player": { "priority": 1 },
+      "minecraft:behavior.melee_attack": { "priority": 2, "speed_multiplier": 1.2, "track_target": true },
+      "minecraft:behavior.hurt_by_target": {
+        "priority": 1,
+        "entity_types": { "filters": { "test": "is_family", "subject": "other", "operator": "!=", "value": "player" } }
+      },
+      "minecraft:behavior.nearest_attackable_target": {
+        "priority": 2,
+        "must_see": true,
+        "reselect_targets": true,
+        "within_radius": 16,
+        "entity_types": [
+          {
+            "filters": {
+              "any_of": [
+                { "test": "is_family", "subject": "other", "value": "monster" },
+                { "test": "is_family", "subject": "other", "value": "zombie" },
+                { "test": "is_family", "subject": "other", "value": "skeleton" }
+              ]
+            },
+            "max_dist": 16
+          }
+        ]
+      },
+      "minecraft:behavior.move_towards_target": { "priority": 3, "speed_multiplier": 1.0, "within_radius": 24 },
+      "minecraft:behavior.random_stroll": { "priority": 6, "speed_multiplier": 0.6 },
+      "minecraft:behavior.look_at_player": { "priority": 7, "look_distance": 8, "probability": 0.02 },
+      "minecraft:behavior.random_look_around": { "priority": 8 }
+    }
+  }
+}

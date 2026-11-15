@@ -1,0 +1,15 @@
+{
+  "resource_pack_name": "galos",
+  "texture_name": "atlas.items",
+  "texture_data": {
+    "galos_pocion": {
+      "textures": "textures/items/pocion_magica"
+    },
+    "galos_jabali_asado": {
+      "textures": "textures/items/jabali_asado"
+    },
+    "galos_hoz": {
+      "textures": "textures/items/hoz_de_oro"
+    }
+  }
+}

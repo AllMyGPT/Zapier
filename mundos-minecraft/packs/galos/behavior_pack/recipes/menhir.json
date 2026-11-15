@@ -1,0 +1,25 @@
+{
+  "format_version": "1.21.10",
+  "minecraft:recipe_shaped": {
+    "description": {
+      "identifier": "galos:menhir"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "pattern": [
+      " S ",
+      "SSS",
+      "SSS"
+    ],
+    "key": {
+      "S": {
+        "item": "minecraft:cobblestone"
+      }
+    },
+    "result": {
+      "item": "galos:menhir",
+      "count": 2
+    }
+  }
+}
