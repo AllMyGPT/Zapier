@@ -12,7 +12,7 @@ import { genName } from './names';
 
 export type Interest = 'mujeres' | 'hombres' | 'ambos';
 export type Stage = 'conocida' | 'citas' | 'pareja' | 'prometida' | 'casada' | 'amante' | 'ex';
-export interface Person { id: number; name: string; gender: 'f' | 'm'; born: number; job: string; img: string; traits: string[]; likes: string[]; affinity: number; stage: Stage; met: number; lastDate: number; since?: number }
+export interface Person { id: number; name: string; gender: 'f' | 'm'; born: number; job: string; img: string; traits: string[]; likes: string[]; affinity: number; stage: Stage; met: number; lastDate: number; since?: number; lastFlirt?: number }
 export interface Child { id: number; name: string; gender: 'f' | 'm'; born: number; talent: number; studies: number; happiness: number; path?: 'fútbol' | 'estudios' | 'arte'; playerId?: number }
 export interface LifeLog { day: number; season: number; text: string; kind: 'love' | 'family' | 'home' | 'money' | 'scandal' | 'health' }
 export interface LifeState {
@@ -34,19 +34,30 @@ export const CARS = [
   { id: 'deportivo', name: 'Deportivo', price: 180_000, weekly: 300, happy: 6, img: 'car-sports', desc: 'Se gira la gente a mirarlo.' },
   { id: 'super', name: 'Superdeportivo', price: 420_000, weekly: 600, happy: 9, img: 'car-super', desc: 'Una bestia. La prensa rosa lo adora.' },
 ];
-export const VENUES = [
-  { id: 'cine', name: 'Cine y cena informal', cost: 120, img: 'venue-cinema', fame: 0 },
-  { id: 'playa', name: 'Paseo al atardecer por la playa', cost: 200, img: 'venue-beach', fame: 0 },
-  { id: 'restaurante', name: 'Restaurante con estrella', cost: 600, img: 'venue-restaurant', fame: 0 },
-  { id: 'gala', name: 'Gala benéfica de alfombra roja', cost: 3_000, img: 'venue-gala', fame: 1 },
-  { id: 'viaje', name: 'Escapada romántica de fin de semana', cost: 8_000, img: 'venue-trip', fame: 0 },
+/** Date plans. minAff: affinity needed before she accepts; intimate: the night may end at one of your places;
+ *  exposed: paparazzi territory (an affair there can be photographed). */
+export interface Venue { id: string; name: string; cost: number; img: string; fame: number; minAff?: number; intimate?: boolean; exposed?: boolean; flirt: string }
+export const VENUES: Venue[] = [
+  { id: 'cine', name: 'Cine y cena informal', cost: 120, img: 'venue-cinema', fame: 0, flirt: 'Compartís palomitas y alguna mirada cómplice en la oscuridad.' },
+  { id: 'salsa', name: 'Noche de salsa', cost: 150, img: 'venue-salsa', fame: 0, exposed: true, flirt: 'Bailáis muy pegados; la canción termina y ninguno quiere soltarse.' },
+  { id: 'playa', name: 'Paseo al atardecer por la playa', cost: 200, img: 'venue-beach', fame: 0, flirt: 'Descalzos en la orilla, el primer beso llega con el último rayo de sol.' },
+  { id: 'casa', name: 'Cena íntima en tu casa', cost: 300, img: 'venue-home', fame: 0, minAff: 30, intimate: true, flirt: 'Cocinas tú, ella elige la música y la sobremesa se alarga.' },
+  { id: 'azotea', name: 'Cócteles en una azotea', cost: 400, img: 'venue-rooftop', fame: 0, exposed: true, flirt: 'Brindáis con la ciudad a vuestros pies; las indirectas suben de tono.' },
+  { id: 'restaurante', name: 'Restaurante con estrella', cost: 600, img: 'venue-restaurant', fame: 0, exposed: true, flirt: 'Velas, vino y una conversación que se vuelve cada vez más personal.' },
+  { id: 'spa', name: 'Spa privado para dos', cost: 1_500, img: 'venue-spa', fame: 0, minAff: 40, intimate: true, flirt: 'Masajes, vapor y una piscina iluminada con velas solo para vosotros.' },
+  { id: 'suite', name: 'Noche en una suite de hotel', cost: 2_500, img: 'venue-suite', fame: 0, minAff: 55, intimate: true, flirt: 'Champán, pétalos en la cama y el cartel de «No molestar» en la puerta.' },
+  { id: 'gala', name: 'Gala benéfica de alfombra roja', cost: 3_000, img: 'venue-gala', fame: 1, exposed: true, flirt: 'Todos los flashes son para vosotros; ella no se separa de tu brazo.' },
+  { id: 'viaje', name: 'Escapada romántica de fin de semana', cost: 8_000, img: 'venue-trip', fame: 0, minAff: 45, intimate: true, flirt: 'Un fin de semana lejos del fútbol y del móvil.' },
+  { id: 'yate', name: 'Paseo en yate al atardecer', cost: 12_000, img: 'venue-yacht', fame: 0, minAff: 35, intimate: true, exposed: true, flirt: 'Champán en cubierta, baño en una cala y el atardecer solo para dos.' },
 ];
 const TRAITS = ['romántica', 'ambiciosa', 'aventurera', 'familiar', 'celosa', 'divertida', 'independiente', 'glamurosa'];
-const JOBS_F = ['abogada', 'presentadora de televisión', 'galerista', 'bailarina', 'arquitecta', 'modelo', 'periodista deportiva', 'cirujana', 'chef', 'diseñadora de moda'];
+const JOBS_F = ['abogada', 'presentadora de televisión', 'galerista', 'bailarina', 'arquitecta', 'modelo', 'periodista deportiva', 'cirujana', 'chef', 'diseñadora de moda',
+  'pianista', 'instructora de surf', 'modelo internacional', 'profesora de baile', 'empresaria del arte', 'creadora de viajes', 'sumiller', 'diseñadora de joyas', 'tenista profesional', 'enóloga'];
 const JOBS_M = ['arquitecto', 'piloto', 'médico', 'fotógrafo'];
 /** Portrait pool: generated fictional adults. f* women, m* men. */
-export const PORTRAITS: Record<'f' | 'm', string[]> = { f: ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10'], m: ['m1', 'm2', 'm3', 'm4'] };
-const NAMES_F = ['Lucía', 'Valentina', 'Irene', 'Daniela', 'Mei', 'Carla', 'Sofía', 'Elena', 'Marta', 'Chloé', 'Alba', 'Noa', 'Paula', 'Bianca'];
+export const PORTRAITS: Record<'f' | 'm', string[]> = { f: Array.from({ length: 20 }, (_, i) => `f${i + 1}`), m: ['m1', 'm2', 'm3', 'm4'] };
+const NAMES_F = ['Lucía', 'Valentina', 'Irene', 'Daniela', 'Mei', 'Carla', 'Sofía', 'Elena', 'Marta', 'Chloé',
+  'Valeria', 'Larissa', 'Freya', 'Camila', 'Amara', 'Gisela', 'Yuna', 'Giulia', 'Maeve', 'Carmen'];
 const NAMES_M = ['Álex', 'Marco', 'Hugo', 'Leo', 'Daniel', 'Iker'];
 const SURN = ['Ferrer', 'Navarro', 'Ríos', 'Montero', 'Vidal', 'Serrano', 'Castell', 'Lozano', 'Duarte', 'Ibáñez', 'Rey', 'Molina'];
 
@@ -100,18 +111,68 @@ export function goOut(gs: GameState): string {
 export function date(gs: GameState, personId: number, venueId: string): string {
   const l = L(gs)!; const p = l.people.find(x => x.id === personId); const v = VENUES.find(x => x.id === venueId);
   if (!p || !v || p.stage === 'ex') return 'No es posible.';
-  if (now(gs) - p.lastDate < 5) return `${p.name.split(' ')[0]} prefiere esperar unos días a la próxima cita.`;
+  const first = p.name.split(' ')[0];
+  if (now(gs) - p.lastDate < 5) return `${first} prefiere esperar unos días a la próxima cita.`;
+  if (v.minAff && p.affinity < v.minAff) return `${first} sonríe, pero aún es pronto para ese plan (necesitas afinidad ${v.minAff}).`;
   if (!spend(gs, v.cost)) return 'No tienes ahorros suficientes para ese plan.';
   const rng = rngFor(gs, `date${p.id}:${p.lastDate}`);
   const home = HOMES.find(h => h.id === l.home)!, car = CARS.find(c => c.id === l.car)!;
-  let gain = 6 + (p.likes.includes(v.id) ? 8 : 0) + rng.int(-4, 6) + (p.traits.includes('glamurosa') && (v.id === 'gala' || car.happy >= 6) ? 4 : 0) + (p.traits.includes('romántica') && (v.id === 'playa' || v.id === 'viaje') ? 4 : 0) + Math.round((home.happy + car.happy) / 6);
+  let gain = 6 + (p.likes.includes(v.id) ? 8 : 0) + rng.int(-4, 6) + (p.traits.includes('glamurosa') && (v.id === 'gala' || v.id === 'yate' || v.id === 'azotea' || car.happy >= 6) ? 4 : 0)
+    + (p.traits.includes('romántica') && (v.id === 'playa' || v.id === 'viaje' || v.id === 'spa') ? 4 : 0) + (p.traits.includes('aventurera') && (v.id === 'salsa' || v.id === 'yate') ? 4 : 0)
+    + (v.id === 'casa' ? Math.round(home.happy / 2) - 2 : 0) + Math.round((home.happy + car.happy) / 6) + (v.intimate ? 3 : 0);
   if (p.traits.includes('ambiciosa') && gs.manager.reputation > 70) gain += 3;
   p.affinity = clamp(p.affinity + gain, 0, 100); p.lastDate = now(gs);
+  if (p.stage === 'conocida') p.stage = 'citas';
   l.happiness = clamp(l.happiness + 4, 0, 100); l.stress = clamp(l.stress - 5, 0, 100);
   if (v.fame) { gs.manager.reputation = Math.min(100, gs.manager.reputation + 0.5); news(gs, 'info', `El míster, en la alfombra roja con ${p.name}`, 'La prensa rosa se hace eco de la pareja de moda.'); }
+  const sp = partner(l);
+  // a night together: fade to black, but it changes things
+  let night = '';
+  if (v.intimate && gain >= 10 && p.affinity >= (v.minAff ?? 40) + 10) {
+    night = ` Pasáis la noche juntos.`;
+    l.happiness = clamp(l.happiness + 5, 0, 100); l.stress = clamp(l.stress - 6, 0, 100);
+    if (sp && sp.id !== p.id && p.stage !== 'amante') { p.stage = 'amante'; p.since = now(gs); log(gs, 'love', `Lo que empezó como una cita con ${p.name} se convierte en una aventura secreta.`); }
+  }
+  // a lover in a public place is a photo waiting to happen
+  if (p.stage === 'amante' && v.exposed && sp && rng.chance(0.18 + gs.manager.reputation / 800)) {
+    log(gs, 'love', `${v.name} con ${p.name}. ${v.flirt}`);
+    return caught(gs, p, `Un paparazzi os fotografía en: ${v.name.toLowerCase()}.`);
+  }
   const mood = gain >= 14 ? '¡Una cita perfecta!' : gain >= 8 ? 'Buena cita.' : 'Cita algo fría.';
-  log(gs, 'love', `${v.name} con ${p.name}. ${mood}`);
-  return `${mood} Afinidad con ${p.name.split(' ')[0]}: ${Math.round(p.affinity)}.`;
+  log(gs, 'love', `${v.name} con ${p.name}. ${gain >= 8 ? v.flirt : 'No termina de surgir la chispa.'}${night}`);
+  return [mood, gain >= 8 ? v.flirt : '', night.trim(), `Afinidad con ${first}: ${Math.round(p.affinity)}.`].filter(Boolean).join(' ');
+}
+
+/** An affair comes out: the partner finds out, the board and the fans are not amused. */
+function caught(gs: GameState, lover: Person, how: string): string {
+  const l = L(gs)!; const sp = partner(l); if (!sp) return how;
+  sp.affinity = clamp(sp.affinity - 60, 0, 100); lover.stage = 'ex';
+  log(gs, 'scandal', `${sp.name} descubre tu aventura con ${lover.name}. ${how}`);
+  news(gs, 'board', `Escándalo: el míster, cazado con ${lover.name}`, `${how} Las fotos incendian la ciudad. La directiva no está contenta.`);
+  gs.manager.board = clamp(gs.manager.board - 8, 0, 100); gs.clubs[gs.manager.clubId].fans = clamp(gs.clubs[gs.manager.clubId].fans - 5, 5, 100);
+  l.stress = clamp(l.stress + 25, 0, 100);
+  if (sp.affinity < 30) breakUp(gs, sp.id);
+  return `¡Escándalo! ${how} ${sp.name.split(' ')[0]} se ha enterado.`;
+}
+
+const FLIRTS = ['Le mandas un mensaje a medianoche: «No dejo de pensar en la cena del otro día».', 'Le escribes que el vestido de anoche debería estar prohibido.', 'Un audio con voz ronca después del partido: «¿Celebramos la victoria a solas?».', 'Le propones repetir, «pero esta vez sin prisas».', 'Le dices que tienes una sorpresa y que solo le darás una pista: champán.'];
+/** Late-night messages: cheap affinity, but a partner may see the phone. */
+export function flirtMessage(gs: GameState, personId: number): string {
+  const l = L(gs)!; const p = l.people.find(x => x.id === personId); if (!p || p.stage === 'ex') return '';
+  const first = p.name.split(' ')[0];
+  if (p.lastFlirt != null && now(gs) - p.lastFlirt < 3) return `${first} aún no ha contestado al último mensaje. Dale un respiro.`;
+  p.lastFlirt = now(gs);
+  const rng = rngFor(gs, `flirt${p.id}:${now(gs)}`);
+  const line = rng.pick(FLIRTS);
+  const sp = partner(l);
+  if (sp && sp.id !== p.id && rng.chance(0.08 + (sp.traits.includes('celosa') ? 0.1 : 0))) {
+    sp.affinity = clamp(sp.affinity - 15, 0, 100); l.stress = clamp(l.stress + 8, 0, 100);
+    log(gs, 'love', `${sp.name} ve en tu móvil los mensajes a ${p.name}. Bronca monumental.`);
+    return `${sp.name.split(' ')[0]} ha visto tus mensajes con ${first}. Afinidad con ella −15.`;
+  }
+  const g = p.affinity < 25 ? rng.int(-2, 2) : p.affinity > 70 ? rng.int(0, 2) : rng.int(1, 4) + (p.traits.includes('divertida') || p.traits.includes('aventurera') ? 1 : 0);
+  p.affinity = clamp(p.affinity + g, 0, 100);
+  return g > 0 ? `${line} ${first} responde con un emoji de fuego. Afinidad ${Math.round(p.affinity)}.` : g === 0 ? `${line} ${first} contesta con un «jaja» y poco más.` : `${line} ${first} te deja en visto… quizá fue demasiado pronto.`;
 }
 
 export function gift(gs: GameState, personId: number): string {
@@ -219,13 +280,7 @@ export function lifeWeekly(gs: GameState): number {
   if (lovers.length && sp) {
     const risk = 0.04 * lovers.length + gs.manager.reputation / 2500 + (sp.traits.includes('celosa') ? 0.04 : 0);
     if (rng.chance(risk)) {
-      const lv = rng.pick(lovers);
-      sp.affinity = clamp(sp.affinity - 60, 0, 100); lv.stage = 'ex';
-      log(gs, 'scandal', `${sp.name} descubre tu aventura con ${lv.name}. Escándalo.`);
-      news(gs, 'board', `Escándalo: el míster, cazado con ${lv.name}`, 'Las fotos de una revista del corazón incendian la ciudad. La directiva no está contenta.');
-      gs.manager.board = clamp(gs.manager.board - 8, 0, 100); gs.clubs[gs.manager.clubId].fans = clamp(gs.clubs[gs.manager.clubId].fans - 5, 5, 100);
-      l.stress = clamp(l.stress + 25, 0, 100);
-      if (sp.affinity < 30) breakUp(gs, sp.id);
+      caught(gs, rng.pick(lovers), 'Una revista del corazón publica las fotos.');
     } else if (rng.chance(0.3)) for (const lv of lovers) { lv.affinity = clamp(lv.affinity + 2, 0, 100); }
   }
   // meeting people now and then when single

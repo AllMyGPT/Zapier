@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useGame } from '../GameApp';
 import { fmtMoney } from '@/game/season';
-import { CARS, HOMES, VENUES, ageOf, askOut, breakUp, buy, childPath, date, familyTime, gift, goOut, lifePartner, managerWeekly, now, propose, setTrying, type LifeState, type Person } from '@/game/life';
+import { CARS, HOMES, VENUES, ageOf, askOut, breakUp, buy, childPath, date, familyTime, flirtMessage, gift, goOut, lifePartner, managerWeekly, now, propose, setTrying, type LifeState, type Person } from '@/game/life';
 
 const STAGE_LABEL: Record<Person['stage'], string> = { conocida: 'Conocida', citas: 'Quedando', pareja: 'Pareja', prometida: 'Prometida', casada: 'Matrimonio', amante: 'Aventura secreta', ex: 'Ex' };
 const img = (id: string) => `/art/life/${id}.webp`;
@@ -62,6 +62,7 @@ export default function LifeScreen() {
                   <div className="life-meter"><span>Afinidad</span><div className="bar"><i style={{ width: `${p.affinity}%`, background: 'linear-gradient(90deg,#ff5d8f,#ffb3c7)' }} /></div><b className="num">{Math.round(p.affinity)}</b></div>
                   <div className="row wrap" style={{ gap: 6 }}>
                     <button className="btn sm primary" onClick={() => setDating(p)}>Proponer cita</button>
+                    <button className="btn sm" onClick={() => act(flirtMessage(gs, p.id))}>Mensaje atrevido</button>
                     <button className="btn sm" onClick={() => act(gift(gs, p.id))}>Regalo (2.500 €)</button>
                     {(p.stage === 'conocida' || p.stage === 'citas') && <button className="btn sm" onClick={() => act(askOut(gs, p.id))}>{sp ? 'Coquetear' : 'Pedir salir'}</button>}
                     {p.stage === 'pareja' && <button className="btn sm" onClick={() => act(propose(gs, p.id))}>Pedir matrimonio (anillo 15.000 €)</button>}
@@ -129,13 +130,17 @@ export default function LifeScreen() {
           <div className="modal" style={{ width: 'min(900px,100%)' }}>
             <button className="btn sm ghost x" onClick={() => setDating(null)}>✕</button>
             <span className="matchday-kicker">Cita con {dating.name.split(' ')[0]}</span>
-            <p className="muted">Le gustan especialmente: {dating.likes.map(v => VENUES.find(x => x.id === v)!.name.toLowerCase()).join(' y ')}. Tu coche y tu casa también cuentan.</p>
-            <div className="venues">{VENUES.map(v => (
-              <button key={v.id} className="venue" onClick={() => { act(date(gs, dating.id, v.id)); setDating(null); }}>
-                <div className="venue-img" style={{ backgroundImage: `url(${img(v.img)})` }} />
-                <b>{v.name}</b><span>{fmtMoney(v.cost)}{dating.likes.includes(v.id) ? ' · ♥ le encanta' : ''}</span>
-              </button>
-            ))}</div>
+            <p className="muted">Le gustan especialmente: {dating.likes.map(v => VENUES.find(x => x.id === v)!.name.toLowerCase()).join(' y ')}. Tu coche y tu casa también cuentan. Los planes más íntimos piden más confianza y pueden acabar en una noche juntos.</p>
+            <div className="venues">{VENUES.map(v => {
+              const locked = !!v.minAff && dating.affinity < v.minAff;
+              return (
+                <button key={v.id} className={`venue ${locked ? 'locked' : ''}`} disabled={locked} onClick={() => { act(date(gs, dating.id, v.id)); setDating(null); }}>
+                  <div className="venue-img" style={{ backgroundImage: `url(${img(v.img)})` }} />
+                  <b>{v.intimate ? '🔥 ' : ''}{v.name}</b>
+                  <span>{locked ? `🔒 Afinidad ${v.minAff}` : fmtMoney(v.cost)}{dating.likes.includes(v.id) ? ' · ♥ le encanta' : ''}{!locked && v.exposed && dating.stage === 'amante' ? ' · ⚠ paparazzi' : ''}</span>
+                </button>
+              );
+            })}</div>
           </div>
         </div>
       )}
