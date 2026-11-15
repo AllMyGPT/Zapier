@@ -1,0 +1,142 @@
+'use client';
+import React, { useState } from 'react';
+import { useGame } from '../GameApp';
+import { Ovr, PosBadge, Bar } from '../ui';
+import PitchLines from '../PitchLines';
+import { FORMATIONS, FORMATION_KEYS, MENTALITY_LABEL, LEVEL3 } from '@/game/tactics';
+import { autoPick, clubPlayers } from '@/game/lineup';
+import { available, ovr, ovr as o2, slotRating, POS_LABEL, playerStatus } from '@/game/player';
+import { ovrColor } from '../ui';
+import type { Mentality, Player } from '@/game/types';
+
+type Sel = { kind: 'slot'; i: number } | { kind: 'pl'; id: number } | null;
+
+export default function TacticsScreen() {
+  const { gs, refresh, toast, openPlayer } = useGame();
+  const club = gs.clubs[gs.manager.clubId];
+  const t = club.tactics;
+  const [sel, setSel] = useState<Sel>(null);
+  const slots = FORMATIONS[t.formation].slots;
+  const players = clubPlayers(gs, club.id);
+  const P = (id: number) => gs.players[id] as Player | undefined;
+  while (club.lineup.length < slots.length) club.lineup.push(-1);
+  const inXI = new Set(club.lineup);
+  const bench = club.bench.filter(id => P(id) && P(id)!.clubId === club.id);
+  const reserves = players.filter(p => !inXI.has(p.id) && !bench.includes(p.id)).sort((a, b) => ovr(b) - ovr(a));
+
+  const place = (target: Sel) => {
+    if (!sel) { setSel(target); return; }
+    const idOf = (s: Sel) => (s!.kind === 'slot' ? club.lineup[s!.i] : s!.id);
+    const a = sel, b = target!;
+    const ida = idOf(a), idb = idOf(b);
+    const put = (s: Sel, id: number) => {
+      if (s!.kind === 'slot') club.lineup[s!.i] = id;
+      else {
+        const old = s!.id;
+        const bi = club.bench.indexOf(old);
+        if (bi >= 0) club.bench[bi] = id;
+      }
+    };
+    if (a.kind === 'pl' && b.kind === 'pl') {
+      // bench <-> reserve swap
+      const ai = club.bench.indexOf(ida), bi = club.bench.indexOf(idb);
+      if (ai >= 0 && bi < 0) club.bench[ai] = idb; else if (bi >= 0 && ai < 0) club.bench[bi] = ida;
+    } else {
+      put(a, idb); put(b, ida);
+      if (a.kind === 'pl' && club.bench.indexOf(ida) < 0 && b.kind === 'slot' && idb >= 0 && !club.bench.includes(idb) && club.bench.length < 9) club.bench.push(idb);
+      if (b.kind === 'pl' && club.bench.indexOf(idb) < 0 && a.kind === 'slot' && ida >= 0 && !club.bench.includes(ida) && club.bench.length < 9) club.bench.push(ida);
+    }
+    club.bench = club.bench.filter((x, i, arr) => x >= 0 && !club.lineup.includes(x) && arr.indexOf(x) === i);
+    setSel(null); refresh();
+  };
+
+  const setFormation = (f: string) => {
+    if (f === t.formation) return;
+    const newSlots = FORMATIONS[f].slots;
+    const ids = club.lineup.filter(x => x >= 0 && P(x));
+    const gk = ids.find(x => P(x)!.pos === 'GK') ?? ids[0];
+    const rest = ids.filter(x => x !== gk);
+    const nl: number[] = [gk];
+    for (let i = 1; i < newSlots.length; i++) {
+      rest.sort((a, b) => slotRating(P(b)!, newSlots[i].pos) - slotRating(P(a)!, newSlots[i].pos));
+      nl.push(rest.shift() ?? -1);
+    }
+    t.formation = f; club.lineup = nl; club.cohesion = Math.max(30, club.cohesion - 12);
+    toast('Formación cambiada: los jugadores necesitarán tiempo para adaptarse (cohesión).'); refresh();
+  };
+  const auto = () => { const r = autoPick(players, t.formation); club.lineup = r.lineup; club.bench = r.bench; refresh(); toast('Alineación automática aplicada'); };
+
+  const chip = (p: Player | undefined, i: number) => {
+    const slot = slots[i];
+    const r = p ? Math.round(slotRating(p, slot.pos)) : 0;
+    const [bg, fg] = ovrColor(r);
+    const isSel = sel?.kind === 'slot' && sel.i === i;
+    return (
+      <div key={i} className={`tslot ${isSel ? 'sel' : ''}`} style={{ left: `${slot.y * 100}%`, top: `${(1 - slot.x) * 88 + 6}%` }} onClick={() => place({ kind: 'slot', i })}>
+        <div className="shirt" style={{ background: slot.pos === 'GK' ? '#f5c84b' : club.colors[0], borderColor: club.colors[1], color: slot.pos === 'GK' ? '#222' : textOn(club.colors[0]) }}>{p?.num ?? '?'}</div>
+        <div className="nm">{p ? shortName(p.name) : 'Vacío'}{p && !available(p) ? ' ⚠️' : ''}</div>
+        <div className="row" style={{ gap: 3 }}><span className="rt" style={{ background: bg, color: fg }}>{r || '-'}</span><span className="rt" style={{ background: 'rgba(0,0,0,.55)' }}>{POS_LABEL[slot.pos]}</span></div>
+      </div>
+    );
+  };
+
+  const PlRow = ({ p, where }: { p: Player; where: string }) => {
+    const isSel = sel?.kind === 'pl' && sel.id === p.id;
+    return (
+      <tr className={`click ${isSel ? 'me' : ''}`} onClick={() => place({ kind: 'pl', id: p.id })} onDoubleClick={() => openPlayer(p.id)}>
+        <td className="muted num">{p.num}</td><td><PosBadge pos={p.pos} /></td><td>{p.name} {playerStatus(p) && <span className="pill bad">{playerStatus(p)}</span>}</td><td className="c"><Ovr v={o2(p)} /></td><td style={{ width: 60 }}><Bar v={p.fitness} /></td><td className="small muted">{where}</td>
+      </tr>
+    );
+  };
+
+  const Opt = <T extends string | number>({ label, value, opts, on }: { label: string; value: T; opts: [T, string][]; on: (v: T) => void }) => (
+    <div className="col" style={{ gap: 4 }}><span className="small muted">{label}</span><div className="seg">{opts.map(([v, l]) => <button key={String(v)} className={value === v ? 'on' : ''} onClick={() => { on(v); refresh(); }}>{l}</button>)}</div></div>
+  );
+
+  return (
+    <div className="grid" style={{ gridTemplateColumns: 'minmax(300px, 460px) minmax(0, 1fr)' }}>
+      <div className="col">
+        <div className="panel tight">
+          <div className="row wrap" style={{ marginBottom: 10 }}>
+            <select value={t.formation} onChange={e => setFormation(e.target.value)}>{FORMATION_KEYS.map(f => <option key={f}>{f}</option>)}</select>
+            <button className="btn sm" onClick={auto}>Alineación automática</button>
+            <span className="small muted right">Cohesión {Math.round(club.cohesion)}%</span>
+          </div>
+          <div className="tpitch"><PitchLines />{slots.map((_, i) => chip(P(club.lineup[i]), i))}</div>
+          <div className="small muted" style={{ marginTop: 8 }}>Haz clic en dos jugadores (campo, banquillo o reservas) para intercambiarlos. Doble clic en la lista abre la ficha.</div>
+        </div>
+      </div>
+      <div className="col">
+        <div className="panel">
+          <h3>Instrucciones de equipo</h3>
+          <div className="row wrap" style={{ gap: 16 }}>
+            <Opt label="Mentalidad" value={t.mentality} opts={([-2, -1, 0, 1, 2] as Mentality[]).map(m => [m, MENTALITY_LABEL[m]])} on={v => (t.mentality = v)} />
+            <Opt label="Presión" value={t.pressing} opts={[1, 2, 3].map(v => [v as 1 | 2 | 3, LEVEL3[v - 1]])} on={v => (t.pressing = v)} />
+            <Opt label="Ritmo" value={t.tempo} opts={[1, 2, 3].map(v => [v as 1 | 2 | 3, LEVEL3[v - 1]])} on={v => (t.tempo = v)} />
+            <Opt label="Amplitud" value={t.width} opts={[[1, 'Estrecho'], [2, 'Normal'], [3, 'Abierto']] as [1 | 2 | 3, string][]} on={v => (t.width = v)} />
+            <Opt label="Pases" value={t.passing} opts={[['corto', 'Cortos'], ['mixto', 'Mixtos'], ['largo', 'Directos']]} on={v => (t.passing = v)} />
+            <Opt label="Fuera de juego" value={t.offside ? 1 : 0} opts={[[1, 'Sí'], [0, 'No']]} on={v => (t.offside = v === 1)} />
+          </div>
+          <div className="small muted" style={{ marginTop: 10 }}>Capitán: {nm(gs, t.captain)} · Penaltis: {nm(gs, t.penalty)} · Faltas: {nm(gs, t.freekick)} · Córners: {nm(gs, t.corner)} <span>(asígnalos desde la ficha del jugador)</span></div>
+        </div>
+        <div className="panel tight">
+          <div className="tablewrap" style={{ maxHeight: '56vh' }}>
+            <table className="t">
+              <thead><tr><th>#</th><th>Pos</th><th>Banquillo ({bench.length}/9)</th><th className="c">Med</th><th>Físico</th><th></th></tr></thead>
+              <tbody>
+                {bench.map(id => <PlRow key={id} p={P(id)!} where="Suplente" />)}
+                <tr><th colSpan={6}>Reservas</th></tr>
+                {reserves.map(p => <PlRow key={p.id} p={p} where="" />)}
+                {bench.length < 9 && <tr><td colSpan={6}><button className="btn sm" onClick={() => { const add = reserves.filter(available).slice(0, 9 - bench.length).map(p => p.id); club.bench = [...club.bench, ...add]; refresh(); }}>Completar banquillo</button></td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const nm = (gs: ReturnType<typeof useGame>['gs'], id?: number) => (id && gs.players[id]?.clubId === gs.manager.clubId ? gs.players[id].name : 'automático');
+export function shortName(n: string) { const p = n.split(' '); return p.length > 1 ? p.slice(-1)[0].length > 3 ? p.slice(-1)[0] : p.slice(-2).join(' ') : n; }
+export function textOn(hex: string) { const n = parseInt(hex.replace('#', '').slice(0, 6), 16); return ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) > 150 ? '#0b1220' : '#ffffff'; }
