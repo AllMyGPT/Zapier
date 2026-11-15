@@ -21,7 +21,9 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 600; margin: 0 0 8px; }
 .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid #0006; vertical-align: -1px; }
 
 /* menu */
-.menu { min-height: 100%; padding: 32px 16px; background: radial-gradient(1200px 600px at 50% -10%, #2a3440 0%, var(--bg) 60%); }
+.menu { position: relative; min-height: 100%; padding: 32px 16px; background: var(--bg); isolation: isolate; }
+.menu::before { content: ""; position: fixed; inset: -20px; z-index: -1; background: url(/cover.png) center / cover no-repeat; filter: blur(4px) saturate(1.15); opacity: .75; }
+.menu::after { content: ""; position: fixed; inset: 0; z-index: -1; background: linear-gradient(180deg, #12161c66 0%, #12161cb3 40%, #12161cf0 75%, var(--bg) 100%); }
 .menu-inner { max-width: 1080px; margin: 0 auto; }
 .title { font-size: 44px; letter-spacing: .5px; }
 .title small { display: block; font-size: 15px; color: var(--muted); font-family: var(--sans); font-weight: 400; margin-top: 6px; }

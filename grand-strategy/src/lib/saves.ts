@@ -9,7 +9,8 @@ const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 let client: SupabaseClient | null = null;
 export function supabase(): SupabaseClient | null {
   if (!url || !key) return null;
-  client ??= createClient(url, key);
+  // the game lives in its own schema (tenant) inside a shared Supabase database
+  client ??= createClient(url, key, { db: { schema: process.env.NEXT_PUBLIC_SUPABASE_SCHEMA || 'gran_estrategia' } }) as unknown as SupabaseClient;
   return client;
 }
 export const cloudEnabled = () => !!supabase();
@@ -35,7 +36,7 @@ export async function saveGame(s: GameState, name: string, cloud: boolean): Prom
   if (cloud && sb) {
     const { data: user } = await sb.auth.getUser();
     if (!user.user) throw new Error('Inicia sesión para guardar en la nube');
-    const { data, error } = await sb.from('saves').insert({ user_id: user.user.id, name, era: s.era, scenario: s.scenarioName, game_date: meta.gameDate, data: s }).select('id').single();
+    const { data, error } = await sb.from('saves').insert({ name, era: s.era, scenario: s.scenarioName, game_date: meta.gameDate, data: s }).select('id').single();
     if (error) throw new Error(error.message);
     return data.id as string;
   }

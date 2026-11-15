@@ -49,11 +49,14 @@ SC=ww1939 Y=4 N=200 npx vitest run tests/sim.inspect.test.ts
 El proyecto es una exportación estática (`output: 'export'`). En Vercel, crea un proyecto con
 **Root Directory = `grand-strategy`**; `vercel.json` ya indica el comando de build y la carpeta `out`.
 
-### Partidas en la nube con Supabase (opcional)
+### Partidas en la nube con Supabase
 
-1. Crea un proyecto en Supabase y aplica `supabase/migrations/0001_saves.sql` (tabla `saves` con RLS por usuario).
-2. Activa el inicio de sesión por correo (enlace mágico) y añade la URL de Vercel en *Auth → URL Configuration*.
-3. Define `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` (ver `.env.example`) en Vercel.
+El juego funciona como un **tenant independiente** dentro de la base de datos Supabase existente (proyecto EmotivOS):
+esquema propio `gran_estrategia`, tabla `saves` con RLS (cada usuario solo ve y modifica sus partidas, sin acceso anónimo).
+
+- Migración: `supabase/migrations/0001_saves.sql` (ya aplicada) y el esquema añadido a los expuestos por la Data API.
+- `.env.production` contiene la URL y la clave **publicable** (segura para el navegador) y el esquema.
+- Para el inicio de sesión por enlace mágico, añade la URL del despliegue en *Auth → URL Configuration → Redirect URLs*.
 
 Sin estas variables, las partidas se guardan en el navegador o en la app de escritorio.
 
