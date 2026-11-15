@@ -151,7 +151,7 @@ function slotOf(s: Side, id: number) { return s.onPitch.indexOf(id); }
 
 /** Who arrives to finish a move: weighted by slot role and finishing (or heading) skill, so goals spread
  *  across wingers, attacking midfielders and late runners instead of always the centre-forward. */
-const FINISH_W: Partial<Record<Pos, number>> = { ST: 1, LW: 0.62, RW: 0.62, AM: 0.58, CM: 0.26, DM: 0.1, LB: 0.07, RB: 0.07, CB: 0.07 };
+const FINISH_W: Partial<Record<Pos, number>> = { ST: 0.85, LW: 0.62, RW: 0.62, AM: 0.58, CM: 0.28, DM: 0.1, LB: 0.07, RB: 0.07, CB: 0.07 };
 const HEAD_W: Partial<Record<Pos, number>> = { ST: 1, LW: 0.35, RW: 0.35, AM: 0.35, CM: 0.3, DM: 0.2, LB: 0.1, RB: 0.1, CB: 0.45 };
 function pickFinisher(m: Match, si: 0 | 1, exclude?: number, header = false): number {
   const s = m.sides[si];

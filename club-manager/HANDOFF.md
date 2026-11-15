@@ -122,7 +122,16 @@ npx tsc --noEmit && npx next build   # comprobaciones
 - Cantera: nivel 1-6 por club, mejorable en Club (6 M€ por nivel).
   - El Celta empieza en élite (6): unos 6 juveniles por hornada y 2-3 con potencial alto.
   - Los menores de 22 progresan un 60 % más rápido, también en el Celta Fortuna.
-- Las demás ligas siguen con los datos anteriores.
+
+## Premier, Bundesliga, Serie A y Ligue 1 2026/27 (15 nov 2026)
+- Mismo método que LaLiga: plantillas de Transfermarkt (temporada 26/27) convertidas con `scripts/build-leagues.py <export>`.
+  - El export lleva bloques `@liga` y `#idTM|club`; `TM_IDS` traduce el id de Transfermarkt al id del juego y `NEW` guarda los datos de los clubes que no existían.
+  - El ajuste media ~ valor + edad se hace por liga, porque la Premier infla los valores.
+- Premier: suben Ipswich, Coventry y Hull City (nuevo); bajan West Ham, Wolves y Burnley.
+- Bundesliga: suben Schalke, Elversberg y Paderborn (nuevos los dos últimos); bajan Wolfsburgo, Heidenheim y St. Pauli.
+- Serie A: suben Venezia, Frosinone y Monza; bajan Verona, Pisa y Cremonese.
+- Ligue 1: suben Troyes y Le Mans (nuevo); bajan Nantes y Metz.
+- Motor: el peso de remate del delantero centro baja de 1 a 0,85 para que los goles se repartan algo más.
 
 ## Ideas pendientes (opcionales)
 - Revisar plantillas dudosas en `src/data/leagues/*.ts` (formato `Nombre|POS|año|NAC|media|potencial`), p. ej. canteranos poco seguros en `esp.ts`: David Otorbi, Ismael Bekhoucha, Yellu Santiago, Dani Budesca.
