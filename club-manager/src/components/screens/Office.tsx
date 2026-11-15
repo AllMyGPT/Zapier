@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { useGame } from '../GameApp';
 import { Crest, FormDots, Bar } from '../ui';
 import { compName, dateLabel, table } from '@/game/calendar';
-import { expectationLabel, expectedPos, fmtMoney, news, strengthOf } from '@/game/season';
+import { expectationLabel, expectedPos, fmtMoney, news, strengthOf, objectiveStatus, setObjectives } from '@/game/season';
 import { clubPlayers } from '@/game/lineup';
 import { ovr, avgRating } from '@/game/player';
 
@@ -29,6 +29,7 @@ export default function Office() {
   const takeJob = (id: string) => {
     gs.manager.clubId = id; gs.manager.sacked = false; gs.manager.board = 60; gs.finance = []; gs.offers = gs.offers.filter(o => o.status === "done"); gs.shortlist = [];
     news(gs, 'board', `Nuevo reto: ${gs.clubs[id].name}`, `Firmas como nuevo entrenador. Objetivo: ${expectationLabel(gs, id)}.`);
+    setObjectives(gs);
     toast(`Eres el nuevo entrenador del ${gs.clubs[id].name}`); refresh();
   };
 
@@ -67,6 +68,7 @@ export default function Office() {
           <div className="small muted" style={{ marginTop: 6 }}>Reputación del mánager: {Math.round(gs.manager.reputation)} · Afición: {Math.round(club.fans)}%</div>
           <div style={{ marginTop: 10 }}><span className="small muted">Últimos resultados: </span><FormDots form={(gs.lastResults ?? []).map(r => (r > 0 ? 'V' : r < 0 ? 'D' : 'E'))} /></div>
           <div className="small muted" style={{ marginTop: 6 }}>Nivel medio del once: {strengthOf(gs, club.id).toFixed(1)}</div>
+          {objectiveStatus(gs).length > 0 && <div className="objs">{objectiveStatus(gs).map(o => <div key={o.label} className={`obj ${o.state}`}><i>{o.state === 'ok' ? '✓' : o.state === 'bad' ? '✕' : '…'}</i>{o.label}</div>)}</div>}
         </div>
         <div className="panel">
           <h3>{L.name}</h3>

@@ -227,6 +227,16 @@ export default function MatchView({ m, f, onFinish }: { m: Match; f: Fixture; on
           <div><div className="score num">{S[0].goals} - {S[1].goals}</div><div className="clock">{m.finished ? 'FINAL' : `${min}'`}{m.pens ? ` · PEN ${m.pens[0]}-${m.pens[1]}` : ''} · {compName(gs, f.comp)}</div></div>
           <div className="team away"><div style={{ minWidth: 0, textAlign: 'right' }}><div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{away.name}</div><div className="small muted" style={{ fontFamily: 'var(--font-body)', fontWeight: 400 }}>{scorers(1)}</div></div><Crest club={away} size={48} /></div>
         </div>
+        {(() => {
+          // momentum: territorial pressure over the last ~40 ticks shown so far (positive = home pushing)
+          const seen = m.ticks.slice(Math.max(0, st.current.ti - 40), st.current.ti);
+          const v = seen.length ? seen.reduce((a, t) => a + (t.poss === 0 ? t.bx - 0.35 : -(0.65 - t.bx)), 0) / seen.length : 0;
+          const pct = Math.max(-1, Math.min(1, v * 2.2)) * 50;
+          return (<>
+            <div className="momentum-l"><span>Dominio {home.short}</span><span>Dominio {away.short}</span></div>
+            <div className="momentum"><i style={pct >= 0 ? { right: '50%', width: `${pct}%`, background: `linear-gradient(270deg, ${kits[0].fill}, ${kits[0].fill}cc)` } : { left: '50%', width: `${-pct}%`, background: `linear-gradient(90deg, ${kits[1].fill}, ${kits[1].fill}cc)` }} /></div>
+          </>);
+        })()}
         <div className="mgrid">
           <div className="col">
             <div className="canvas-box"><canvas ref={canvas} style={{ aspectRatio: `${W} / ${H}` }} />{flash && <div className="goal-flash">{flash}</div>}{lower && <div className="lower-third"><Crest club={gs.clubs[lower.club]} size={34} /><div><div className="lt-k">Gol · {lower.min}&apos;</div><div className="lt-n">{lower.name}</div></div><div className="lt-s num">{m.sides[0].goals} - {m.sides[1].goals}</div></div>}</div>

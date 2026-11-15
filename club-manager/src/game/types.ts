@@ -148,4 +148,8 @@ export interface GameState {
   trophies: { season: number; comp: string; club: string }[];
   lastResults?: number[];
   seasonSummary?: string[];
+  objectives?: Objectives;
 }
+
+/** Board objectives for the current season: league position, cup round reached and minimum balance. */
+export interface Objectives { season: number; pos: number; cup: number; minBalance: number }

@@ -58,7 +58,7 @@ export default function Squad() {
                   <td style={{ width: 80 }}><Bar v={p.morale} color={p.morale > 70 ? 'var(--good)' : p.morale > 45 ? 'var(--blue)' : 'var(--bad)'} /></td>
                   <td className="c num">{p.stats.apps}</td>
                   <td className="c num">{p.stats.goals}</td>
-                  <td className="c num">{p.stats.apps ? avgRating(p).toFixed(1) : '-'}</td>
+                  <td className="c num">{p.stats.apps ? avgRating(p).toFixed(1) : '-'}<Trend form={p.form} /></td>
                   <td className="r num">{fmtMoney(marketValue(p, gs.season))}</td>
                   <td className="r num">{fmtMoney(p.wage)}</td>
                   <td className="c num" style={{ color: p.contractEnd <= gs.season + 1 ? 'var(--warn)' : undefined }}>{p.contractEnd}</td>
@@ -73,4 +73,14 @@ export default function Squad() {
       )}
     </div>
   );
+}
+
+/** Form arrow from the last ratings: recent two vs the earlier ones. */
+function Trend({ form }: { form: number[] }) {
+  if (form.length < 4) return null;
+  const rec = (form[form.length - 1] + form[form.length - 2]) / 2;
+  const old = form.slice(0, -2).reduce((a, b) => a + b, 0) / (form.length - 2);
+  const d = rec - old;
+  if (Math.abs(d) < 0.35) return null;
+  return <span title={`Forma: ${d > 0 ? 'en alza' : 'a la baja'}`} style={{ marginLeft: 4, color: d > 0 ? 'var(--good)' : 'var(--bad)', fontSize: 11 }}>{d > 0 ? '▲' : '▼'}</span>;
 }

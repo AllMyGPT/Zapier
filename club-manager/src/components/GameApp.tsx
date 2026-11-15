@@ -1,7 +1,7 @@
 'use client';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { Fixture, GameState } from '@/game/types';
-import { advance, endSeason, fmtMoney, simFixture, buildMatch, applyResult } from '@/game/season';
+import { advance, endSeason, fmtMoney, simFixture, buildMatch, applyResult, isDerby, setObjectives } from '@/game/season';
 import { compName, dateLabel, seasonLabel, table, inWindow } from '@/game/calendar';
 import { Crest, Modal, SceneHero, TalkBar } from './ui';
 import { PRE_TALKS, preMatchTalk, type TalkKind, type TalkResult } from '@/game/talk';
@@ -67,7 +67,7 @@ export default function GameApp() {
 
   const refresh = useCallback(() => setV(x => x + 1), []);
   const toast = useCallback((s: string) => { setToast(s); clearTimeout(toastT.current); toastT.current = setTimeout(() => setToast(null), 3800); }, []);
-  const setGs = useCallback((g: GameState | null) => { setGsState(g); setTab('office'); setV(x => x + 1); }, []);
+  const setGs = useCallback((g: GameState | null) => { if (g && g.manager.clubId && (!g.objectives || g.objectives.season !== g.season)) setObjectives(g); setGsState(g); setTab('office'); setV(x => x + 1); }, []);
 
   useEffect(() => { if (gs && v % 1 === 0) { const t = setTimeout(() => { saveLocal(gs, 0); }, 400); return () => clearTimeout(t); } }, [gs, v]);
 
@@ -163,7 +163,7 @@ export default function GameApp() {
         const home = gs.clubs[pre.home], away = gs.clubs[pre.away];
         return (
           <Modal onClose={() => setPre(null)} scene="tunnel">
-            <div style={{ textAlign: 'center' }}><span className="matchday-kicker">Día de partido</span><div className="muted small" style={{ marginTop: 8, textTransform: 'uppercase', letterSpacing: '.14em' }}>{compName(gs, pre.comp)} {pre.roundName ?? `· Jornada ${pre.round}`}</div></div>
+            <div style={{ textAlign: 'center' }}><span className="matchday-kicker">Día de partido</span>{isDerby(gs, pre.home, pre.away) && <span className="derby-badge">Derbi</span>}<div className="muted small" style={{ marginTop: 8, textTransform: 'uppercase', letterSpacing: '.14em' }}>{compName(gs, pre.comp)} {pre.roundName ?? `· Jornada ${pre.round}`}</div></div>
             <div className="row" style={{ justifyContent: 'center', gap: 30, margin: '26px 0' }}>
               <div className="col" style={{ alignItems: 'center', width: 220 }}><Crest club={home} size={96} /><h2 style={{ textAlign: 'center', fontStyle: 'italic', textTransform: 'uppercase' }}>{home.name}</h2></div>
               <div className="vs-big">VS</div>

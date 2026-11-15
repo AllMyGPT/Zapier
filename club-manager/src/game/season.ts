@@ -1,4 +1,4 @@
-import type { Club, Fixture, GameState, League, NewsItem, Player } from './types';
+import type { Club, Fixture, GameState, League, NewsItem, Objectives, Player } from './types';
 import { Rng, hashStr } from './rng';
 import { createMatch, runToEnd, type Match } from './engine';
 import { autoPick, clubPlayers, ensureLineup } from './lineup';
@@ -26,6 +26,43 @@ export function initialEuroTeams(gs: GameState) {
   return out;
 }
 
+/** Same-city clubs in the same country play a derby. */
+export function isDerby(gs: GameState, a: string, b: string) {
+  const x = gs.clubs[a], y = gs.clubs[b];
+  return !!x && !!y && x.country === y.country && x.city === y.city;
+}
+
+export const CUP_TARGET_LABEL = ['jugar la copa', 'llegar a octavos', 'llegar a cuartos', 'llegar a semifinales', 'llegar a la final', 'ganar la copa'];
+/** Sets the board's objectives at the start of a season. */
+export function setObjectives(gs: GameState) {
+  const c = gs.clubs[gs.manager.clubId]; const L = gs.leagues[c.leagueId];
+  const pos = expectedPos(gs, c.id);
+  const cup = L.tier > 1 ? 1 : pos <= 2 ? 4 : pos <= 5 ? 3 : pos <= 10 ? 2 : 1;
+  gs.objectives = { season: gs.season, pos, cup, minBalance: Math.round(c.balance * 0.6 / 100_000) * 100_000 };
+}
+/** Furthest cup round index reached by the user's club this season (5 = winner). */
+export function cupReached(gs: GameState) {
+  const c = gs.clubs[gs.manager.clubId]; const cup = gs.cups['cup_' + c.country];
+  if (!cup) return 0;
+  if (cup.winner === c.id) return 5;
+  const rounds = gs.fixtures.filter(f => f.comp === cup.id && (f.home === c.id || f.away === c.id)).map(f => f.round);
+  return rounds.length ? Math.max(...rounds) - 1 : 0;
+}
+export function objectiveStatus(gs: GameState): { label: string; state: 'ok' | 'bad' | 'open' }[] {
+  const o = gs.objectives; if (!o) return [];
+  const c = gs.clubs[gs.manager.clubId];
+  const pos = table(gs, c.leagueId).findIndex(r => r.id === c.id) + 1;
+  const cup = gs.cups['cup_' + c.country];
+  const reached = cupReached(gs);
+  const alive = !!cup && !cup.winner && cup.alive.includes(c.id);
+  const played = gs.fixtures.some(f => f.comp === c.leagueId && f.played);
+  return [
+    { label: `Liga: ${o.pos === 1 ? 'ser campeón' : `terminar ${o.pos}º o mejor`} (ahora ${played ? pos + 'º' : '—'})`, state: !played ? 'open' : pos <= o.pos ? 'ok' : 'bad' },
+    { label: `Copa: ${CUP_TARGET_LABEL[o.cup]}`, state: reached >= o.cup ? 'ok' : alive ? 'open' : 'bad' },
+    { label: `Finanzas: saldo de al menos ${fmtMoney(o.minBalance)} (ahora ${fmtMoney(c.balance)})`, state: c.balance >= o.minBalance ? 'ok' : 'bad' },
+  ];
+}
+
 export function startCareer(gs: GameState, clubId: string) {
   gs.manager.clubId = clubId;
   const c = gs.clubs[clubId];
@@ -33,6 +70,7 @@ export function startCareer(gs: GameState, clubId: string) {
   gs.manager.board = 65;
   scheduleSeason(gs, rngFor(gs, 'sched'), initialEuroTeams(gs));
   youthIntake(gs, c, rngFor(gs, 'youth'));
+  setObjectives(gs);
   news(gs, 'board', `Bienvenido a ${c.name}`, `La directiva te da la bienvenida como nuevo entrenador. Objetivo de la temporada: ${expectationLabel(gs, clubId)}. Presupuesto de fichajes: ${fmtMoney(c.transferBudget)}.`);
   news(gs, 'info', 'Mercado de fichajes abierto', 'El mercado de verano está abierto hasta el 31 de agosto. Revisa la plantilla y busca refuerzos en la sección Fichajes.');
 }
@@ -121,14 +159,15 @@ export function applyResult(gs: GameState, f: Fixture, m: Match) {
     }
     // non-played squad morale drift
     if (si === 0 && !m.neutral) gate(gs, club, opp.club, f);
-    club.fans = clamp(club.fans + res * 2, 5, 100);
+    club.fans = clamp(club.fans + res * (isDerby(gs, f.home, f.away) ? 5 : 2), 5, 100);
   }
   if (isUserFixture(gs, f)) {
     const us = f.home === gs.manager.clubId ? 0 : 1;
     const res = Math.sign(m.sides[us].goals - m.sides[1 - us].goals);
     const oppStr = strengthOf(gs, m.sides[1 - us].clubId), myStr = strengthOf(gs, gs.manager.clubId);
     const surprise = (oppStr - myStr) / 4;
-    gs.manager.board = clamp(gs.manager.board + (res > 0 ? 2 + Math.max(0, surprise) : res < 0 ? -2.5 + Math.min(0, surprise) * 0.5 : 0.3 + surprise * 0.3), 0, 100);
+    const derby = isDerby(gs, f.home, f.away) ? res * 2 : 0;
+    gs.manager.board = clamp(gs.manager.board + derby + (res > 0 ? 2 + Math.max(0, surprise) : res < 0 ? -2.5 + Math.min(0, surprise) * 0.5 : 0.3 + surprise * 0.3), 0, 100);
     gs.manager.reputation = clamp(gs.manager.reputation + (res > 0 ? 0.25 : res < 0 ? -0.15 : 0.05), 1, 100);
     gs.lastResults = [...(gs.lastResults ?? []), res].slice(-6);
   }
@@ -137,7 +176,7 @@ const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
 function gate(gs: GameState, home: Club, away: Club, f: Fixture) {
   const big = f.comp === 'euro' ? 1.25 : f.comp.startsWith('cup_') ? 0.85 : 1;
-  const demand = (0.45 + home.reputation / 200 + away.reputation / 400) * (0.7 + home.fans / 200) * big;
+  const demand = (0.45 + home.reputation / 200 + away.reputation / 400) * (0.7 + home.fans / 200) * big * (home.city === away.city ? 1.2 : 1);
   const priceRef = 15 + Math.pow(home.reputation / 100, 3) * 70;
   const priceF = Math.pow(priceRef / Math.max(5, home.ticketPrice), 0.8);
   const att = Math.round(Math.min(1, demand * priceF) * home.capacity);
@@ -405,7 +444,10 @@ export function endSeason(gs: GameState): string[] {
       const pos = rows.findIndex(r => r.id === u) + 1; const exp = expectedPos(gs, u);
       const trophies = gs.trophies.filter(t => t.season === gs.season && t.club === u).map(t => t.comp);
       gs.manager.history.push({ season: gs.season, club: gs.clubs[u].name, pos, league: L.name, trophies });
-      const delta = (exp - pos) * 4 + trophies.length * 10;
+      const o = gs.objectives;
+      const cupOk = o ? cupReached(gs) >= o.cup : true, finOk = o ? gs.clubs[u].balance >= o.minBalance : true;
+      const delta = (exp - pos) * 4 + trophies.length * 10 + (o ? (cupOk ? 5 : -5) + (finOk ? 3 : -6) : 0);
+      if (o) summary.push(`Objetivos: copa ${cupOk ? 'cumplido' : 'no cumplido'} (${CUP_TARGET_LABEL[o.cup]}); finanzas ${finOk ? 'cumplido' : 'no cumplido'}.`);
       gs.manager.board = clamp(55 + delta + (gs.manager.board - 50) * 0.3, 5, 100);
       gs.manager.reputation = clamp(gs.manager.reputation + delta * 0.3, 1, 100);
       summary.unshift(`Tu equipo terminó ${pos}º en ${L.name} (objetivo: ${exp}º).`);
@@ -478,6 +520,7 @@ export function endSeason(gs: GameState): string[] {
   uc.cohesion = Math.max(50, uc.cohesion - 10);
   scheduleSeason(gs, rngFor(gs, 'sched'), prevEuro.length === 32 ? prevEuro : initialEuroTeams(gs));
   youthIntake(gs, uc, rng);
+  setObjectives(gs);
   // free agents refill
   const fa = Object.values(gs.players).filter(p => !p.clubId).length;
   for (let i = fa; i < 60; i++) makePlayer(gs, rng, { name: genName(rng.pick(['ESP', 'ENG', 'ITA', 'GER', 'FRA']), rng), pos: rng.pick(['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST']), born: gs.season - rng.int(19, 32), nat: rng.pick(['ESP', 'ENG', 'ITA', 'GER', 'FRA', ...FOREIGN_NATS]), ovr: rng.int(55, 70), pot: rng.int(60, 74), clubId: null, rep: 60, generated: true });

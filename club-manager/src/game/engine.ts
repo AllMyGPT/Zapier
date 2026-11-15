@@ -148,6 +148,24 @@ function pickNear(m: Match, si: 0 | 1, x: number, y: number | null, exclude?: nu
   return m.rng.weighted(ids, w);
 }
 function slotOf(s: Side, id: number) { return s.onPitch.indexOf(id); }
+
+/** Who arrives to finish a move: weighted by slot role and finishing (or heading) skill, so goals spread
+ *  across wingers, attacking midfielders and late runners instead of always the centre-forward. */
+const FINISH_W: Partial<Record<Pos, number>> = { ST: 1, LW: 0.62, RW: 0.62, AM: 0.58, CM: 0.26, DM: 0.1, LB: 0.07, RB: 0.07, CB: 0.07 };
+const HEAD_W: Partial<Record<Pos, number>> = { ST: 1, LW: 0.35, RW: 0.35, AM: 0.35, CM: 0.3, DM: 0.2, LB: 0.1, RB: 0.1, CB: 0.45 };
+function pickFinisher(m: Match, si: 0 | 1, exclude?: number, header = false): number {
+  const s = m.sides[si];
+  const ids: number[] = []; const w: number[] = [];
+  s.onPitch.forEach((id, i) => {
+    if (id == null || id === exclude) return;
+    const base = (header ? HEAD_W : FINISH_W)[s.slots[i].pos] ?? 0;
+    if (!base) return;
+    const sk = header ? P(m, id).attrs.hea : P(m, id).attrs.sho;
+    ids.push(id); w.push(base * Math.pow(Math.max(40, sk) / 80, 2));
+  });
+  if (!ids.length) return pickNear(m, si, 0.9, 0.5, exclude);
+  return m.rng.weighted(ids, w);
+}
 function bump(s: Side, id: number, v: number) { if (s.rating[id] !== undefined) s.rating[id] = clamp(s.rating[id] + v, 3, 10); }
 
 function kickoff(m: Match, si: 0 | 1, text: string) {
@@ -179,7 +197,7 @@ function shoot(m: Match, xg: number, shooter: number, kindText?: string) {
   const gkId = d.onPitch[0];
   const gk = gkId != null ? eff(m, d, gkId, 0) : 30;
   const shotSkill = (p.attrs.sho * 0.8 + p.attrs.dri * 0.2) * (0.75 + 0.25 * (a.energy[shooter] ?? 100) / 100);
-  let pGoal = xg * Math.exp((shotSkill - 72) / 70) * Math.exp((72 - gk) / 60) * 0.74;
+  let pGoal = xg * Math.exp((shotSkill - 72) / 105) * Math.exp((72 - gk) / 60) * 0.76;
   pGoal = clamp(pGoal, 0.01, 0.92);
   const onT = clamp(0.12 + p.attrs.sho / 450 + xg * 0.4, 0.15, 0.8);
   bump(a, shooter, 0.08);
@@ -431,11 +449,16 @@ export function stepMatch(m: Match): void {
       if (m.rng.chance(0.5)) { A.corners++; corner(m); } else turnover(m);
       return;
     }
+    // the ball carrier shoots about half the time; otherwise it's laid off to a runner arriving in the box
+    if (m.rng.chance(0.58)) {
+      const runner = pickFinisher(m, ai, m.holder);
+      if (runner !== m.holder) { m.lastPasser = m.holder; m.holder = runner; }
+    }
     shoot(m, xg, m.holder);
     return;
   }
   if (action === 'cross') {
-    const target = pickNear(m, ai, 0.9, 0.5, m.holder, p => p !== 'GK');
+    const target = pickFinisher(m, ai, m.holder, true);
     m.lastPasser = m.holder;
     const ok = m.rng.chance(sig((hp.attrs.pas - 70) / 15 + (P(m, target).attrs.hea - avgAttr(m, D, 'hea')) / 14 - 0.5));
     if (ok) {

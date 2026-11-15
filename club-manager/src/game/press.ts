@@ -1,5 +1,5 @@
 import type { Fixture, GameState } from './types';
-import { news, strengthOf } from './season';
+import { isDerby, news, strengthOf } from './season';
 
 /** Post-match press conference: a question picked from the result, three answers with trade-offs. */
 export interface PressAnswer { text: string; board: number; fans: number; morale: number; headline: string }
@@ -9,6 +9,13 @@ const JOURNALISTS = ['Radio Deportiva', 'Diario del Fútbol', 'TV Gol', 'La Grad
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
 export function pressQuestion(gs: GameState, f: Fixture): PressQuestion {
+  const q = baseQuestion(gs, f);
+  if (!isDerby(gs, f.home, f.away)) return q;
+  // derbies: the city is watching, so every answer weighs double with the fans
+  return { ...q, q: `Derbi. ${q.q}`, answers: q.answers.map(a => ({ ...a, fans: a.fans * 2, headline: `Derbi: ${a.headline.charAt(0).toLowerCase()}${a.headline.slice(1)}` })) };
+}
+
+function baseQuestion(gs: GameState, f: Fixture): PressQuestion {
   const me = gs.manager.clubId;
   const home = f.home === me;
   const my = home ? f.hg! : f.ag!, ot = home ? f.ag! : f.hg!;
