@@ -112,6 +112,18 @@ npx tsc --noEmit && npx next build   # comprobaciones
 - **Eventos**: con decisiones y tiempos de espera.
 - **Filiales vinculados y cesiones**.
 
+## LaLiga 2026/27 desde Transfermarkt (15 nov 2026)
+- Plantillas de los 20 clubes de LaLiga 26/27 leídas de Transfermarkt (vista detallada de cada club): nombre, posición, año de nacimiento, nacionalidad, valor de mercado y fin de contrato.
+  - Suben Deportivo, Racing y Málaga; bajan Mallorca, Girona y Real Oviedo.
+  - Transfermarkt bloquea las lecturas automáticas: se extrajo desde el navegador y se convirtió con `scripts/build-laliga.py <export>`.
+- Formato de jugador: `Nombre|POS|año|NAC|media|potencial|valor M€|fin de contrato`.
+- Valoración: los que ya estaban mantienen la suya ajustada con el valor actual; los nuevos se estiman con valor y edad (ajuste sobre 308 coincidencias); a los menores de 23 se les da más peso al valor.
+- Precios: `marketValue` usa el valor de Transfermarkt como base y lo mueve en proporción a lo que cambien media, edad y contrato.
+- Cantera: nivel 1-6 por club, mejorable en Club (6 M€ por nivel).
+  - El Celta empieza en élite (6): unos 6 juveniles por hornada y 2-3 con potencial alto.
+  - Los menores de 22 progresan un 60 % más rápido, también en el Celta Fortuna.
+- Las demás ligas siguen con los datos anteriores.
+
 ## Ideas pendientes (opcionales)
 - Revisar plantillas dudosas en `src/data/leagues/*.ts` (formato `Nombre|POS|año|NAC|media|potencial`), p. ej. canteranos poco seguros en `esp.ts`: David Otorbi, Ismael Bekhoucha, Yellu Santiago, Dani Budesca.
 - Los escudos son generados a propósito (no logos oficiales). Si se publica o monetiza, revisar los derechos de imagen de los nombres de jugadores.

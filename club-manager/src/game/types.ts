@@ -48,6 +48,8 @@ export interface Player {
   role?: Role;        // squad role promised in his contract
   releaseClause?: number; // € — another club can pay it to sign him without asking
   trainFocus?: keyof Attrs; // individual training focus
+  tmValue?: number;   // Transfermarkt value (€) when the data was taken
+  tmRef?: number;     // model value at that moment, so later changes scale the real value
 }
 
 export type Role = 'estrella' | 'titular' | 'rotacion' | 'promesa' | 'suplente';
@@ -93,6 +95,7 @@ export interface Club {
   training: Training;
   cohesion: number;     // 0-100 tactical familiarity
   parentId?: string;    // reserve (B) team: id of its first team
+  academy?: number;     // youth academy level 1-6: intake quality and youth development
 }
 
 export interface Training { intensity: 1 | 2 | 3; focus: 'general' | 'ataque' | 'defensa' | 'fisico' | 'tactica' | 'balon_parado' | 'descanso' }

@@ -6,7 +6,7 @@ import { LEAGUE as GER } from '@/data/leagues/ger';
 import { LEAGUE as FRA } from '@/data/leagues/fra';
 import type { Club, GameState, League, Player, Pos } from './types';
 import { Rng, hashStr } from './rng';
-import { emptyStats, fairWage, genAttrs } from './player';
+import { emptyStats, fairWage, genAttrs, modelValue } from './player';
 import { genName, FOREIGN_NATS, SPONSORS } from './names';
 import { autoPick } from './lineup';
 
@@ -16,7 +16,7 @@ export const TV_WEEKLY: Record<string, number> = { esp: 1_400_000, eng: 2_600_00
 export const START_SEASON = 2026;
 const POSITIONS: Pos[] = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'];
 
-export function newClub(raw: { id: string; name: string; short: string; city: string; stadium: string; capacity: number; colors: [string, string]; reputation: number; parent?: string }, leagueId: string, country: string, budgetM: number, rng: Rng): Club {
+export function newClub(raw: { id: string; name: string; short: string; city: string; stadium: string; capacity: number; colors: [string, string]; reputation: number; parent?: string; academy?: number }, leagueId: string, country: string, budgetM: number, rng: Rng): Club {
   const rep = raw.reputation;
   return {
     id: raw.id, name: raw.name, short: raw.short, city: raw.city, stadium: raw.stadium, capacity: raw.capacity, colors: raw.colors,
@@ -32,10 +32,11 @@ export function newClub(raw: { id: string; name: string; short: string; city: st
     training: { intensity: 2, focus: 'general' },
     cohesion: 70,
     parentId: raw.parent,
+    academy: raw.academy ?? (rep >= 88 ? 4 : rep >= 75 ? 3 : 2),
   };
 }
 
-export function makePlayer(gs: GameState, rng: Rng, o: { name: string; pos: Pos; born: number; nat: string; ovr: number; pot: number; clubId: string | null; rep: number; generated?: boolean; youth?: boolean }): Player {
+export function makePlayer(gs: GameState, rng: Rng, o: { name: string; pos: Pos; born: number; nat: string; ovr: number; pot: number; clubId: string | null; rep: number; generated?: boolean; youth?: boolean; tmValue?: number; contractEnd?: number }): Player {
   const p: Player = {
     id: gs.nextId++, name: o.name, pos: o.pos, born: o.born, nat: o.nat, clubId: o.clubId,
     attrs: genAttrs(o.pos, o.ovr, rng), pot: Math.max(o.pot, o.ovr),
@@ -45,6 +46,8 @@ export function makePlayer(gs: GameState, rng: Rng, o: { name: string; pos: Pos;
   };
   p.wage = fairWage(p, gs.season, o.rep);
   p.startOvr = o.ovr;
+  if (o.contractEnd && o.contractEnd > gs.season) p.contractEnd = o.contractEnd; // year the deal ends (30 June), same convention as the game
+  if (o.tmValue) { p.tmValue = Math.round(o.tmValue * 1_000_000); p.tmRef = modelValue(p, gs.season); }
   gs.players[p.id] = p;
   return p;
 }
@@ -52,10 +55,11 @@ export function makePlayer(gs: GameState, rng: Rng, o: { name: string; pos: Pos;
 export function genSquad(gs: GameState, rng: Rng, club: Club, nat: string, level: number) {
   const plan: Pos[] = ['GK', 'GK', 'GK', 'CB', 'CB', 'CB', 'CB', 'LB', 'LB', 'RB', 'RB', 'DM', 'DM', 'CM', 'CM', 'CM', 'AM', 'LW', 'RW', 'LW', 'ST', 'ST', 'ST'];
   const reserve = !!club.parentId; // B teams are young squads with more upside
+  const elite = reserve && (gs.clubs[club.parentId!]?.academy ?? 0) >= 5;
   for (const pos of plan) {
     const age = reserve ? rng.int(18, 23) : rng.int(18, 34);
     const o = Math.round(level + rng.gauss(0, 3.5) - (age < 21 ? 4 : 0) - (age > 31 ? 2 : 0));
-    const pot = age < 24 ? o + rng.int(2, reserve ? 18 : 12) : o + rng.int(0, 2);
+    const pot = age < 24 ? o + rng.int(2, reserve ? (elite ? 24 : 18) : 12) : o + rng.int(0, 2);
     makePlayer(gs, rng, { name: genName(nat, rng), pos, born: gs.season - age, nat: rng.chance(0.85) ? nat : rng.pick(FOREIGN_NATS), ovr: Math.max(48, o), pot, clubId: club.id, rep: club.reputation, generated: true });
   }
 }
@@ -89,10 +93,10 @@ export function createWorld(managerName: string, seed = Date.now() % 1e9): GameS
       for (const line of rc.players.split('\n')) {
         const parts = line.trim().split('|');
         if (parts.length < 6) continue;
-        const [name, pos, born, nat, o, pot] = parts;
+        const [name, pos, born, nat, o, pot, mv, ct] = parts;
         if (!POSITIONS.includes(pos as Pos)) continue;
         const prng = new Rng(hashStr(name + rc.id) ^ seed);
-        makePlayer(gs, prng, { name, pos: pos as Pos, born: +born, nat, ovr: +o, pot: +pot, clubId: club.id, rep: club.reputation });
+        makePlayer(gs, prng, { name, pos: pos as Pos, born: +born, nat, ovr: +o, pot: +pot, clubId: club.id, rep: club.reputation, tmValue: mv ? +mv : undefined, contractEnd: ct ? +ct : undefined });
       }
     }
     for (const rc of L.tier2) {

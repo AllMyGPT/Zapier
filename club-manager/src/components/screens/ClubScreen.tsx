@@ -6,6 +6,7 @@ import { fmtMoney, money } from '@/game/season';
 import { seasonLabel } from '@/game/calendar';
 import type { Staff } from '@/game/types';
 import { sponsorOffers, signSponsor, namingOffer, sellNaming, GOAL_LABEL } from '@/game/sponsors';
+import { ACADEMY_LABEL, academyCost, upgradeAcademy } from '@/game/academy';
 
 const STAFF: [keyof Staff, string, string][] = [
   ['coach', 'Segundo entrenador', 'Multiplica la progresión de los jugadores en los entrenamientos.'],
@@ -71,6 +72,14 @@ export default function ClubScreen() {
         </div>
       </div>
       <div className="grid g2">
+        <div className="panel"><h3>Cantera</h3>
+          <div className="row wrap">
+            <div className="kpi" style={{ color: (club.academy ?? 2) >= 5 ? 'var(--accent)' : 'var(--cyan)' }}>{ACADEMY_LABEL[club.academy ?? 2]}</div>
+            <Stars v={(club.academy ?? 2) * 5 / 6} />
+          </div>
+          <div className="small muted" style={{ margin: '6px 0' }}>Nivel {club.academy ?? 2}/6: {(club.academy ?? 2) >= 5 ? 'hornadas más numerosas, más joyas y ' : ''}los menores de 22 progresan un {Math.round(((club.academy ?? 2) - 2) * 15)} % más{(club.academy ?? 2) >= 5 ? ', también en el filial' : ''}.</div>
+          {(club.academy ?? 2) < 6 && <button className="btn sm primary" onClick={() => { toast(upgradeAcademy(gs)); refresh(); }}>Invertir en la cantera ({fmtMoney(academyCost(club.academy ?? 2))})</button>}
+        </div>
         <div className="panel"><h3>Patrocinio y comercial</h3>
           <div className="small">Camiseta: <b>{club.sponsor.name}</b> · {fmtMoney(club.sponsor.weekly)}/sem hasta {club.sponsor.until + 1}{club.sponsor.bonus ? ` · bonus ${fmtMoney(club.sponsor.bonus.amount)} si ${GOAL_LABEL[club.sponsor.bonus.goal]}` : ''}</div>
           {club.sponsor.until <= gs.season ? (

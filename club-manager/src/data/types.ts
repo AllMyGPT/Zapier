@@ -12,6 +12,7 @@ export interface RawClub {
   colors: [string, string]; // [primary kit colour, secondary kit colour] as hex
   reputation: number;  // 1-100 (Real Madrid ~97, mid-table ~70, newly promoted ~60)
   budget: number;      // transfer budget in millions of euros
+  academy?: number;    // youth academy level 1-6 (6 = elite), default from reputation
   // One player per line: "Full Name|POS|birthYear|NAT|overall|potential"
   // POS in GK,CB,LB,RB,DM,CM,AM,LW,RW,ST ; NAT = 3-letter FIFA code ; overall/potential 40-95
   players: string;

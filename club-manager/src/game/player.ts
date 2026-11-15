@@ -61,7 +61,16 @@ export function genAttrs(pos: Pos, target: number, rng: Rng): Attrs {
 
 export function age(p: { born: number }, season: number) { return season - p.born; }
 
+/** Market value. Real players carry their Transfermarkt value as an anchor: the model only moves it
+ *  as much as the player's rating, age and contract have changed since it was recorded. */
 export function marketValue(p: Player, season: number): number {
+  const model = modelValue(p, season);
+  if (!p.tmValue || !p.tmRef) return roundMoney(model);
+  const ratio = Math.max(0.35, Math.min(2.5, model / p.tmRef));
+  return roundMoney(Math.max(25_000, p.tmValue * ratio));
+}
+
+export function modelValue(p: Player, season: number): number {
   const o = ovr(p);
   const a = age(p, season);
   let v = 1_000_000 * Math.exp((o - 60) * 0.168);
@@ -78,7 +87,7 @@ export function marketValue(p: Player, season: number): number {
   if (yrs <= 0) v *= 0.45; else if (yrs === 1) v *= 0.75;
   if (p.injury > 60) v *= 0.8;
   if (v < 25_000) v = 25_000;
-  return roundMoney(v);
+  return v;
 }
 
 export function fairWage(p: Player, season: number, clubRep = 75): number {

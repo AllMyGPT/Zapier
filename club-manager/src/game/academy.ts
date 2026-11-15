@@ -65,3 +65,17 @@ export function loanOut(gs: GameState, pid: number): string {
 export function loanedOut(gs: GameState) {
   return Object.values(gs.players).filter(p => p.loanFrom === gs.manager.clubId);
 }
+
+export const ACADEMY_LABEL = ['', 'Básica', 'Modesta', 'Buena', 'Muy buena', 'Excelente', 'Élite'];
+export const academyCost = (level: number) => level * 6_000_000;
+/** Invest in the youth facilities: more and better youngsters, faster development for under-22s. */
+export function upgradeAcademy(gs: GameState): string {
+  const c = gs.clubs[gs.manager.clubId]; const lvl = c.academy ?? 2;
+  if (lvl >= 6) return 'Tu cantera ya es de élite.';
+  const cost = academyCost(lvl);
+  if (c.balance < cost) return `Necesitas ${(cost / 1e6).toFixed(0)} M€ en caja.`;
+  c.balance -= cost; c.academy = lvl + 1;
+  gs.finance.push({ date: gs.day + gs.season * 1000, label: 'Inversión en la cantera', amount: -cost });
+  news(gs, 'youth', `La cantera sube a nivel ${ACADEMY_LABEL[c.academy]}`, 'Más juveniles y de más calidad en cada hornada, y los menores de 22 progresan más rápido.');
+  return `Cantera mejorada: ahora es ${ACADEMY_LABEL[c.academy].toLowerCase()}.`;
+}

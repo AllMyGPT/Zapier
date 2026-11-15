@@ -336,7 +336,9 @@ function training(gs: GameState, c: Club, ps: Player[], rng: Rng) {
     else if (a <= 27) g = Math.max(0, p.pot - o) * 0.012;
     else if (a <= 30) g = 0.01;
     else g = -0.04 - (a - 30) * 0.025;
-    if (g > 0) g *= (0.7 + c.staff.coach * 0.1) * (0.6 + intensity * 0.25) * (p.youth ? 0.8 : 1) * (0.85 + Math.min(p.stats.apps, 20) * 0.015);
+    const acadLvl = c.parentId ? (gs.clubs[c.parentId]?.academy ?? 2) : (c.academy ?? 2);
+    const acadBoost = a <= 21 ? 1 + (acadLvl - 2) * 0.15 : 1; // level 6 = +60 % growth for under-22s
+    if (g > 0) g *= (0.7 + c.staff.coach * 0.1) * (0.6 + intensity * 0.25) * (p.youth ? 0.8 : 1) * (0.85 + Math.min(p.stats.apps, 20) * 0.015) * acadBoost;
     // spread across weighted attrs
     const w = WEIGHTS[p.pos];
     const keys = ATTR_KEYS.filter(k => (w[k] ?? 0) > 0);
@@ -437,12 +439,13 @@ function finishCup(gs: GameState, cupId: string, winner: string) {
 // ---------------- youth ----------------
 export function youthIntake(gs: GameState, c: Club, rng: Rng) {
   const L = RAW_LEAGUES.find(l => l.id === c.country)!;
-  const n = rng.int(3, 5);
+  const acad = c.academy ?? 2;
+  const n = rng.int(3, 5) + (acad >= 5 ? 2 : acad >= 4 ? 1 : 0);
   const names: string[] = [];
   for (let i = 0; i < n; i++) {
     const pos = rng.pick(['GK', 'CB', 'CB', 'LB', 'RB', 'DM', 'CM', 'CM', 'AM', 'LW', 'RW', 'ST', 'ST'] as const);
-    const base = 44 + c.staff.youth * 2.5 + c.reputation / 12 + rng.gauss(0, 4);
-    const pot = Math.min(94, Math.round(base + 12 + c.staff.youth * 2 + Math.abs(rng.gauss(0, 7)) + (rng.chance(0.04) ? 10 : 0)));
+    const base = 44 + c.staff.youth * 2.5 + c.reputation / 12 + (acad - 2) * 0.5 + rng.gauss(0, 4);
+    const pot = Math.min(94, Math.round(base + 12 + c.staff.youth * 2 + (acad - 2) * 0.2 + Math.abs(rng.gauss(0, 7)) + (rng.chance(0.04 + (acad - 2) * 0.02) ? 10 : 0)));
     const p = makePlayer(gs, rng, { name: genName(L.nat, rng), pos, born: gs.season - rng.int(16, 17), nat: L.nat, ovr: Math.round(base), pot, clubId: c.id, rep: 40, generated: true, youth: true });
     p.wage = 1000; p.contractEnd = gs.season + 3;
     names.push(`${p.name} (${pos}, pot. ${p.pot > 80 ? 'alto' : p.pot > 72 ? 'medio' : 'bajo'})`);
@@ -604,9 +607,10 @@ export function endSeason(gs: GameState): string[] {
 
 function youthAI(gs: GameState, c: Club, rng: Rng) {
   const L = RAW_LEAGUES.find(l => l.id === c.country)!;
-  for (let i = 0; i < 2; i++) {
+  const acad = c.academy ?? 2;
+  for (let i = 0; i < 2 + (acad >= 5 ? 2 : 0); i++) {
     const pos = rng.pick(['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'] as const);
-    const base = 46 + c.reputation / 8 + rng.gauss(0, 4);
+    const base = 46 + c.reputation / 8 + (acad - 2) * 1.5 + rng.gauss(0, 4);
     const res = Object.values(gs.clubs).find(x => x.parentId === c.id);
     makePlayer(gs, rng, { name: genName(L.nat, rng), pos, born: gs.season + 1 - rng.int(17, 18), nat: L.nat, ovr: Math.round(base), pot: Math.round(base + 10 + Math.abs(rng.gauss(0, 7))), clubId: res ? res.id : c.id, rep: c.reputation, generated: true });
   }
