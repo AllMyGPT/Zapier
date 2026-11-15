@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FounderDef } from '@/engine/core';
 import { portraitChoices } from '@/lib/art';
 import { TRAIT_EFFECTS, TRAITS } from '@/rulesets/common';
@@ -31,13 +31,28 @@ export default function FounderForm({ art, era, color, onChange }: { art: string
   const portrait = f.portrait && choices.includes(f.portrait) ? f.portrait : choices[0];
   const used = cost(f);
   const left = POINTS - used;
-  const valid = f.name.trim().length >= 2 && f.dynasty.trim().length >= 2 && left >= 0;
+  // empty fields fall back to the example values, so the start button always works
+  const defName = (x: FounderDef) => (modern ? (x.female ? 'Elena' : 'Julián') : x.female ? 'Urraca' : 'Rodrigo');
+  const defHouse = modern ? 'Valcárcel' : 'Altamira';
+  const normalize = (x: FounderDef): FounderDef | null => {
+    if (cost(x) > POINTS) return null;
+    const choices2 = portraitChoices(art, x.female);
+    return {
+      ...x,
+      name: x.name.trim().length >= 2 ? x.name.trim() : defName(x),
+      dynasty: x.dynasty.trim().length >= 2 ? x.dynasty.trim() : defHouse,
+      portrait: x.portrait && choices2.includes(x.portrait) ? x.portrait : choices2[0],
+    };
+  };
+  const valid = left >= 0;
   const set = (p: Partial<FounderDef>) => {
     const next = { ...f, ...p };
     setF(next);
-    const ok = next.name.trim().length >= 2 && next.dynasty.trim().length >= 2 && cost(next) <= POINTS;
-    onChange(ok ? { ...next, name: next.name.trim(), dynasty: next.dynasty.trim(), portrait: next.portrait && portraitChoices(art, next.female).includes(next.portrait) ? next.portrait : portraitChoices(art, next.female)[0] } : null);
+    onChange(normalize(next));
   };
+  // the form is usable from the first render: announce the default founder right away
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { onChange(normalize(f)); }, []);
   return (
     <div className="founder">
       <div className="founder-top">
@@ -92,7 +107,8 @@ export default function FounderForm({ art, era, color, onChange }: { art: string
         {f.spouse && <label className="age">Hijos {f.children}<input type="range" min={0} max={4} value={f.children} onChange={(e) => set({ children: Number(e.target.value) })} /></label>}
       </div>
       <label className="founder-bio">Leyenda (opcional)<textarea maxLength={240} rows={2} value={f.bio} placeholder="Cómo llegó al trono, qué juró, qué teme…" onChange={(e) => set({ bio: e.target.value })} /></label>
-      {!valid && <p className="muted" style={{ fontSize: 12 }}>Pon nombre y casa para fundar tu linaje.</p>}
+      {!valid && <p className="bad" style={{ fontSize: 13 }}>Has repartido más puntos de los disponibles: quita alguno para poder empezar.</p>}
+      {(f.name.trim().length < 2 || f.dynasty.trim().length < 2) && <p className="muted" style={{ fontSize: 12 }}>Si dejas el nombre o la casa vacíos, empezarás como {f.name.trim().length >= 2 ? f.name.trim() : defName(f)} de la casa de {f.dynasty.trim().length >= 2 ? f.dynasty.trim() : defHouse}.</p>}
       <p className="muted" style={{ fontSize: 12 }}>Tu personaje sustituye al soberano histórico. El linaje depuesto conserva su derecho de sangre: tendrás pretendientes en tu propia corte.</p>
     </div>
   );
