@@ -3,7 +3,8 @@ import React from 'react';
 import { useGame } from '../GameApp';
 import { Bar, Ovr, PosBadge } from '../ui';
 import { clubPlayers } from '@/game/lineup';
-import { age, ovr } from '@/game/player';
+import { age, ovr, ATTR_LABEL } from '@/game/player';
+import type { Attrs } from '@/game/types';
 import type { Training } from '@/game/types';
 
 const FOCUS: [Training['focus'], string, string][] = [
@@ -26,7 +27,7 @@ export default function TrainingScreen() {
       <div className="col">
         <div className="panel">
           <h3>Plan semanal</h3>
-          <div className="small muted" style={{ marginBottom: 10 }}>El entrenamiento se aplica cada lunes. Los jóvenes con potencial y los que juegan más progresan más rápido. La calidad del cuerpo técnico (Club → Personal) multiplica el progreso.</div>
+          <div className="small muted" style={{ marginBottom: 10 }}>El foco individual de cada jugador (tabla de la derecha) concentra su progreso en un atributo. El entrenamiento se aplica cada lunes. Los jóvenes con potencial y los que juegan más progresan más rápido. La calidad del cuerpo técnico (Club → Personal) multiplica el progreso.</div>
           <div className="col" style={{ gap: 4 }}><span className="small muted">Intensidad</span>
             <div className="seg">{([1, 2, 3] as const).map(i => <button key={i} className={tr.intensity === i ? 'on' : ''} onClick={() => { tr.intensity = i; refresh(); }}>{['Suave', 'Normal', 'Dura'][i - 1]}</button>)}</div>
             <span className="small muted">{tr.intensity === 3 ? 'Más progreso, pero menos recuperación y riesgo de lesiones.' : tr.intensity === 1 ? 'Recuperación rápida, poco progreso.' : 'Equilibrio entre progreso y frescura.'}</span>
@@ -44,9 +45,9 @@ export default function TrainingScreen() {
       <div className="panel">
         <h3>Estado físico de la plantilla</h3>
         <div className="tablewrap">
-          <table className="t"><thead><tr><th>Pos</th><th>Jugador</th><th className="c">Edad</th><th className="c">Med</th><th>Físico</th><th>Moral</th></tr></thead>
+          <table className="t"><thead><tr><th>Pos</th><th>Jugador</th><th className="c">Edad</th><th className="c">Med</th><th>Físico</th><th>Moral</th><th>Foco individual</th></tr></thead>
             <tbody>{players.map(p => (
-              <tr key={p.id}><td><PosBadge pos={p.pos} /></td><td>{p.name}{p.youth && <span className="pill blue" style={{ marginLeft: 6 }}>Cantera</span>}{p.injury > 0 && <span className="pill bad" style={{ marginLeft: 6 }}>🩹 {Math.ceil(p.injury / 7)} sem</span>}</td><td className="c">{age(p, gs.season)}</td><td className="c"><Ovr v={ovr(p)} /></td><td style={{ width: 110 }}><Bar v={p.fitness} /></td><td style={{ width: 90 }}><Bar v={p.morale} color="var(--blue)" /></td></tr>
+              <tr key={p.id}><td><PosBadge pos={p.pos} /></td><td>{p.name}{p.youth && <span className="pill blue" style={{ marginLeft: 6 }}>Cantera</span>}{p.injury > 0 && <span className="pill bad" style={{ marginLeft: 6 }}>🩹 {Math.ceil(p.injury / 7)} sem</span>}</td><td className="c">{age(p, gs.season)}</td><td className="c"><Ovr v={ovr(p)} /></td><td style={{ width: 110 }}><Bar v={p.fitness} /></td><td style={{ width: 90 }}><Bar v={p.morale} color="var(--blue)" /></td><td><select value={p.trainFocus ?? ''} onChange={e => { p.trainFocus = (e.target.value || undefined) as keyof Attrs | undefined; refresh(); }} style={{ padding: '3px 6px', fontSize: 12 }}><option value="">—</option>{(Object.keys(ATTR_LABEL) as (keyof Attrs)[]).filter(k => p.pos === 'GK' || k !== 'gk').map(k => <option key={k} value={k}>{ATTR_LABEL[k]}</option>)}</select></td></tr>
             ))}</tbody></table>
         </div>
       </div>

@@ -8,6 +8,8 @@ import { TV_WEEKLY, assignNumbers, genSquad, makePlayer, RAW_LEAGUES } from './d
 import { genName, FOREIGN_NATS, SPONSORS } from './names';
 import { aiTransfers, incomingOffers } from './market';
 import { weeklyEvents, internationalBreak } from './events';
+import { lifeWeekly, lifeSeasonEnd } from './life';
+import { sponsorBonus } from './sponsors';
 
 export function rngFor(gs: GameState, salt: string | number) { return new Rng(hashStr(`${gs.seed}:${gs.season}:${gs.day}:${salt}`)); }
 
@@ -249,7 +251,11 @@ function nextDay(gs: GameState) {
     c.expansion.daysLeft--;
     if (c.expansion.daysLeft <= 0) { c.capacity += c.expansion.seats; if (c.id === gs.manager.clubId) news(gs, 'club', 'Ampliación terminada', `${c.stadium} tiene ahora ${c.capacity.toLocaleString('es-ES')} asientos.`); c.expansion = undefined; }
   }
-  if (gs.day % 7 === 0) { weekly(gs, rng); if (gs.day > 3) weeklyEvents(gs, rng); }
+  if (gs.day % 7 === 0) {
+    weekly(gs, rng); if (gs.day > 3) weeklyEvents(gs, rng);
+    const mood = lifeWeekly(gs); // the manager's personal mood spills into the dressing room
+    if (mood) for (const p of clubPlayers(gs, gs.manager.clubId)) p.morale = clamp(p.morale + mood, 5, 100);
+  }
   internationalBreak(gs, rng);
   if (gs.day === WINDOWS[0][1] + 1 || gs.day === WINDOWS[1][1] + 1) news(gs, 'info', 'Mercado cerrado', 'El mercado de fichajes se ha cerrado. Solo puedes fichar jugadores libres.');
   if (gs.day === WINDOWS[1][0]) news(gs, 'info', 'Mercado de invierno abierto', 'Hasta el 31 de enero puedes comprar y vender jugadores.');
@@ -300,6 +306,15 @@ function weeklyRest(gs: GameState, rng: Rng) {
     const exp = clubPlayers(gs, u.id).filter(p => p.contractEnd <= season + 1);
     if (exp.length) news(gs, 'club', 'Contratos que expiran', `Terminan contrato este verano: ${exp.map(p => p.name).join(', ')}. Renueva desde la ficha del jugador o se marcharán libres.`);
   }
+  if (gs.day % 28 === 0 && gs.day > 70) {
+    const matches = gs.fixtures.filter(f => f.played && (f.home === u.id || f.away === u.id)).length;
+    for (const p of clubPlayers(gs, u.id)) {
+      if ((p.role === 'estrella' || p.role === 'titular') && p.injury === 0 && matches >= 6 && p.stats.apps < matches * (p.role === 'estrella' ? 0.6 : 0.45)) {
+        p.morale = clamp(p.morale - 6, 5, 100);
+        news(gs, 'club', `${p.name} se queja de su rol`, `Firmó como ${p.role} y apenas cuenta (${p.stats.apps} de ${matches} partidos). Su moral cae.`);
+      }
+    }
+  }
   if (inWindow(gs.day)) { aiTransfers(gs, rng); incomingOffers(gs, rng); }
   if (u.cohesion < 100) u.cohesion = clamp(u.cohesion + (u.training.focus === 'tactica' ? 4 : 1.5), 0, 100);
 }
@@ -325,7 +340,7 @@ function training(gs: GameState, c: Club, ps: Player[], rng: Rng) {
     const keys = ATTR_KEYS.filter(k => (w[k] ?? 0) > 0);
     const extra = focusAttrs[t.focus] ?? [];
     for (const k of keys) {
-      const share = (w[k] ?? 0) * 1.0 + (extra.includes(k) ? 0.15 : 0);
+      const share = (w[k] ?? 0) * 1.0 + (extra.includes(k) ? 0.15 : 0) + (p.trainFocus === k ? 0.5 : 0);
       const delta = g * share * (p.pos === 'GK' ? (0.7 + c.staff.gk * 0.1) / (0.7 + c.staff.coach * 0.1) * (k === 'gk' ? 1.1 : 1) : 1) * 1.15;
       if (rng.chance(Math.abs(delta) % 1)) p.attrs[k] = Math.max(1, Math.min(99, p.attrs[k] + Math.sign(delta)));
       if (Math.abs(delta) >= 1) p.attrs[k] = Math.max(1, Math.min(99, p.attrs[k] + Math.trunc(delta)));
@@ -467,6 +482,7 @@ export function endSeason(gs: GameState): string[] {
       const o = gs.objectives;
       const cupOk = o ? cupReached(gs) >= o.cup : true, finOk = o ? gs.clubs[u].balance >= o.minBalance : true;
       const delta = (exp - pos) * 4 + trophies.length * 10 + (o ? (cupOk ? 5 : -5) + (finOk ? 3 : -6) : 0);
+      { const sb = sponsorBonus(gs, gs.clubs[u], pos, L.euroSpots, L.tier > 1 && pos <= L.promote); if (sb) summary.push(sb); }
       if (o) summary.push(`Objetivos: copa ${cupOk ? 'cumplido' : 'no cumplido'} (${CUP_TARGET_LABEL[o.cup]}); finanzas ${finOk ? 'cumplido' : 'no cumplido'}.`);
       gs.manager.board = clamp(55 + delta + (gs.manager.board - 50) * 0.3, 5, 100);
       gs.manager.reputation = clamp(gs.manager.reputation + delta * 0.3, 1, 100);
@@ -552,6 +568,7 @@ export function endSeason(gs: GameState): string[] {
     if (c.sponsor.until <= nextSeason) c.sponsor = { name: rng.pick(SPONSORS), weekly: Math.round(Math.pow(c.reputation / 10, 3.2) * 120 / 1000) * 1000, until: nextSeason + 2 };
     if (c.id !== u) youthAI(gs, c, rng);
   }
+  lifeSeasonEnd(gs);
   gs.season = nextSeason; gs.day = 0;
   for (const p of Object.values(gs.players)) p.startOvr = ovr(p);
   for (const c of Object.values(gs.clubs)) { fillSquad(gs, c, rng); assignNumbers(gs, c.id); }

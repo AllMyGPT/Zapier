@@ -10,6 +10,7 @@ const P: Record<string, React.ReactNode> = {
   finances: <><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M3 10h18" /><path d="M7 15h4" /><circle cx="16.5" cy="14.5" r="1.5" /></>,
   club: <><ellipse cx="12" cy="13" rx="9" ry="5" /><path d="M3 13v3c0 2.8 4 5 9 5s9-2.2 9-5v-3" /><ellipse cx="12" cy="13" rx="4.5" ry="2.2" /><path d="M5 9V4M19 9V4" /></>,
   comps: <><path d="M8 4h8v5a4 4 0 0 1-8 0V4z" /><path d="M16 5h3v2a3 3 0 0 1-3 3M8 5H5v2a3 3 0 0 0 3 3" /><path d="M12 13v4M8 21h8M9.5 17h5l.5 4h-6z" /></>,
+  life: <><path d="M12 21s-7-4.5-9.5-9A5 5 0 0 1 12 6a5 5 0 0 1 9.5 6c-2.5 4.5-9.5 9-9.5 9z" /></>,
   save: <><path d="M5 3h11l3 3v15H5z" /><path d="M8 3v5h7V3" /><rect x="8" y="13" width="8" height="5" rx="1" /></>,
 };
 

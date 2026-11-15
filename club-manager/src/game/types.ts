@@ -45,8 +45,12 @@ export interface Player {
   lastTalk?: number; // game day of the last one-to-one chat with the manager
   promise?: { until: number; apps: number }; // promised playing time: deadline day and apps at promise time
   startOvr?: number; // overall at the start of the season, to show progress
+  role?: Role;        // squad role promised in his contract
+  releaseClause?: number; // € — another club can pay it to sign him without asking
+  trainFocus?: keyof Attrs; // individual training focus
 }
 
+export type Role = 'estrella' | 'titular' | 'rotacion' | 'promesa' | 'suplente';
 export type Mentality = -2 | -1 | 0 | 1 | 2;
 export interface Tactics {
   formation: string;
@@ -84,7 +88,8 @@ export interface Club {
   lineup: number[];     // 11 ids, slot order of formation
   bench: number[];      // up to 9 ids
   expansion?: { daysLeft: number; seats: number };
-  sponsor: { name: string; weekly: number; until: number };
+  sponsor: { name: string; weekly: number; until: number; bonus?: { goal: 'top4' | 'europa' | 'copa' | 'ascenso'; amount: number } };
+  naming?: string;      // stadium naming-rights sponsor
   training: Training;
   cohesion: number;     // 0-100 tactical familiarity
   parentId?: string;    // reserve (B) team: id of its first team
@@ -153,6 +158,7 @@ export interface GameState {
   objectives?: Objectives;
   pending?: Decision[]; // events waiting for the manager's decision
   eventLog?: Record<string, number>; // last day each decision kind fired (cooldowns)
+  life?: import('./life').LifeState; // optional personal-life layer
   preseason?: { season: number; plan: string; results: { opp: string; gf: number; ga: number; home: boolean }[] };
 }
 

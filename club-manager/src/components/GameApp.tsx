@@ -22,20 +22,21 @@ import Finances from './screens/Finances';
 import ClubScreen from './screens/ClubScreen';
 import Competitions from './screens/Competitions';
 import SaveScreen from './screens/SaveScreen';
+import LifeScreen from './screens/LifeScreen';
 import PlayerModal from './PlayerModal';
 import MatchView from './MatchView';
 import { saveLocal } from '@/lib/storage';
 import { runToEnd, type Match } from '@/game/engine';
 import { ensureLineup } from '@/game/lineup';
 
-export type Tab = 'office' | 'squad' | 'tactics' | 'training' | 'transfers' | 'finances' | 'club' | 'comps' | 'save';
+export type Tab = 'office' | 'squad' | 'tactics' | 'training' | 'transfers' | 'finances' | 'club' | 'comps' | 'life' | 'save';
 interface Ctx { gs: GameState; v: number; refresh: () => void; toast: (s: string) => void; openPlayer: (id: number) => void; goto: (t: Tab) => void; setGs: (g: GameState | null) => void }
 const GameCtx = createContext<Ctx | null>(null);
 export const useGame = () => useContext(GameCtx)!;
 
 const NAV: [Tab, string][] = [
   ['office', 'Despacho'], ['squad', 'Plantilla'], ['tactics', 'Tácticas'], ['training', 'Entrenamiento'],
-  ['transfers', 'Fichajes'], ['finances', 'Finanzas'], ['club', 'Club'], ['comps', 'Competiciones'], ['save', 'Partida'],
+  ['transfers', 'Fichajes'], ['finances', 'Finanzas'], ['club', 'Club'], ['comps', 'Competiciones'], ['life', 'Vida'], ['save', 'Partida'],
 ];
 
 /** Scene photo, kicker and subtitle for each screen's banner. */
@@ -48,6 +49,7 @@ const SCENES: Record<Tab, [string, string, string]> = {
   finances: ['negotiation', 'Cuentas del club', 'Ingresos, gastos y presupuesto'],
   club: ['exterior', 'Instalaciones', 'Estadio, personal y cantera'],
   comps: ['trophies', 'Sala de trofeos', 'Clasificaciones, copas y calendario'],
+  life: ['life/home-penthouse', 'Vida personal', 'Casa, coche, amor, familia y escándalos'],
   save: ['manager', 'Partida', 'Guarda y carga tu carrera'],
 };
 
@@ -116,7 +118,7 @@ export default function GameApp() {
       <div className="shell">
         <aside className="side">
           <div className="brand"><img src="/art/emblem.svg" alt="" /><div className="wm"><b>Pizarra</b><span>Club Manager</span></div></div>
-          {NAV.map(([k, label]) => (
+          {NAV.filter(([k]) => k !== 'life' || gs.life?.enabled).map(([k, label]) => (
             <button key={k} className={`nav ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>
               <span className="ic"><Icon name={k} /></span>{label}
               {k === 'office' && unread > 0 && <span className="badge">{unread}</span>}
@@ -149,6 +151,7 @@ export default function GameApp() {
           {tab === 'finances' && <Finances />}
           {tab === 'club' && <ClubScreen />}
           {tab === 'comps' && <Competitions />}
+          {tab === 'life' && gs.life?.enabled && <LifeScreen />}
           {tab === 'save' && <SaveScreen />}
           </div>
         </main>

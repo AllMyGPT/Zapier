@@ -5,6 +5,7 @@ import { Crest, Stars } from '../ui';
 import { fmtMoney, money } from '@/game/season';
 import { seasonLabel } from '@/game/calendar';
 import type { Staff } from '@/game/types';
+import { sponsorOffers, signSponsor, namingOffer, sellNaming, GOAL_LABEL } from '@/game/sponsors';
 
 const STAFF: [keyof Staff, string, string][] = [
   ['coach', 'Segundo entrenador', 'Multiplica la progresión de los jugadores en los entrenamientos.'],
@@ -70,6 +71,25 @@ export default function ClubScreen() {
         </div>
       </div>
       <div className="grid g2">
+        <div className="panel"><h3>Patrocinio y comercial</h3>
+          <div className="small">Camiseta: <b>{club.sponsor.name}</b> · {fmtMoney(club.sponsor.weekly)}/sem hasta {club.sponsor.until + 1}{club.sponsor.bonus ? ` · bonus ${fmtMoney(club.sponsor.bonus.amount)} si ${GOAL_LABEL[club.sponsor.bonus.goal]}` : ''}</div>
+          {club.sponsor.until <= gs.season ? (
+            <div className="col" style={{ gap: 6, marginTop: 10 }}>
+              <span className="small muted">Tu contrato termina este verano. Elige el próximo patrocinador:</span>
+              {sponsorOffers(gs, club).map(o => (
+                <div key={o.id} className="news-item row wrap" style={{ cursor: 'default' }}>
+                  <div className="grow"><b>{o.name}</b> · {fmtMoney(o.weekly)}/sem · {o.years} temporadas{o.bonus ? ` · bonus ${fmtMoney(o.bonus.amount)}` : ''}<div className="small muted">{o.pitch}</div></div>
+                  <button className="btn sm primary" onClick={() => { toast(signSponsor(gs, club, o)); refresh(); }}>Firmar</button>
+                </div>
+              ))}
+            </div>
+          ) : <div className="small muted" style={{ marginTop: 6 }}>En el último año de contrato podrás elegir entre tres ofertas.</div>}
+          {!club.naming && (() => { const n = namingOffer(gs, club); return (
+            <div className="news-item row wrap" style={{ cursor: 'default', marginTop: 10 }}>
+              <div className="grow"><b>Vender el nombre del estadio</b> a {n.brand}: «{n.name}»<div className="small muted">{fmtMoney(n.upfront)} al firmar + {fmtMoney(n.weekly)}/sem. A la afición no le gustará.</div></div>
+              <button className="btn sm danger" onClick={() => { if (confirm(`¿Rebautizar el estadio como ${n.name}?`)) { toast(sellNaming(gs, club)); refresh(); } }}>Vender</button>
+            </div>); })()}
+        </div>
         <div className="panel cabinet"><h3>Vitrina del club (en tu partida)</h3>
           <div className="shelf">
             {trophies.length ? trophies.map((t, i) => <div className="cup" key={i} style={{ animationDelay: `${i * 0.06}s` }}><Cup kind={t.comp} /><div className="cn">{t.comp}</div><div className="cs">{seasonLabel(t.season)}</div></div>) : <div className="empty-shelf">La vitrina espera su primer título.</div>}

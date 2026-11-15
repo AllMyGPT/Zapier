@@ -6,6 +6,7 @@ import { startCareer, expectationLabel, fmtMoney, strengthOf } from '@/game/seas
 import { Crest, Stars } from './ui';
 import { localList, loadLocal, cloudList, loadCloud, type SaveMeta } from '@/lib/storage';
 import AuthBox from './AuthBox';
+import { initLife, type Interest } from '@/game/life';
 
 export default function TitleScreen({ onStart }: { onStart: (g: GameState) => void }) {
   const [step, setStep] = useState<'menu' | 'new'>('menu');
@@ -66,12 +67,16 @@ function NewGame({ onBack, onStart }: { onBack: () => void; onStart: (g: GameSta
   const [name, setName] = useState('');
   const [league, setLeague] = useState('esp');
   const [club, setClub] = useState<string | null>(null);
+  const [life, setLife] = useState(true);
+  const [interest, setInterest] = useState<Interest>('mujeres');
+  const [mAge, setMAge] = useState(38);
   const world = useMemo(() => createWorld('preview', 777), []);
   const clubs = Object.values(world.clubs).filter(c => c.country === league).sort((a, b) => (world.leagues[a.leagueId].tier - world.leagues[b.leagueId].tier) || b.reputation - a.reputation);
   const sel = club ? world.clubs[club] : null;
   const start = () => {
     const g = createWorld(name.trim() || 'Mister', (Date.now() % 1_000_000_007) >>> 0);
     startCareer(g, club!);
+    if (life) initLife(g, interest, mAge);
     onStart(g);
   };
   return (
@@ -111,6 +116,15 @@ function NewGame({ onBack, onStart }: { onBack: () => void; onStart: (g: GameSta
                 <div className="kv"><span>Nivel del equipo</span><Stars v={(strengthOf(world, sel.id) - 60) / 5} /></div>
                 <div className="kv"><span>Presupuesto fichajes</span><b>{fmtMoney(sel.transferBudget)}</b></div>
                 <div className="kv"><span>Objetivo de la directiva</span><b>{expectationLabel(world, sel.id)}</b></div>
+                <div className="life-opt">
+                  <label className="row" style={{ gap: 8, cursor: 'pointer' }}><input type="checkbox" checked={life} onChange={e => setLife(e.target.checked)} /><b>Modo vida personal</b></label>
+                  <div className="small muted">Casa, coche, citas, pareja, boda, aventuras e hijos. Tu vida influye en el vestuario.</div>
+                  {life && <div className="row wrap" style={{ gap: 8, marginTop: 6 }}>
+                    <span className="small">Te interesan:</span>
+                    <div className="seg">{(['mujeres', 'hombres', 'ambos'] as Interest[]).map(x => <button key={x} className={interest === x ? 'on' : ''} onClick={() => setInterest(x)}>{x}</button>)}</div>
+                    <span className="small">Edad:</span><input type="number" min={28} max={65} value={mAge} onChange={e => setMAge(Math.max(28, Math.min(65, +e.target.value)))} style={{ width: 64 }} />
+                  </div>}
+                </div>
                 <button className="btn primary big" style={{ marginTop: 12 }} onClick={start}>Firmar contrato</button>
               </div>
             ) : <div className="empty">Elige un club para ver los detalles.</div>}

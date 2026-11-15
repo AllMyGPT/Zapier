@@ -5,7 +5,8 @@ import { Modal, PosBadge, Flag, Bar, Crest, Stars, PlayerCard } from './ui';
 import { ATTR_KEYS, ATTR_LABEL, POS_LABEL, age, avgRating, fairWage, marketValue, ovr, playerStatus, slotRating } from '@/game/player';
 import type { Pos } from '@/game/types';
 import { fmtMoney } from '@/game/season';
-import { askingPrice, makeBid, offerContract, releasePlayer, wageDemand } from '@/game/market';
+import { askingPrice, makeBid, offerContract, releasePlayer, wageDemand, expectedRole, ROLE_LABEL, type ContractTerms } from '@/game/market';
+import type { Role } from '@/game/types';
 import { inWindow } from '@/game/calendar';
 import { potStars } from './screens/Squad';
 import { reserveOf, sendToReserve, callUp, loanOut, RESERVE_MAX_AGE } from '@/game/academy';
@@ -30,6 +31,17 @@ export default function PlayerModal({ id, onClose }: { id: number; onClose: () =
   const [wage, setWage] = useState(Math.round((own ? Math.max(p.wage, fairWage(p, gs.season, me.reputation)) : wageDemand(gs, p)) / 1000));
   const [years, setYears] = useState(own ? 3 : 4);
   const [msg, setMsg] = useState('');
+  const [role, setRole] = useState<Role>(p.role ?? expectedRole(gs, p));
+  const [bonus, setBonus] = useState(0);   // thousands of €
+  const [clause, setClause] = useState(p.releaseClause ? Math.round(p.releaseClause / 1e6) : 0); // millions of €
+  const terms = (): ContractTerms => ({ role, bonus: bonus * 1000, clause: clause * 1e6 });
+  const termsUI = (
+    <div className="terms">
+      <label>Rol <select value={role} onChange={e => setRole(e.target.value as Role)}>{(Object.keys(ROLE_LABEL) as Role[]).map(r => <option key={r} value={r}>{ROLE_LABEL[r]}{r === expectedRole(gs, p) ? ' (espera)' : ''}</option>)}</select></label>
+      <label>Prima de fichaje <input type="number" min={0} step={50} value={bonus} onChange={e => setBonus(Math.max(0, +e.target.value))} style={{ width: 80 }} /> mil €</label>
+      <label>Cláusula <input type="number" min={0} value={clause} onChange={e => setClause(Math.max(0, +e.target.value))} style={{ width: 70 }} /> M€ <span className="small muted">(0 = sin cláusula)</span></label>
+    </div>
+  );
   const deal = gs.offers.find(o => o.playerId === id && !o.incoming && o.status === 'contract');
   const st = potStars(p, me.staff.scout, own);
   const posRatings = ALL_POS.map(pos => ({ pos, r: Math.round(slotRating(p, pos)) })).sort((a, b) => b.r - a.r).slice(0, 4);
@@ -94,9 +106,10 @@ export default function PlayerModal({ id, onClose }: { id: number; onClose: () =
                 <span className="small muted">Renovar:</span>
                 <input type="number" value={wage} min={1} onChange={e => setWage(+e.target.value)} style={{ width: 90 }} /><span className="small">mil €/sem</span>
                 <select value={years} onChange={e => setYears(+e.target.value)}>{[1, 2, 3, 4, 5].map(y => <option key={y} value={y}>{y} año{y > 1 ? 's' : ''}</option>)}</select>
-                <button className="btn sm primary" onClick={() => act(offerContract(gs, id, wage * 1000, years).msg)}>Ofrecer</button>
+                <button className="btn sm primary" onClick={() => act(offerContract(gs, id, wage * 1000, years, terms()).msg)}>Ofrecer</button>
               </div>
-              <div className="small muted">Pide aprox. {fmtMoney(wageDemand(gs, p) * 0.95)}/sem.</div>
+              {termsUI}
+              <div className="small muted">Pide aprox. {fmtMoney(wageDemand(gs, p) * 0.95)}/sem. Un rol mejor, una prima o una cláusula baja le convencen con menos sueldo.{p.role ? ` Rol actual: ${ROLE_LABEL[p.role]}.` : ''}{p.releaseClause ? ` Cláusula: ${fmtMoney(p.releaseClause)}.` : ''}</div>
               <div className="chat">
                 <span className="small muted">Hablar con él:</span>
                 {([['elogiar', 'Elogiar'], ['exigir', 'Exigir más'], ['minutos', 'Prometer minutos']] as [ChatKind, string][]).map(([k, l]) => (
@@ -120,11 +133,12 @@ export default function PlayerModal({ id, onClose }: { id: number; onClose: () =
                 </>
               ) : (
                 <>
-                  <div className="small">Traspaso acordado{deal.fee ? ` (${fmtMoney(deal.fee)})` : ''}. Negocia el contrato. Pide unos <b>{fmtMoney(wageDemand(gs, p))}/sem</b>.</div>
+                  <div className="small">Traspaso acordado{deal.fee ? ` (${fmtMoney(deal.fee)} + 5 % de comisión del agente)` : ''}. Negocia el contrato. Pide unos <b>{fmtMoney(wageDemand(gs, p))}/sem</b> y espera un rol de <b>{ROLE_LABEL[expectedRole(gs, p)].toLowerCase()}</b>.</div>
+                  {termsUI}
                   <div className="row wrap">
                     <input type="number" value={wage} onChange={e => setWage(+e.target.value)} style={{ width: 90 }} /><span className="small">mil €/sem</span>
                     <select value={years} onChange={e => setYears(+e.target.value)}>{[1, 2, 3, 4, 5].map(y => <option key={y} value={y}>{y} año{y > 1 ? 's' : ''}</option>)}</select>
-                    <button className="btn sm primary" onClick={() => { const r = offerContract(gs, id, wage * 1000, years); act(r.msg); if (r.ok) toast(r.msg); }}>Ofrecer contrato</button>
+                    <button className="btn sm primary" onClick={() => { const r = offerContract(gs, id, wage * 1000, years, terms()); act(r.msg); if (r.ok) toast(r.msg); }}>Ofrecer contrato</button>
                     <button className="btn sm ghost" onClick={() => { deal.status = 'rejected'; act('Negociación cancelada.'); }}>Cancelar</button>
                   </div>
                 </>

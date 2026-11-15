@@ -111,6 +111,9 @@ export default function TacticsScreen() {
       <div className="col">
         <div className="panel">
           <h3>Instrucciones de equipo</h3>
+          <div className="styles">{STYLES.map(s => (
+            <button key={s.name} className="style-card" onClick={() => { Object.assign(t, s.set); refresh(); }} title={s.desc}><b>{s.name}</b><span>{s.desc}</span></button>
+          ))}</div>
           <div className="row wrap" style={{ gap: 16 }}>
             <Opt label="Mentalidad" value={t.mentality} opts={([-2, -1, 0, 1, 2] as Mentality[]).map(m => [m, MENTALITY_LABEL[m]])} on={v => (t.mentality = v)} />
             <Opt label="Presión" value={t.pressing} opts={[1, 2, 3].map(v => [v as 1 | 2 | 3, LEVEL3[v - 1]])} on={v => (t.pressing = v)} />
@@ -156,3 +159,13 @@ function Shirt({ p, bg, border, fg }: { p?: TPlayer | null; bg: string; border: 
   }
   return <div className="shirt" style={{ background: bg, borderColor: border, color: fg }}>{p?.num ?? '?'}</div>;
 }
+
+/** One-click playing styles: each sets several team instructions at once (the engine reads them all). */
+const STYLES: { name: string; desc: string; set: Partial<import('@/game/types').Tactics> }[] = [
+  { name: 'Contraataque', desc: 'Bloque medio, transiciones rápidas y pase directo.', set: { mentality: -1, pressing: 1, tempo: 3, width: 2, passing: 'largo' } },
+  { name: 'Posesión', desc: 'Pase corto, ritmo pausado y amplitud.', set: { mentality: 0, pressing: 2, tempo: 1, width: 3, passing: 'corto' } },
+  { name: 'Presión alta', desc: 'Robar arriba y atacar en vertical. Desgasta mucho.', set: { mentality: 1, pressing: 3, tempo: 3, width: 2, passing: 'mixto' } },
+  { name: 'Juego directo', desc: 'Balones largos y centros desde las bandas.', set: { mentality: 1, pressing: 2, tempo: 2, width: 3, passing: 'largo' } },
+  { name: 'Autobús', desc: 'Defensa muy baja y estrecha para proteger un resultado.', set: { mentality: -2, pressing: 1, tempo: 1, width: 1, passing: 'largo' } },
+  { name: 'Equilibrado', desc: 'Sin riesgos: todo en valores medios.', set: { mentality: 0, pressing: 2, tempo: 2, width: 2, passing: 'mixto' } },
+];

@@ -91,6 +91,27 @@ npx tsc --noEmit && npx next build   # comprobaciones
 - La copa nacional tiene como máximo 32 equipos: toda Primera más un sorteo entre las categorías inferiores.
 - Datos sin verificar: los estadios y aforos del Grupo 2 salieron de un resumen de Wikipedia, no de la tabla literal.
 
+## Vida personal, contratos, patrocinios, Europa y pretemporada (15 nov 2026)
+- **Modo vida personal** (`src/game/life.ts`, pantalla Vida). Se activa o desactiva al crear la partida; se elige a quién te interesa conocer y la edad del míster.
+  - Casa y coche (4 + 4).
+  - Citas en 5 lugares, con preferencias y rasgos de cada persona.
+  - Pareja, boda, aventuras con riesgo de escándalo (directiva y afición) y divorcio.
+  - Hijos que crecen; un hijo futbolista con talento entra en tu cantera a los 16.
+  - El ánimo del míster contagia al vestuario.
+  - Imágenes en `public/art/life/`, generadas con Gemini y Flow: personas adultas ficticias y escenas sin caras.
+- **Contratos**:
+  - rol prometido; si no juega, se queja;
+  - prima de fichaje;
+  - cláusula de rescisión, que la IA puede pagar;
+  - 5 % de comisión del agente.
+- **Patrocinio**: tres ofertas por temporada (fija, por objetivo o larga), con bonus a fin de temporada; venta del nombre del estadio.
+- **Tácticas**: seis estilos predefinidos.
+- **Entrenamiento**: foco individual por atributo.
+- **Copa Continental**: segunda competición europea.
+- **Pretemporada**: tres planes con amistosos.
+- **Eventos**: con decisiones y tiempos de espera.
+- **Filiales vinculados y cesiones**.
+
 ## Ideas pendientes (opcionales)
 - Revisar plantillas dudosas en `src/data/leagues/*.ts` (formato `Nombre|POS|año|NAC|media|potencial`), p. ej. canteranos poco seguros en `esp.ts`: David Otorbi, Ismael Bekhoucha, Yellu Santiago, Dani Budesca.
 - Los escudos son generados a propósito (no logos oficiales). Si se publica o monetiza, revisar los derechos de imagen de los nombres de jugadores.
