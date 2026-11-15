@@ -41,7 +41,9 @@ export async function saveGame(s: GameState, name: string, cloud: boolean): Prom
   }
   const id = `local-${Date.now()}`;
   try { localStorage.setItem(`gse:save:${id}`, JSON.stringify(s)); } catch { throw new Error('Sin espacio en el almacenamiento local'); }
-  writeIndex([{ id, ...meta, cloud: false }, ...readIndex()].slice(0, 20));
+  const all = [{ id, ...meta, cloud: false }, ...readIndex()];
+  for (const old of all.slice(20)) { try { localStorage.removeItem(`gse:save:${old.id}`); } catch { /* ignore */ } }
+  writeIndex(all.slice(0, 20));
   return id;
 }
 

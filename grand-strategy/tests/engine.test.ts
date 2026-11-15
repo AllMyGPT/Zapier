@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SCENARIOS } from '@/data/scenarios';
 import { adjacency } from '@/engine/map';
-import { applyCommand, createGame, deserialize, livingNations, serialize, step, warScore } from '@/engine/core';
+import { applyCommand, createGame, deserialize, livingNations, makePeace, rules, serialize, step, transferProvince, warScore } from '@/engine/core';
 import { dayFromISO, formatDate } from '@/engine/util';
 
 describe('calendar', () => {
@@ -38,4 +38,31 @@ describe.each(SCENARIOS.map((s) => [s.id, s] as const))('scenario %s', (_id, sc)
     expect(livingNations(s).length).toBeGreaterThan(3);
     for (const a of Object.values(s.armies)) expect(s.provinces[a.location]).toBeDefined();
   }, 60000);
+});
+
+describe('peace & territory rules', () => {
+  it('moves the capital of a surviving nation that cedes it', () => {
+    const s = createGame(SCENARIOS.find((x) => x.id === 'med1066')!, 'ENG', 1);
+    transferProvince(s, 'london', 'NRM');
+    expect(s.nations.ENG.capital).not.toBe('london');
+    expect(s.provinces[s.nations.ENG.capital].owner).toBe('ENG');
+  });
+  it('a secondary coalition member only makes a separate peace with the enemy leader', () => {
+    const s = createGame(SCENARIOS.find((x) => x.id === 'ww1939')!, 'ENG', 1);
+    for (let i = 0; i < 3; i++) step(s);
+    const w = s.wars.find((x) => x.attackers[0] === 'GER' && x.defenders.includes('ENG'))!;
+    expect(w.defenders[0]).toBe('POL');
+    makePeace(s, { warId: w.id, from: 'ENG', to: 'GER', provinces: [], gold: 0, extra: null });
+    const still = s.wars.find((x) => x.id === w.id)!;
+    expect(still).toBeDefined();
+    expect(still.defenders).not.toContain('ENG');
+    expect(still.defenders).toContain('POL');
+  });
+  it('WW2 garrisons require an owned province', () => {
+    const s = createGame(SCENARIOS.find((x) => x.id === 'ww1939')!, 'GER', 1);
+    s.provinces.mazovia.controller = 'GER';
+    const act = rules(s).actions.find((a) => a.id === 'garrison')!;
+    expect(act.available!(s, 'GER', { province: 'mazovia' })).not.toBe(true);
+    expect(act.available!(s, 'GER', { province: 'brandenburg' })).toBe(true);
+  });
 });

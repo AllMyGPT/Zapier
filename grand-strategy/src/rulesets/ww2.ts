@@ -198,7 +198,11 @@ const actions: ActionDef[] = [
     id: 'garrison', label: 'Desplegar guarnición', group: 'Producción', scope: 'province',
     description: 'Crea inmediatamente una milicia con mano de obra (sin coste industrial) en una provincia propia.',
     args: [{ key: 'province', label: 'Provincia', kind: 'province' }],
-    available: (s, tag, a) => (s.nations[tag].manpower < 10000 ? 'Mano de obra insuficiente' : !a || s.provinces[a.province as string]?.controller === tag ? true : 'Provincia propia y controlada'),
+    available: (s, tag, a) => {
+      if (s.nations[tag].manpower < 10000) return 'Mano de obra insuficiente';
+      const p = a && s.provinces[a.province as string];
+      return !a || (p && p.owner === tag && p.controller === tag) ? true : 'Provincia propia y controlada';
+    },
     run: (s, tag, a) => { s.nations[tag].manpower -= 10000; s.nations[tag].x.dissent = (s.nations[tag].x.dissent ?? 0) + 0.5; spawnArmy(s, tag, a.province as string, { militia: 1 }); },
   },
 ];

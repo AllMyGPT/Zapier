@@ -559,16 +559,18 @@ export function makePeace(s: GameState, o: Omit<PeaceOffer, 'id' | 'day'>) {
   const sideTo = sideOf(w, o.to)!;
   const toSide = sideTo === 'att' ? w.attackers : w.defenders;
   const fromSide = sideTo === 'att' ? w.defenders : w.attackers;
-  const ending = toSide[0] === o.to || fromSide[0] === o.from && toSide[0] === o.to;
+  // only the two side leaders can end the whole war; anything else is a separate peace for the non-leader
+  const ending = toSide[0] === o.to && fromSide[0] === o.from;
+  const leaver = ending ? null : toSide[0] !== o.to ? o.to : o.from;
   const loser = s.nations[o.to], winner = s.nations[o.from];
   for (const pid of o.provinces) transferProvince(s, pid, o.from);
   if (o.gold > 0) { const g = Math.min(o.gold, Math.max(0, loser.treasury)); loser.treasury -= g; winner.treasury += g; }
   if (o.extra) r.onPeaceExtra?.(s, o.from, o.to, o.extra);
   if (o.provinces.length) winner.infamy += o.provinces.length * 0.8;
-  const leaving = ending ? [...w.attackers, ...w.defenders] : [o.to];
+  const leaving = ending ? [...w.attackers, ...w.defenders] : [leaver!];
   if (ending) s.wars = s.wars.filter((x) => x !== w);
-  else { w.attackers = w.attackers.filter((t) => t !== o.to); w.defenders = w.defenders.filter((t) => t !== o.to); }
-  const other = ending ? [] : fromSide;
+  else { w.attackers = w.attackers.filter((t) => t !== leaver); w.defenders = w.defenders.filter((t) => t !== leaver); }
+  const other = ending ? [] : leaver === o.to ? fromSide : toSide;
   for (const a of leaving) for (const b of [...leaving, ...other]) {
     if (a !== b && isHostileWasIn(w, a, b) && s.nations[a]) { s.nations[a].truces[b] = s.day + 365 * 5; }
   }
@@ -583,10 +585,16 @@ function isHostileWasIn(w: War, a: string, b: string) {
 
 export function transferProvince(s: GameState, pid: string, to: string) {
   const p = s.provinces[pid];
+  const prev = p.owner ? s.nations[p.owner] : undefined;
   p.owner = to;
   p.controller = to;
   p.siege = null;
   if (!p.cores.includes(to) && s.nations[to]?.culture === p.culture) p.cores.push(to);
+  // a surviving nation that loses its capital moves it to its richest remaining province
+  if (prev && prev.tag !== to && prev.capital === pid) {
+    const next = provincesOf(s, prev.tag).sort((a, b) => Number(b.controller === prev.tag) - Number(a.controller === prev.tag) || b.dev - a.dev)[0];
+    if (next) prev.capital = next.id;
+  }
   for (const a of Object.values(s.armies)) if (a.location === pid && !canEnter(s, a.owner, pid)) relocateHome(s, a);
 }
 

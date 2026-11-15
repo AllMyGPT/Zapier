@@ -304,7 +304,7 @@ function WarsPanel({ s, cmd }: Props) {
         <h3>Negociar la paz</h3>
         <div className="col">
           <label className="muted">Con
-            <select value={tgt} onChange={(e) => { setTarget(e.target.value); setProvs([]); }}>{enemies.map((t) => <option key={t} value={t}>{s.nations[t]?.name}{t === enemies[0] ? ' (líder: paz general)' : ' (paz por separado)'}</option>)}</select>
+            <select value={tgt} onChange={(e) => { setTarget(e.target.value); setProvs([]); }}>{enemies.map((t) => <option key={t} value={t}>{s.nations[t]?.name}{t === enemies[0] && friends[0] === s.player ? ' (líder: paz general)' : ' (paz por separado)'}</option>)}</select>
           </label>
           <div className="list" style={{ maxHeight: 200, overflow: 'auto' }}>
             {pool.map((p) => (
