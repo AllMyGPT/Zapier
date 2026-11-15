@@ -63,6 +63,17 @@ export interface Character {
   alive: boolean;
   died?: number;
   isLeader?: boolean; // general / army leader
+  /** hereditary claims on other realms (tags), e.g. through a royal mother */
+  claims?: string[];
+  bio?: string;
+  /** secret lover (character id) */
+  lover?: string | null;
+  /** born out of wedlock: cannot inherit unless legitimised */
+  bastard?: boolean;
+  /** truly in love with their spouse (better marriage, more children) */
+  inLove?: boolean;
+  /** chosen portrait (player-created characters) */
+  portrait?: string;
 }
 
 export interface Nation {
@@ -122,12 +133,26 @@ export type Effect =
   | { type: 'claim'; tag?: string; provinces: string[] }
   | { type: 'tech'; tag?: string; key: string; amount: number }
   | { type: 'government'; tag?: string; value: string }
-  | { type: 'religion'; tag?: string; provinces: string[]; value: string; nation?: boolean };
+  | { type: 'religion'; tag?: string; provinces: string[]; value: string; nation?: boolean }
+  /** schedule a follow-up event for this nation in N days (chains) */
+  | { type: 'trigger'; tag?: string; event: string; days: number }
+  /** write a line in the realm's chronicle */
+  | { type: 'chronicle'; tag?: string; text: string }
+  /** unrest in every province of the realm */
+  | { type: 'unrestRealm'; tag?: string; amount: number }
+  /** relations with every living nation of a religion / culture */
+  | { type: 'relationsWith'; tag?: string; religion?: string; culture?: string; amount: number }
+  /** character-level operations used by romance and court events */
+  | { type: 'breakAlliance'; tag?: string; other: string }
+  | { type: 'release'; tag?: string; target: string }
+  | { type: 'char'; op: 'lovers' | 'breakup' | 'legitimize' | 'banish' | 'kill' | 'inLove' | 'trait'; a: string; b?: string; value?: string };
 
 export interface EventOption {
   label: string;
   effects: Effect[];
   aiWeight?: number;
+  /** extra flavour shown under the option (the mechanical effects are listed automatically) */
+  hint?: string;
 }
 
 export interface GameEvent {
@@ -140,6 +165,26 @@ export interface GameEvent {
   condition?: Condition[];
   mtthMonths?: number; // mean time to happen for random events
   options: EventOption[];
+  /** illustration category: war, peace, court, disaster, prosperity, faith, revolt, explore */
+  image?: string;
+  /** only fired through a 'trigger' effect, never by date/condition polling */
+  triggeredOnly?: boolean;
+  /** historical note shown in the event window */
+  note?: string;
+}
+
+/** A national objective. Completing it (conditions met, then claimed) grants the rewards. */
+export interface Mission {
+  id: string;
+  tag: string;
+  title: string;
+  text: string;
+  requires?: string[];
+  conditions: Condition[];
+  rewards: Effect[];
+  icon?: string; // same categories as event images
+  /** column in the mission tree (0..3) for layout */
+  col?: number;
 }
 
 export type Condition =
@@ -151,7 +196,30 @@ export type Condition =
   | { type: 'flag'; flag: string; tag?: string; value: boolean }
   | { type: 'minStability'; value: number }
   | { type: 'maxStability'; value: number }
-  | { type: 'isPlayer'; value: boolean };
+  | { type: 'isPlayer'; value: boolean }
+  | { type: 'notExists'; tag: string }
+  | { type: 'ownsAll'; provinces: string[]; tag?: string }
+  | { type: 'ownsCount'; provinces: string[]; count: number; tag?: string }
+  | { type: 'minProvinces'; value: number; tag?: string }
+  | { type: 'minPrestige'; value: number }
+  | { type: 'minTreasury'; value: number }
+  | { type: 'minX'; key: string; value: number }
+  | { type: 'allied'; other: string }
+  | { type: 'minAllies'; value: number }
+  | { type: 'liegeOf'; other: string }
+  | { type: 'notVassal' }
+  | { type: 'minYear'; value: number }
+  | { type: 'maxYear'; value: number }
+  | { type: 'warsWon'; value: number }
+  | { type: 'religionIs'; value: string }
+  | { type: 'missionDone'; mission: string }
+  | { type: 'maxTreasury'; value: number }
+  | { type: 'maxPrestige'; value: number }
+  | { type: 'maxX'; key: string; value: number }
+  | { type: 'isVassal' }
+  | { type: 'minWarMonths'; value: number }
+  | { type: 'minUnrest'; value: number }
+  | { type: 'maxProvinces'; value: number };
 
 export interface PendingEvent {
   eventId: string;
@@ -162,7 +230,7 @@ export interface LogEntry {
   day: number;
   text: string;
   tags: string[];
-  kind: 'war' | 'peace' | 'diplo' | 'battle' | 'event' | 'economy' | 'character' | 'info';
+  kind: 'war' | 'peace' | 'diplo' | 'battle' | 'event' | 'economy' | 'character' | 'info' | 'story' | 'mission' | 'siege';
 }
 
 export interface GameState {
@@ -189,6 +257,28 @@ export interface GameState {
   peaceOffers: PeaceOffer[];
   factions: Record<string, { name: string; leader: string; color: string }>;
   gameOver: string | null;
+  /** follow-up events waiting for their day (optional for old saves) */
+  scheduled?: { eventId: string; tag: string; day: number }[];
+  missions?: Mission[];
+  /** per nation: completed mission ids */
+  missionsDone?: Record<string, string[]>;
+  /** per nation: wars won / lost, for scoring and missions */
+  record?: Record<string, { won: number; lost: number; battlesWon: number; battlesLost: number; conquered: number }>;
+  /** dynasty name → renown and founding day */
+  dynasties?: Record<string, { renown: number; founded: number }>;
+  /** the player's history, kept for the whole game (the log only keeps the latest entries) */
+  chronicle?: LogEntry[];
+  /** scenario-level switches */
+  options?: {
+    /** unit types that can be produced (industrial rules); others need an unlock flag x.unlock_<type> */
+    allowedUnits?: string[];
+    /** art set: 'ww1', 'ww2', 'modern'… (defaults to the era) */
+    artEra?: string;
+    /** AI arms race: unlocks the military-AI research branch */
+    aiRace?: boolean;
+    /** every province of the map must have an owner at the start (contemporary world scenarios) */
+    fullWorld?: boolean;
+  };
 }
 
 export interface PeaceOffer {
@@ -215,4 +305,5 @@ export type Command =
   | { type: 'breakAlliance'; target: string }
   | { type: 'improveRelations'; target: string }
   | { type: 'eventChoice'; eventId: string; option: number }
+  | { type: 'claimMission'; id: string }
   | { type: 'action'; id: string; args: Record<string, string | number> };

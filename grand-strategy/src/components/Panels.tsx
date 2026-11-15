@@ -7,10 +7,16 @@ import type { ActionDef } from '@/engine/ruleset';
 import type { Command, GameState } from '@/engine/types';
 import { formatDate } from '@/engine/util';
 import { stat } from '@/rulesets/common';
+import Arms from './Arms';
+import DynastyPanel from './DynastyPanel';
+import { ChroniclePanel, LedgerPanel, MissionsPanel, readyMissions } from './StoryPanels';
+import Portrait from './Portrait';
+import { artEra, leaderPortrait, portraitFor } from '@/lib/art';
 
-export type Tab = 'province' | 'army' | 'nation' | 'diplomacy' | 'wars' | 'court' | 'queue' | 'log';
+export type Tab = 'province' | 'army' | 'nation' | 'diplomacy' | 'wars' | 'court' | 'queue' | 'log' | 'missions' | 'ledger';
 
 interface Props {
+  sheet?: 'min' | 'half' | 'full'; setSheet?: (v: 'min' | 'half' | 'full') => void;
   s: GameState; version: number; tab: Tab; setTab: (t: Tab) => void;
   prov: string | null; setProv: (p: string | null) => void; army: string | null; setArmy: (a: string | null) => void;
   cmd: (c: Command) => string | null; notify: (t: string) => void; refresh: () => void;
@@ -18,19 +24,22 @@ interface Props {
 
 export default function Panels(p: Props) {
   const { s, tab, setTab } = p;
-  const tabs: [Tab, string][] = [['province', 'Provincia'], ['army', 'Ejército'], ['nation', 'Estado'], ['diplomacy', 'Diplomacia'], ['wars', `Guerras${atWar(s, s.player) ? ' ⚔' : ''}`], ...(s.era !== 'ww2' ? [['court', s.era === 'medieval' ? 'Dinastía' : 'Corte'] as [Tab, string]] : []), ['queue', 'Producción'], ['log', 'Registro']];
+  const tabs: [Tab, string][] = [['province', 'Provincia'], ['army', 'Ejército'], ['nation', 'Estado'], ['diplomacy', 'Diplomacia'], ['wars', `Guerras${atWar(s, s.player) ? ' ⚔' : ''}`], ...(s.era !== 'ww2' ? [['court', s.era === 'medieval' ? 'Dinastía' : 'Corte'] as [Tab, string]] : []), ['queue', 'Producción'], ['missions', `Objetivos${readyMissions(s) ? ` (${readyMissions(s)})` : ''}`], ['ledger', 'Potencias'], ['log', 'Crónica']];
   return (
     <div className="side">
-      <div className="tabs">{tabs.map(([id, label]) => <button key={id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>{label}</button>)}</div>
+      {p.setSheet && <button className="grip" aria-label="Mostrar u ocultar el panel" onClick={() => p.setSheet!(p.sheet === 'min' ? 'half' : p.sheet === 'half' ? 'full' : 'min')}><span /></button>}
+      <div className="tabs">{tabs.map(([id, label]) => <button key={id} className={`${tab === id ? 'on' : ''} ${id === 'missions' && readyMissions(s) ? 'glow' : ''}`} onClick={() => setTab(id)}>{label}</button>)}</div>
       <div className="content">
         {tab === 'province' && <ProvincePanel {...p} />}
         {tab === 'army' && <ArmyPanel {...p} />}
         {tab === 'nation' && <NationPanel {...p} />}
         {tab === 'diplomacy' && <DiplomacyPanel {...p} />}
         {tab === 'wars' && <WarsPanel {...p} />}
-        {tab === 'court' && <CourtPanel {...p} />}
+        {tab === 'court' && <DynastyPanel {...p} />}
         {tab === 'queue' && <QueuePanel {...p} />}
-        {tab === 'log' && <LogPanel {...p} />}
+        {tab === 'log' && <ChroniclePanel {...p} />}
+        {tab === 'missions' && <MissionsPanel {...p} />}
+        {tab === 'ledger' && <LedgerPanel {...p} />}
       </div>
     </div>
   );
@@ -51,8 +60,11 @@ function ProvincePanel({ s, prov, setArmy, setTab, cmd, refresh }: Props) {
   const actions = r.actions.filter((a) => a.scope === 'province');
   return (
     <>
+      <div className="prov-banner" style={{ backgroundImage: `linear-gradient(180deg, #0000 15%, #000b 100%), url(/art/terrain/${p.terrain}.jpg)`, ['--nc' as string]: owner?.color ?? '#555' }}>
+        {owner && <Arms tag={owner.tag} color={owner.color} size={38} />}
+        <div><h2>{p.name}</h2><span>{TERRAIN[p.terrain]}{owner ? ` · ${owner.name}` : ''}</span></div>
+      </div>
       <div className="section">
-        <h2>{p.name}</h2>
         <KV items={[
           { label: 'Propietario', value: owner ? `${owner.name}${owner.liege ? ` (vasallo de ${s.nations[owner.liege]?.name})` : ''}` : 'Sin dueño' },
           ...(p.controller && p.controller !== p.owner ? [{ label: 'Ocupada por', value: s.nations[p.controller]?.name ?? p.controller }] : []),
@@ -135,14 +147,17 @@ function NationPanel({ s, cmd, refresh }: Props) {
   const n = s.nations[s.player];
   const groups = useMemo(() => {
     const g: Record<string, ActionDef[]> = {};
-    for (const a of r.actions) if (a.scope !== 'province') (g[a.group] ??= []).push(a);
+    for (const a of r.actions) if (a.scope !== 'province' && !a.hidden) (g[a.group] ??= []).push(a);
     return g;
   }, [r]);
   const inc = Object.entries(n.lastIncome);
   return (
     <>
       <div className="section">
-        <h2>{n.name}</h2>
+        <div className="realm-head">
+          <Portrait src={n.rulerId && s.characters[n.rulerId] ? portraitFor(s, s.characters[n.rulerId]) : leaderPortrait(artEra(s), n.tag)} color={n.color} size={64} />
+          <h2><Arms tag={n.tag} color={n.color} size={34} /> {n.name}</h2>
+        </div>
         <KV items={[{ label: 'Capital', value: s.provinces[n.capital]?.name ?? '—' }, { label: 'Provincias', value: String(provincesOf(s, n.tag).length) }, ...r.nationStats(s, s.player)]} />
       </div>
       {inc.length > 0 && <div className="section"><h3>Balance mensual</h3><KV items={inc.map(([k, v]) => ({ label: k, value: v.toFixed(1) }))} /></div>}
@@ -212,7 +227,10 @@ function DiplomacyPanel({ s, cmd }: Props) {
     <>
       {t && (
         <div className="section">
-          <h2><span className="swatch" style={{ background: t.color }} /> {t.name}</h2>
+          <div className="realm-head">
+            <Portrait src={t.rulerId && s.characters[t.rulerId] ? portraitFor(s, s.characters[t.rulerId]) : leaderPortrait(artEra(s), t.tag)} color={t.color} size={58} />
+            <h2><Arms tag={t.tag} color={t.color} size={34} /> {t.name}</h2>
+          </div>
           <KV items={[
             { label: 'Relaciones', value: String(relation(s, s.player, t.tag)) },
             { label: 'Provincias', value: String(provincesOf(s, t.tag).length) },
@@ -253,7 +271,7 @@ function DiplomacyPanel({ s, cmd }: Props) {
             const st = isHostile(s, s.player, n.tag) ? '⚔ guerra' : me.allies.includes(n.tag) ? '🤝 aliado' : n.liege === s.player ? 'vasallo' : '';
             return (
               <div key={n.tag} className="item click row" onClick={() => setSel(n.tag)} style={sel === n.tag ? { borderColor: 'var(--accent)' } : undefined}>
-                <span className="swatch" style={{ background: n.color }} /><span className="grow">{n.name}</span>
+                <Arms tag={n.tag} color={n.color} size={18} /><span className="grow">{n.name}</span>
                 <span className="muted">{st}</span><span style={{ color: rel >= 0 ? '#9fd39f' : '#e69b8b' }}>{rel}</span>
               </div>
             );
@@ -329,33 +347,6 @@ function WarsPanel({ s, cmd }: Props) {
   );
 }
 
-function CourtPanel({ s }: Props) {
-  const n = s.nations[s.player];
-  const ruler = n.rulerId ? s.characters[n.rulerId] : null;
-  const court = Object.values(s.characters).filter((c) => c.tag === s.player || (ruler && c.dynasty === ruler.dynasty)).sort((a, b) => Number(b.alive) - Number(a.alive) || a.born - b.born);
-  const title = (id: string) => (id === n.rulerId ? '👑 ' : id === n.heirId ? '⭐ ' : '');
-  return (
-    <div className="section tree">
-      <h3>{ruler ? `Casa de ${ruler.dynasty}` : 'Corte'}</h3>
-      <div className="list">
-        {court.slice(0, 80).map((c) => {
-          const parent = c.father ? s.characters[c.father] : null;
-          const spouse = c.spouse ? s.characters[c.spouse] : null;
-          return (
-            <div key={c.id} className={`item ${c.alive ? '' : 'dead'}`}>
-              <b>{title(c.id)}{c.name}</b> de {c.dynasty} · {c.alive ? `${age(s, c)} años` : `† ${formatDate(c.died!)}`} {c.female ? '♀' : '♂'}
-              {c.tag !== s.player && s.nations[c.tag] && <span className="muted"> · en {s.nations[c.tag].name}</span>}
-              <div className="muted" style={{ fontSize: 12 }}>
-                Dip {stat(c, 'diplomacy')} · Mar {stat(c, 'martial')} · Adm {stat(c, 'stewardship')} · Int {stat(c, 'intrigue')}
-                {c.traits.length ? ` · ${c.traits.join(', ')}` : ''}{parent ? ` · hij${c.female ? 'a' : 'o'} de ${parent.name}` : ''}{spouse ? ` · casad${c.female ? 'a' : 'o'} con ${spouse.name}` : ''}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 function QueuePanel({ s, cmd, refresh }: Props) {
   const n = s.nations[s.player];
@@ -379,13 +370,3 @@ function QueuePanel({ s, cmd, refresh }: Props) {
   );
 }
 
-function LogPanel({ s }: Props) {
-  const [mine, setMine] = useState(true);
-  const entries = s.log.filter((l) => !mine || l.tags.includes(s.player) || l.kind === 'info').slice(-150).reverse();
-  return (
-    <div className="section">
-      <label className="chk"><input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} /> Solo lo que afecta a mi nación</label>
-      <div className="log">{entries.map((l, i) => <div key={i} className={l.kind}><span className="muted">{formatDate(l.day)}</span> — {l.text}</div>)}</div>
-    </div>
-  );
-}

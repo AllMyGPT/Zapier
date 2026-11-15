@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff2c4"/>
+      <stop offset=".35" stop-color="#e4c172"/>
+      <stop offset=".55" stop-color="#a87b35"/>
+      <stop offset=".8" stop-color="#e9cd86"/>
+      <stop offset="1" stop-color="#7d5622"/>
+    </linearGradient>
+    <linearGradient id="field" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7a1e1e"/>
+      <stop offset="1" stop-color="#3a0c0c"/>
+    </linearGradient>
+    <linearGradient id="field2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f3d63"/>
+      <stop offset="1" stop-color="#0c1a2e"/>
+    </linearGradient>
+    <clipPath id="shield"><path d="M156 150h200v118c0 70-52 108-100 130-48-22-100-60-100-130Z"/></clipPath>
+  </defs>
+  <!-- laurel wreath -->
+  <g fill="url(#gold)" stroke="#2a1b08" stroke-width="2">
+    <path d="M120 360c-46-60-50-150-6-214 10 60 4 120 22 170 8 20 24 34 40 48Z"/>
+    <path d="M392 360c46-60 50-150 6-214-10 60-4 120-22 170-8 20-24 34-40 48Z"/>
+    <g id="leavesL">
+      <ellipse cx="96" cy="300" rx="12" ry="26" transform="rotate(-40 96 300)"/>
+      <ellipse cx="86" cy="250" rx="12" ry="26" transform="rotate(-20 86 250)"/>
+      <ellipse cx="88" cy="200" rx="11" ry="24" transform="rotate(-5 88 200)"/>
+      <ellipse cx="128" cy="330" rx="12" ry="26" transform="rotate(30 128 330)"/>
+      <ellipse cx="116" cy="280" rx="11" ry="24" transform="rotate(25 116 280)"/>
+      <ellipse cx="110" cy="228" rx="10" ry="22" transform="rotate(18 110 228)"/>
+      <ellipse cx="108" cy="178" rx="9" ry="20" transform="rotate(12 108 178)"/>
+    </g>
+    <use href="#leavesL" transform="translate(512 0) scale(-1 1)"/>
+  </g>
+  <!-- crossed swords behind shield -->
+  <g stroke="#2a1b08" stroke-width="3" fill="url(#gold)">
+    <path d="M140 120l12-12 220 236-10 10Z"/>
+    <path d="M372 120l-12-12-220 236 10 10Z"/>
+    <path d="M150 360l-22 22 10 10 22-22Z M362 360l22 22-10 10-22-22Z"/>
+    <path d="M134 350l40 0 0 8-40 0Z" transform="rotate(45 154 354)"/>
+    <path d="M338 350l40 0 0 8-40 0Z" transform="rotate(-45 358 354)"/>
+  </g>
+  <!-- shield -->
+  <g clip-path="url(#shield)">
+    <rect x="150" y="140" width="106" height="270" fill="url(#field)"/>
+    <rect x="256" y="140" width="106" height="270" fill="url(#field2)"/>
+    <!-- compass star -->
+    <path d="M256 196l12 44 44 12-44 12-12 44-12-44-44-12 44-12Z" fill="url(#gold)" stroke="#2a1b08" stroke-width="2"/>
+    <circle cx="256" cy="252" r="10" fill="#2a1b08"/>
+    <circle cx="256" cy="252" r="6" fill="url(#gold)"/>
+    <path d="M156 150h200v118c0 70-52 108-100 130-48-22-100-60-100-130Z" fill="none" stroke="#000" stroke-opacity=".5" stroke-width="18"/>
+  </g>
+  <path d="M156 150h200v118c0 70-52 108-100 130-48-22-100-60-100-130Z" fill="none" stroke="url(#gold)" stroke-width="10"/>
+  <path d="M156 150h200v118c0 70-52 108-100 130-48-22-100-60-100-130Z" fill="none" stroke="#2a1b08" stroke-width="2"/>
+  <!-- crown -->
+  <g fill="url(#gold)" stroke="#2a1b08" stroke-width="2.5">
+    <path d="M186 140l-8-62 40 34 38-56 38 56 40-34-8 62Z"/>
+    <rect x="182" y="132" width="148" height="18" rx="3"/>
+    <circle cx="178" cy="74" r="8"/><circle cx="256" cy="50" r="9"/><circle cx="334" cy="74" r="8"/>
+    <circle cx="220" cy="141" r="4" fill="#7a1e1e"/><circle cx="256" cy="141" r="5" fill="#1f3d63"/><circle cx="292" cy="141" r="4" fill="#7a1e1e"/>
+  </g>
+  <!-- ribbon -->
+  <g stroke="#2a1b08" stroke-width="2.5">
+    <path d="M110 400l40-14 0 40-40 14 14-20Z" fill="#5a1414"/>
+    <path d="M402 400l-40-14 0 40 40 14-14-20Z" fill="#5a1414"/>
+    <path d="M146 384c70 22 150 22 220 0v42c-70 22-150 22-220 0Z" fill="#8a2020"/>
+    <path d="M146 384c70 22 150 22 220 0" fill="none" stroke="url(#gold)" stroke-width="3"/>
+    <path d="M146 426c70 22 150 22 220 0" fill="none" stroke="url(#gold)" stroke-width="3"/>
+  </g>
+</svg>

@@ -61,3 +61,23 @@ Juego original del género. No usar nombres/arte/UI/mapas/ficheros o mods de Par
 - Paz general solo entre líderes de ambos bandos; si no, paz por separado.
 - Tests de inspección (`tests/*.inspect.test.ts`) solo corren con la variable `SC` definida.
 - Playwright: `text=` es subcadena; usar `h3:text-is("...")` para las tarjetas del menú.
+
+## Actualización 15-nov-2026 (noche): gráficos, historia, dinastías, nuevos escenarios
+
+- **Escenarios**: 1066, Valdoria, 1492, **1914 (`ww1.ts`)**, **Guerra Civil 1936 (`spain.ts`)**, 1936, 1939 y **2014–2050 (`modern.ts`, mapa `world`)**. 1914/España/2014 usan las reglas `ww2` con `options` (`allowedUnits`, `artEra`, `aiRace`) y `menu` para agruparlos.
+- **Historia**: `src/data/story/{medieval,earlymodern,ww2}.ts` (cadenas `trigger`/`triggeredOnly`, misiones, `POOL` dinámico). `tests/story.test.ts` valida todas las referencias.
+- **Motor nuevo**: misiones (`missions.ts`, genéricas para quien no tiene árbol), crónica permanente (`s.chronicle`), puntuación (`nationScore`), historial de guerras (`s.record`), condiciones/efectos ampliados, cansancio de guerra, IA con rivales/alianzas/reclamaciones antes de declarar, disciplina presupuestaria (1492), rebeldes que se disuelven tras concesiones.
+- **Dinastías** (`rulesets/dynasty.ts`): bodas con personajes reales, derechos de sangre, uniones personales, pretendientes y «Coronar al pretendiente»; renombre de casas. **Romance** (`rulesets/romance.ts`): amantes, bastardos, celos, cartas, chantajes. Genealogías históricas reales en 1066 y 1492.
+- **Fundador propio**: `FounderDef` en `createGame` y `FounderForm.tsx`.
+- **Arte** (`public/art`, ~29 MB, Gemini + Flow): texturas sin costuras (`scripts/seamless.sh`), costas reales Natural Earth (`scripts/build-land.mjs [earth|world]`), 133 retratos (`{era}-{w|e|i}-{m|f}-{c|y|a|o}[-2].jpg`), escenas de evento por época, pantallas de carga, vídeo de menú.
+- **Rendimiento**: índice de provincias por dueño (`touchOwners` en cada cambio de dueño) y caché de suministro: 2014 pasó de ~30 a ~2 ms/día.
+- **Móvil**: mapa a pantalla completa, panel como hoja inferior, zoom táctil.
+- **Inspección** (solo con `SC=x`): `metrics`, `playtest` (`PT=1`), `revolts` (`RV=1`), `econ` (`EC=1`), `perf` (`PF=1`).
+- **Pendiente**: comprimir el arte (WebP), efecto «hacer la paz» y «salir de facción» para eventos, provincias de Polonia/Báltico/Finlandia para 1914, frente ucraniano más fiel.
+
+### 16-nov-2026: mundo completo y producción
+- **Producción**: https://gran-estrategia.vercel.app (proyecto `gran-estrategia`, equipo Emotiv; `vercel deploy --prod` desde `grand-strategy/`; `vercel.json` como sitio estático `out/`). Next.js actualizado a 15.5.29 (CVE-2025-66478).
+- **Mapa `world`**: 592 provincias (`provinces_world.ts`), 180 Estados; `world_index.ts` con país ISO de 2014 y región. Costas: `node scripts/build-land.mjs world`.
+- **`options.fullWorld`** en ww1914, spain1936, ww1936, ww1939 y mod2014: el test exige que ninguna provincia empiece sin dueño.
+- **Motor**: índices de provincias y ejércitos por dueño, IA militar con candidatos por nación (≤3,5 ms/día), fix de capitulación simultánea y coste mínimo de paz al pedir provincias.
+- **Pendiente**: añadir la URL de producción a *Supabase → Auth → Redirect URLs* para el guardado en la nube; comprimir el arte.

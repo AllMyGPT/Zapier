@@ -28,6 +28,8 @@ export interface ActionDef {
   description: string;
   args?: ActionArg[];
   scope?: 'nation' | 'province'; // province actions appear in the province panel (arg "province")
+  /** not listed in the generic action forms (has its own UI) */
+  hidden?: boolean;
   available?: (s: GameState, tag: string, args?: Record<string, string | number>) => string | true; // true or reason
   cost?: (s: GameState, tag: string, args?: Record<string, string | number>) => string;
   run: (s: GameState, tag: string, args: Record<string, string | number>) => void;

@@ -6,7 +6,9 @@ import { distance, neighbours } from '@/engine/map';
 import type { ActionDef, Ruleset, UnitType } from '@/engine/ruleset';
 import type { Character, GameState, Nation, Province } from '@/engine/types';
 import { chance, clamp, pick, randInt } from '@/engine/util';
-import { ensureRulers, mortality, ownedArg, processGoldQueues, queueBuilding, randomCharacter, recruitAction, stat, upkeep } from './common';
+import { monthlyRomance, romanceActions } from './romance';
+import { aiMarriages, aiPressClaims, crownPretender, dynastyActions, genericHeir, grievance, inheritByClaim, monthlyRenown } from './dynasty';
+import { ensureRulers, monthlyCharacters, mortality, ownedArg, processGoldQueues, queueBuilding, randomCharacter, recruitAction, stat, upkeep } from './common';
 import { RELIGION_COLORS } from './medieval';
 
 const U = (id: string, name: string, attack: number, defence: number, speed: number, siege: number, cost: number, manpower: number, up: number, days: number): UnitType =>
@@ -223,13 +225,6 @@ const actions: ActionDef[] = [
     },
   },
   {
-    id: 'royal_marriage', label: 'Matrimonio real', group: 'Diplomacia',
-    description: 'Une las casas reinantes: +relaciones; puede derivar en herencia.',
-    args: [{ key: 'target', label: 'Nación', kind: 'nation' }],
-    available: (s, tag, a) => (!a ? true : s.nations[a.target as string]?.religion !== s.nations[tag].religion ? 'Requiere la misma religión' : relation(s, tag, a.target as string) < 0 ? 'Relaciones insuficientes' : true),
-    run: (s, tag, a) => { addRelation(s, tag, a.target as string, 40); s.nations[tag].flags[`rm_${a.target}`] = s.day; s.nations[a.target as string].flags[`rm_${tag}`] = s.day; log(s, `Matrimonio real entre ${s.nations[tag].name} y ${s.nations[a.target as string].name}.`, [tag, a.target as string], 'diplo'); },
-  },
-  {
     id: 'vassalize', label: 'Vasallaje diplomático', group: 'Diplomacia',
     description: 'Convierte a una nación pequeña y amiga en vasalla.',
     args: [{ key: 'target', label: 'Nación', kind: 'nation' }],
@@ -262,6 +257,8 @@ const actions: ActionDef[] = [
     },
     run: (s, tag, a) => { const n = s.nations[tag]; n.treasury -= 60; n.infamy += 2; if (chance(s, 0.6)) n.claims.push(a.province as string); },
   },
+  ...dynastyActions,
+  ...romanceActions,
 ];
 
 function shipCost(s: GameState, tag: string) {
@@ -290,7 +287,7 @@ export const earlymodern: Ruleset & { canUseSea(s: GameState, tag: string): bool
   actions,
   canUseSea: (s, tag) => tag === 'REB' || (s.nations[tag]?.x.ships ?? 0) > 0,
   init(s) {
-    ensureRulers(s, false);
+    ensureRulers(s, true);
     for (const n of Object.values(s.nations)) {
       if (n.x.pseudo) continue;
       for (const k of Object.keys(TECHS)) n.tech[k] ??= 1;
@@ -306,7 +303,11 @@ export const earlymodern: Ruleset & { canUseSea(s: GameState, tag: string): bool
   },
   daily(s) { processGoldQueues(s); },
   monthly(s) {
-    for (const c of Object.values(s.characters)) if (c.alive && chance(s, mortality(s, c))) killCharacter(s, c.id, 'causas naturales');
+    monthlyCharacters(s, true);
+    aiMarriages(s, 0.04);
+    monthlyRenown(s);
+    monthlyRomance(s);
+    for (const n of livingNations(s)) if (!n.heirId || !s.characters[n.heirId]?.alive) n.heirId = genericHeir(s, n);
     for (const n of livingNations(s)) {
       const inc = income(s, n);
       const army = upkeep(s, n.tag) * (1 + (n.x.pol_quality ?? 0) * -0.03);
@@ -338,6 +339,10 @@ export const earlymodern: Ruleset & { canUseSea(s: GameState, tag: string): bool
       const maxMp = provincesOf(s, n.tag).reduce((t, p) => t + p.dev * 800, 0) * (1 + (n.x.pol_quality ?? 0) * 0.05) * (1 + (n.x.pol_serf ?? 0) * -0.02);
       n.manpower = Math.min(maxMp, n.manpower + maxMp / 100);
       n.x.colonists = Math.min(3, (n.x.colonists ?? 0) + (n.tech.naval ?? 0) * 0.02 + (n.x.pol_naval ?? 0) * 0.005);
+      // societies drift back towards calm: a realm does not stay in chaos forever
+      if (n.stability < 1) n.stability = Math.min(1, n.stability + (n.stability < -1 ? 0.04 : 0.025));
+      // the AI spends on order when the realm is unsettled
+      if (n.tag !== s.player) n.x.bud_stability = n.stability < 0 ? 25 : n.stability < 1 ? 15 : 8;
       // unrest & rebels
       for (const p of provincesOf(s, n.tag)) {
         p.unrest = provinceUnrest(s, p, n);
@@ -345,7 +350,9 @@ export const earlymodern: Ruleset & { canUseSea(s: GameState, tag: string): bool
           p.x.colony += randInt(s, 5, 25);
           if (p.x.colony >= 1000) { p.dev = Math.max(p.dev, 3); log(s, `La colonia de ${p.name} se convierte en ciudad.`, [n.tag], 'economy'); }
         }
-        if (p.unrest > 3 && chance(s, p.unrest / 300) && p.controller === n.tag) {
+        if ((p.x.calm ?? 0) > 0) { p.x.calm--; p.unrest = Math.max(0, p.unrest - 3); }
+        if (p.unrest > 3 && chance(s, (p.unrest - 2) / 500) && p.controller === n.tag) {
+          p.x.calm = 24;
           const reb = spawnArmy(s, 'REB', p.id, { infantry: Math.max(1, Math.round(p.dev / 2)) }, `Rebeldes de ${p.name}`);
           reb.rebelAgainst = n.tag;
           log(s, `¡Revuelta en ${p.name}!`, [n.tag], 'war');
@@ -355,7 +362,7 @@ export const earlymodern: Ruleset & { canUseSea(s: GameState, tag: string): bool
     // rebel provinces: if rebels hold a province 6 months, the realm loses stability
     for (const p of Object.values(s.provinces)) if (p.controller === 'REB' && p.owner) {
       p.x.rebelHeld = (p.x.rebelHeld ?? 0) + 1;
-      if (p.x.rebelHeld >= 6) { const n = s.nations[p.owner]; n.stability = clamp(n.stability - 1, -3, 3); p.controller = p.owner; p.x.rebelHeld = 0; log(s, `Los rebeldes de ${p.name} obtienen concesiones de ${n.name}.`, [n.tag], 'war'); }
+      if (p.x.rebelHeld >= 6) { const n = s.nations[p.owner]; n.stability = clamp(n.stability - 0.4, -3, 3); p.controller = p.owner; p.x.rebelHeld = 0; p.x.calm = 36; p.unrest = 0; for (const r of armiesOf(s, 'REB')) if (r.location === p.id || r.rebelAgainst === n.tag && neighbours(s, p.id).some((e) => e.to === r.location)) delete s.armies[r.id]; log(s, `Los rebeldes de ${p.name} obtienen concesiones de ${n.name}.`, [n.tag], 'war'); }
     } else p.x.rebelHeld = 0;
     // REB armies attack/siege: give them a target
     for (const a of armiesOf(s, 'REB')) if (!a.path.length && s.provinces[a.location].controller === 'REB') {
@@ -365,22 +372,26 @@ export const earlymodern: Ruleset & { canUseSea(s: GameState, tag: string): bool
   },
   yearly(s) {
     for (const n of livingNations(s)) {
-      if (!n.heirId || !s.characters[n.heirId]?.alive) {
-        const r = ruler(s, n);
-        if (chance(s, 0.4)) n.heirId = randomCharacter(s, n.tag, { dynasty: r?.dynasty, ageYears: randInt(s, 0, 12) }).id;
-      }
+      if (!n.heirId || !s.characters[n.heirId]?.alive) n.heirId = genericHeir(s, n);
       if (n.infamy > 25) for (const o of livingNations(s)) if (o.tag !== n.tag) addRelation(s, o.tag, n.tag, -10);
     }
   },
   onCharacterDeath(s, c) {
     for (const n of livingNations(s)) {
       if (n.rulerId === c.id) {
-        const heir = n.heirId && s.characters[n.heirId]?.alive ? s.characters[n.heirId] : null;
-        if (heir) { n.rulerId = heir.id; n.heirId = null; log(s, `${heir.name} es el nuevo monarca de ${n.name}.`, [n.tag], 'character'); }
-        else {
+        const heirId = n.heirId && s.characters[n.heirId]?.alive ? n.heirId : genericHeir(s, n);
+        const heir = heirId ? s.characters[heirId] : null;
+        if (heir) {
+          if (heir.tag !== n.tag) heir.tag = n.tag;
+          n.rulerId = heir.id; n.heirId = genericHeir(s, n);
+          log(s, `${heir.name} de ${heir.dynasty} es el nuevo monarca de ${n.name}.`, [n.tag], 'character');
+        } else if (inheritByClaim(s, n)) {
+          n.heirId = genericHeir(s, n);
+        } else {
           n.rulerId = randomCharacter(s, n.tag, { ageYears: randInt(s, 20, 50) }).id;
           n.stability = clamp(n.stability - 1, -3, 3);
           log(s, `${n.name} sufre una crisis sucesoria: −1 estabilidad.`, [n.tag], 'character');
+          grievance(s, n);
           // personal union through royal marriage
           const partner = Object.keys(n.flags).filter((k) => k.startsWith('rm_')).map((k) => k.slice(3)).find((t) => s.nations[t]?.alive && !s.nations[t].liege);
           if (partner && chance(s, 0.25) && n.tag !== s.player) { n.liege = partner; log(s, `${s.nations[partner].name} hereda la corona de ${n.name} (unión personal).`, [n.tag, partner], 'diplo'); }
@@ -390,10 +401,22 @@ export const earlymodern: Ruleset & { canUseSea(s: GameState, tag: string): bool
   },
   ai(s, n) {
     const r = rules(s);
+    aiPressClaims(s, n);
     const war = atWar(s, n.tag);
     const myArmy = armiesOf(s, n.tag).reduce((t, a) => t + a.units.length, 0);
     const target = Math.max(3, Math.round(provincesOf(s, n.tag).reduce((t, p) => t + p.dev, 0) / 4));
-    if (myArmy < target * (war ? 1.5 : 1) && n.treasury > 30) {
+    // budget discipline: an army the treasury cannot pay is disbanded in peacetime, and no new regiments without income
+    const net = Object.values(n.lastIncome).reduce((x, y) => x + y, 0);
+    if (net < 0 && (!war || (n.x.loans ?? 0) > 6)) {
+      const big = armiesOf(s, n.tag).filter((a) => !a.inBattle).sort((a, b) => b.units.length - a.units.length)[0];
+      if (big && big.units.length) {
+        const i = big.units.findIndex((u) => u.type !== 'infantry');
+        big.units.splice(i >= 0 ? i : 0, 1);
+        if (!big.units.length) delete s.armies[big.id];
+      }
+    }
+    if (n.x.loans && net > 2 && n.treasury > 250) { n.x.loans--; n.treasury -= 200; }
+    if (myArmy < target * (war ? 1.5 : 1) && n.treasury > 30 && (net > 1 || (war && n.treasury > 150))) {
       const cap = s.provinces[n.capital];
       if (cap.controller === n.tag) {
         const type = chance(s, 0.6) ? 'infantry' : chance(s, 0.5) ? 'cavalry' : 'artillery';
@@ -476,8 +499,9 @@ export const earlymodern: Ruleset & { canUseSea(s: GameState, tag: string): bool
     { id: 'trade', label: 'Comercio', color: (_s, p) => (p.x.cot ? `hsl(45 90% ${30 + p.x.cot * 3}%)` : '#3a3a3a') },
     { id: 'unrest', label: 'Descontento', color: (_s, p) => `hsl(${Math.max(0, 120 - p.unrest * 15)} 60% 40%)` },
   ],
-  peaceExtras: [{ id: 'vassalize', label: 'Vasallaje', cost: 50 }, { id: 'annex', label: 'Anexión', cost: 100 }],
+  peaceExtras: [{ id: 'vassalize', label: 'Vasallaje', cost: 50 }, { id: 'annex', label: 'Anexión', cost: 100 }, { id: 'throne', label: 'Coronar al pretendiente', cost: 70 }],
   onPeaceExtra(s, winner, loser, extra) {
+    if (extra === 'throne') { crownPretender(s, winner, loser); return; }
     if (extra === 'annex') { s.nations[winner].infamy += provincesOf(s, loser).length * 1.5; annex(s, winner, loser); }
     else if (extra === 'vassalize') { s.nations[loser].liege = winner; s.nations[winner].infamy += 3; }
   },

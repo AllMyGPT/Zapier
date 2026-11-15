@@ -15,7 +15,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
     "d3-delaunay": "^6.0.4",
-    "next": "15.5.4",
+    "next": "^15.5.29",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
@@ -26,13 +26,24 @@
     "@types/react-dom": "^19.0.0",
     "electron": "^33.0.0",
     "electron-builder": "^25.1.8",
+    "topojson-client": "^3.1.0",
     "typescript": "^5.6.0",
-    "vitest": "^2.1.0"
+    "vitest": "^2.1.0",
+    "world-atlas": "^2.0.2"
   },
   "build": {
     "appId": "app.grandstrategy.engine",
     "productName": "Grand Strategy Engine",
-    "files": ["out/**/*", "electron/**/*"],
-    "mac": { "category": "public.app-category.strategy-games", "target": ["dmg", "zip"] }
+    "files": [
+      "out/**/*",
+      "electron/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.strategy-games",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    }
   }
 }

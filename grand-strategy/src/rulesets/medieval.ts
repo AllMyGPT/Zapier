@@ -1,8 +1,11 @@
 import {
+  touchOwners,
   addRelation, age, annex, armiesOf, atWar, declareWar, killCharacter, livingNations, log,
   militaryPower, provincesOf, registerRuleset, relation, rules, spawnArmy, topLiege, vassalsOf,
 } from '@/engine/core';
 import { neighbours } from '@/engine/map';
+import { monthlyRomance, romanceActions } from './romance';
+import { aiMarriages, aiPressClaims, crownPretender, dynastyActions, grievance, inheritByClaim, marriageCandidates, monthlyRenown, wed } from './dynasty';
 import type { ActionDef, Ruleset, UnitType } from '@/engine/ruleset';
 import type { Character, GameState, Nation, Province } from '@/engine/types';
 import { chance, clamp, pick, rand, randInt, uid } from '@/engine/util';
@@ -47,7 +50,7 @@ function computeHeir(s: GameState, n: Nation): string | null {
     const males = dynastyMembers.filter((c) => !c.female && c.tag === n.tag).sort((a, b) => a.born - b.born);
     return males[0]?.id ?? dynastyMembers.sort((a, b) => a.born - b.born)[0]?.id ?? null;
   }
-  const kids = childrenOf(s, r.id).filter(alive);
+  const kids = childrenOf(s, r.id).filter((c) => alive(c) && !c.bastard);
   const son = kids.find((k) => !k.female);
   if (son) return son.id;
   // grandchildren through deceased sons
@@ -91,8 +94,10 @@ function succession(s: GameState, n: Nation) {
     }
     heir.tag = n.tag;
   }
+  if (!heir && inheritByClaim(s, n)) { n.heirId = computeHeir(s, n); return; }
   if (!heir) {
     heir = randomCharacter(s, n.tag, { ageYears: randInt(s, 20, 45) });
+    grievance(s, n);
     n.stability = clamp(n.stability - 1, -3, 3);
     n.prestige -= 50;
     log(s, `${n.name} se queda sin heredero: una nueva casa, ${heir.dynasty}, toma el poder.`, [n.tag], 'character');
@@ -124,6 +129,7 @@ function createVassal(s: GameState, liege: Nation, pids: string[], holder?: Char
   for (const pid of pids) {
     const p = s.provinces[pid];
     p.owner = p.controller = tag;
+    touchOwners(s);
     if (!p.cores.includes(tag)) p.cores.push(tag);
   }
   setRel(s, tag, liege.tag, 40 + stat(holderC, 'diplomacy') * 3);
@@ -251,7 +257,7 @@ const actions: ActionDef[] = [
     },
   },
   {
-    id: 'marriage', label: 'Concertar matrimonio', group: 'Corte',
+    id: 'marriage', label: 'Concertar matrimonio', group: 'Corte', hidden: true,
     description: 'Casa a un miembro soltero de tu dinastía con la corte de otro reino. Mejora relaciones y puede crear derechos sucesorios (uniones personales).',
     args: [{ key: 'character', label: 'Familiar', kind: 'character' }, { key: 'target', label: 'Reino', kind: 'nation' }],
     available: (s, tag, a) => {
@@ -267,14 +273,10 @@ const actions: ActionDef[] = [
       const c = s.characters[a.character as string];
       const o = s.nations[a.target as string];
       const orul = ruler(s, o);
-      // prefer a child of the other ruler
-      const partner = orul ? childrenOf(s, orul.id).find((k) => k.alive && !k.spouse && k.female !== c.female && age(s, k) >= 15) : null;
+      // prefer a real member of the other ruling house
+      const partner = marriageCandidates(s, tag, c, 30).find((x) => x.realm.tag === o.tag)?.spouse ?? null;
       const spouse = partner ?? randomCharacter(s, o.tag, { female: !c.female, ageYears: Math.max(15, age(s, c) - randInt(s, -3, 6)), dynasty: orul?.dynasty });
-      c.spouse = spouse.id; spouse.spouse = c.id;
-      // wife joins husband's court
-      if (c.female) c.tag = spouse.tag; else spouse.tag = c.tag;
-      addRelation(s, tag, o.tag, 40);
-      log(s, `Boda: ${c.name} de ${c.dynasty} con ${spouse.name} de ${spouse.dynasty} (${o.name}).`, [tag, o.tag], 'character');
+      wed(s, c, spouse);
     },
   },
   {
@@ -358,6 +360,8 @@ const actions: ActionDef[] = [
       else { addRelation(s, o.tag, tag, -20); log(s, `${o.name} rechaza someterse a ${s.nations[tag].name}.`, [tag, o.tag], 'diplo'); }
     },
   },
+  ...dynastyActions,
+  ...romanceActions,
 ];
 
 export const medieval: Ruleset & { onCharacterDeath(s: GameState, c: Character): void } = {
@@ -412,14 +416,9 @@ export const medieval: Ruleset & { onCharacterDeath(s: GameState, c: Character):
       }
       if (!n.heirId || !s.characters[n.heirId]?.alive) n.heirId = computeHeir(s, n);
     }
-    // AI marriages
-    for (const c of Object.values(s.characters)) {
-      if (!c.alive || c.spouse || age(s, c) < 16 || age(s, c) > 45 || c.tag === s.player || !chance(s, 0.05)) continue;
-      const n = s.nations[c.tag];
-      if (!n?.alive || ruler(s, n)?.dynasty !== c.dynasty) continue;
-      const sp = randomCharacter(s, c.tag, { female: !c.female, ageYears: Math.max(16, age(s, c) - randInt(s, -2, 8)) });
-      c.spouse = sp.id; sp.spouse = c.id;
-    }
+    aiMarriages(s, 0.05);
+    monthlyRenown(s);
+    monthlyRomance(s);
   },
   yearly(s) {
     // keep saves small: forget characters dead for more than 80 years
@@ -428,6 +427,7 @@ export const medieval: Ruleset & { onCharacterDeath(s: GameState, c: Character):
   },
   ai(s, n) {
     const r = rules(s);
+    aiPressClaims(s, n);
     if (atWar(s, n.tag) && n.manpower > 3000 && !armiesOf(s, n.tag).some((a) => a.name === 'Hueste real')) r.actions.find((a) => a.id === 'raise_levies')!.run(s, n.tag, {});
     if (atWar(s, n.tag) && n.treasury > 80 && n.manpower > 500) {
       const cap = s.provinces[n.capital];
@@ -509,8 +509,9 @@ export const medieval: Ruleset & { onCharacterDeath(s: GameState, c: Character):
     { id: 'realm', label: 'Reinos (con vasallos)', color: (s, p) => (p.owner ? s.nations[topLiege(s, p.owner)]?.color ?? '#777' : '#555') },
     { id: 'religion', label: 'Religión', color: (_s, p) => RELIGION_COLORS[p.religion] ?? '#888' },
   ],
-  peaceExtras: [{ id: 'vassalize', label: 'Vasallaje', cost: 60 }, { id: 'annex', label: 'Anexión total', cost: 100 }],
+  peaceExtras: [{ id: 'vassalize', label: 'Vasallaje', cost: 60 }, { id: 'annex', label: 'Anexión total', cost: 100 }, { id: 'throne', label: 'Coronar al pretendiente', cost: 70 }],
   onPeaceExtra(s, winner, loser, extra) {
+    if (extra === 'throne') { crownPretender(s, winner, loser); return; }
     if (extra === 'annex') annex(s, winner, loser);
     else if (extra === 'vassalize') { s.nations[loser].liege = winner; setRel(s, loser, winner, 0); }
   },

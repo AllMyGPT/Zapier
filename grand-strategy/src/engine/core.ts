@@ -2,8 +2,9 @@ import { MAPS } from '@/data/maps';
 import { findPath, neighbours, edgeBetween, terrainCost, terrainDefence } from './map';
 import type { Ruleset } from './ruleset';
 import type {
-  Army, Character, Command, Condition, Effect, Era, GameEvent, GameState, LogEntry, Nation, PeaceOffer, Province, Unit, War,
+  Army, Character, Command, Condition, Effect, Era, GameEvent, GameState, LogEntry, Mission, Nation, PeaceOffer, Province, Unit, War,
 } from './types';
+import { genericMissions } from './missions';
 import { chance, clamp, dateOf, dayFromISO, formatDate, rand, uid, yearsBetween } from './util';
 
 // ------------------------------------------------------------------ registry
@@ -20,7 +21,15 @@ export function rules(s: GameState | Era): Ruleset {
 export interface CharDef {
   name: string; dynasty: string; born: string; female?: boolean;
   dip?: number; mar?: number; ste?: number; int?: number; traits?: string[];
-  role?: 'ruler' | 'heir' | 'spouse' | 'child' | 'leader';
+  role?: 'ruler' | 'heir' | 'spouse' | 'child' | 'leader' | 'sibling' | 'parent' | 'relative';
+  /** explicit family links, by the exact `name` of another character of the same nation */
+  father?: string; mother?: string; spouseOf?: string;
+  /** ISO date of death for historical relatives already dead at the start (kept for the family tree) */
+  died?: string;
+  /** realms (tags) this person has a hereditary claim on */
+  claims?: string[];
+  /** short historical note shown in the character card */
+  bio?: string;
 }
 export interface NationDef {
   tag: string; name: string; color: string; capital: string; provinces: string[];
@@ -41,10 +50,21 @@ export interface Scenario {
   relations?: [string, string, number][];
   factions?: Record<string, { name: string; leader: string; color: string }>;
   events?: GameEvent[];
+  missions?: Mission[];
   recommended?: string[];
+  /** menu group (defaults to the era): lets 1914 or 2014 use the industrial-war rules */
+  menu?: string;
+  options?: GameState['options'];
 }
 
-export function createGame(sc: Scenario, player: string, seed = 12345): GameState {
+/** a player-designed founder of a new dynasty */
+export interface FounderDef {
+  name: string; dynasty: string; female: boolean; age: number;
+  dip: number; mar: number; ste: number; int: number; traits: string[];
+  portrait?: string; bio?: string; spouse?: boolean; children?: number;
+}
+
+export function createGame(sc: Scenario, player: string, seed = 12345, founder?: FounderDef): GameState {
   const r = rules(sc.era);
   const s: GameState = {
     version: 1, era: sc.era, mapId: sc.map ?? 'earth', scenarioId: sc.id, scenarioName: sc.name,
@@ -52,6 +72,7 @@ export function createGame(sc: Scenario, player: string, seed = 12345): GameStat
     rng: seed, nextId: 1, player, provinces: {}, nations: {}, armies: {}, characters: {},
     wars: [], events: [...(sc.events ?? [])], firedEvents: [], pendingEvents: [], log: [], peaceOffers: [],
     factions: sc.factions ?? {}, gameOver: null,
+    scheduled: [], missions: [...(sc.missions ?? [])], missionsDone: {}, record: {}, options: sc.options ? { ...sc.options } : undefined,
   };
   for (const [id, name, lon, lat, terrain, landmass, coastal, dev] of MAPS[sc.map ?? 'earth'].rows) {
     s.provinces[id] = {
@@ -76,6 +97,7 @@ export function createGame(sc: Scenario, player: string, seed = 12345): GameStat
       const p = s.provinces[pid];
       if (!p) throw new Error(`Unknown province ${pid} in ${sc.id}/${nd.tag}`);
       p.owner = p.controller = nd.tag;
+      touchOwners(s);
       p.cores = [nd.tag];
       p.culture = nd.culture;
       p.religion = nd.religion;
@@ -100,7 +122,6 @@ export function createGame(sc: Scenario, player: string, seed = 12345): GameStat
       if (cd.role === 'ruler') n.rulerId = c.id;
       if (cd.role === 'heir') n.heirId = c.id;
     }
-    // link family: spouse of ruler, children of ruler
     const ruler = n.rulerId ? s.characters[n.rulerId] : null;
     if (ruler) {
       for (const cd of nd.characters ?? []) {
@@ -120,12 +141,41 @@ export function createGame(sc: Scenario, player: string, seed = 12345): GameStat
       }
     }
   }
+  // genealogies: explicit links by name ("Name" in the same realm, or "TAG:Name" across realms); they override the role defaults
+  const findChar = (tag: string, ref: string) => {
+    const [t2, nm] = ref.includes(':') ? ref.split(':') as [string, string] : [tag, ref];
+    return Object.values(s.characters).find((k) => k.tag === t2 && k.name === nm);
+  };
+  for (const nd of sc.nations) {
+    for (const cd of nd.characters ?? []) {
+      const c = findChar(nd.tag, cd.name);
+      if (!c) continue;
+      if (cd.father) { const f = findChar(nd.tag, cd.father); if (f) c.father = f.id; }
+      if (cd.mother) { const m = findChar(nd.tag, cd.mother); if (m) c.mother = m.id; }
+      if (cd.spouseOf) { const sp = findChar(nd.tag, cd.spouseOf); if (sp) { c.spouse = sp.id; sp.spouse = c.id; } }
+      if (cd.died) { c.alive = false; c.died = dayFromISO(cd.died); }
+      if (cd.claims?.length) c.claims = [...cd.claims];
+      if (cd.bio) c.bio = cd.bio;
+    }
+    const n = s.nations[nd.tag];
+    const ruler = n.rulerId ? s.characters[n.rulerId] : null;
+    if (ruler) for (const cd of nd.characters ?? []) if (cd.role === 'sibling') {
+      const c = findChar(nd.tag, cd.name);
+      if (c && !c.father && ruler.father) c.father = ruler.father;
+      if (c && !c.mother && ruler.mother) c.mother = ruler.mother;
+    }
+    if (n.heirId && !s.characters[n.heirId]?.alive) n.heirId = null;
+  }
   for (const [a, b, v] of sc.relations ?? []) setRelation(s, a, b, v);
   r.init(s);
   for (const w of sc.wars ?? []) {
     const war: War = { id: uid(s, 'w'), name: w.name, attackers: [...w.attackers], defenders: [...w.defenders], start: s.day, battleScore: 0, goal: w.goal ?? null };
     s.wars.push(war);
   }
+  if (founder && s.nations[player]) foundDynasty(s, player, founder);
+  // every realm without a hand-written mission tree gets a generic one built from its neighbourhood
+  const withTree = new Set(s.missions!.map((m) => m.tag));
+  for (const n of livingNations(s)) if (!withTree.has(n.tag) && !n.liege) s.missions!.push(...genericMissions(s, n.tag));
   log(s, `Comienza la partida: ${sc.name} (${formatDate(s.day)}).`, [], 'info');
   return s;
 }
@@ -152,13 +202,42 @@ export function addCharacter(s: GameState, cd: CharDef, tag: string): Character 
 // ------------------------------------------------------------------ helpers
 export const nation = (s: GameState, tag: string | null | undefined) => (tag ? s.nations[tag] : undefined);
 export const livingNations = (s: GameState) => Object.values(s.nations).filter((n) => n.alive && !n.x.pseudo);
-export const provincesOf = (s: GameState, tag: string) => Object.values(s.provinces).filter((p) => p.owner === tag);
-export const armiesOf = (s: GameState, tag: string) => Object.values(s.armies).filter((a) => a.owner === tag);
+// provinces by owner, rebuilt only when ownership changes (every owner assignment calls touchOwners)
+const ownerIndex = new WeakMap<GameState, Map<string, Province[]>>();
+export function touchOwners(s: GameState) { ownerIndex.delete(s); }
+export const provincesOf = (s: GameState, tag: string): Province[] => {
+  let m = ownerIndex.get(s);
+  if (!m) {
+    m = new Map();
+    for (const p of Object.values(s.provinces)) if (p.owner) { const l = m.get(p.owner); if (l) l.push(p); else m.set(p.owner, [p]); }
+    ownerIndex.set(s, m);
+  }
+  return (m.get(tag) ?? []).slice();
+};
+// armies by owner; an army never changes owner, so the index is valid while no army is created (nextId) or removed (count)
+const armyIndex = new WeakMap<GameState, { sig: string; m: Map<string, Army[]> }>();
+export const armiesOf = (s: GameState, tag: string): Army[] => {
+  const sig = `${s.nextId}:${Object.keys(s.armies).length}`;
+  let ix = armyIndex.get(s);
+  if (!ix || ix.sig !== sig) {
+    const m = new Map<string, Army[]>();
+    for (const a of Object.values(s.armies)) { const l = m.get(a.owner); if (l) l.push(a); else m.set(a.owner, [a]); }
+    ix = { sig, m };
+    armyIndex.set(s, ix);
+  }
+  return (ix.m.get(tag) ?? []).slice();
+};
 export const age = (s: GameState, c: Character) => Math.floor(yearsBetween(c.born, s.day));
 
 export function log(s: GameState, text: string, tags: string[], kind: LogEntry['kind']) {
-  s.log.push({ day: s.day, text, tags, kind });
+  const entry = { day: s.day, text, tags, kind };
+  s.log.push(entry);
   if (s.log.length > 400) s.log.splice(0, s.log.length - 400);
+  // the chronicle keeps the player's history for the whole game
+  if (tags.includes(s.player) && ['story', 'mission', 'war', 'peace', 'character', 'event', 'info'].includes(kind)) {
+    (s.chronicle ??= []).push(entry);
+    if (s.chronicle.length > 3000) s.chronicle.splice(0, s.chronicle.length - 3000);
+  }
 }
 
 export function relation(s: GameState, a: string, b: string) { return s.nations[a]?.relations[b] ?? 0; }
@@ -256,6 +335,7 @@ export function step(s: GameState) {
   movement(s);
   combat(s);
   sieges(s);
+  runScheduled(s);
   r.daily(s);
   if (now.m !== before.m) monthly(s);
   if (now.y !== before.y) r.yearly(s);
@@ -343,6 +423,7 @@ function battleRound(s: GameState, pid: string, A: Army[], B: Army[]) {
     const sw = sideOf(w, winTag === 'REB' ? '' : winTag), sl = sideOf(w, loseTag === 'REB' ? '' : loseTag);
     if (sw && sl && sw !== sl) w.battleScore = clamp(w.battleScore + (sw === 'att' ? 1 : -1) * clamp(2 + lose.reduce((t, a) => t + a.units.length, 0) / 3, 2, 12), -40, 40);
   }
+  bumpRecord(s, winTag, 'battlesWon'); bumpRecord(s, loseTag, 'battlesLost');
   log(s, `Batalla de ${prov.name}: ${nationName(s, winTag)} derrota a ${nationName(s, loseTag)} (${lostMen.toLocaleString('es')} supervivientes en retirada).`, [winTag, loseTag], 'battle');
   for (const a of lose) {
     a.inBattle = false;
@@ -435,11 +516,15 @@ function monthly(s: GameState) {
     if (a.units.length > supply) for (const u of a.units) u.str *= 0.97;
   }
   for (const n of livingNations(s)) {
+    // war weariness: long wars erode stability and patience
+    const longest = Math.max(0, ...warsOf(s, n.tag).map((w) => s.day - w.start));
+    if (longest > 730 && s.era !== 'ww2') n.stability = clamp(n.stability - 0.04 * Math.min(3, longest / 730), -3, 3);
     for (const [t, d] of Object.entries(n.truces)) if (d <= s.day) delete n.truces[t];
     n.infamy = Math.max(0, n.infamy - 0.05);
   }
   r.monthly(s);
   checkEvents(s);
+  aiMissions(s);
   for (const n of livingNations(s)) if (n.tag !== s.player) { r.ai(s, n); aiMilitary(s, n); aiDiplomacy(s, n); }
   s.peaceOffers = s.peaceOffers.filter((o) => s.day - o.day < 60 && s.wars.some((w) => w.id === o.warId));
   checkCapitulations(s);
@@ -525,7 +610,8 @@ export function peaceCost(s: GameState, w: War, from: string, to: string, provin
   let cost = (pv / total) * 100 + (gold / income) * 40;
   if (extra) cost += r.peaceExtras.find((e) => e.id === extra)?.cost ?? 50;
   void from;
-  return Math.round(cost);
+  // asking for land is never free, however big the losing side is
+  return Math.max(provinces.length ? 1 : 0, Math.round(cost));
 }
 
 export function aiAcceptsPeace(s: GameState, offer: Omit<PeaceOffer, 'id' | 'day'>): boolean {
@@ -538,7 +624,7 @@ export function aiAcceptsPeace(s: GameState, offer: Omit<PeaceOffer, 'id' | 'day
     const mine = -ws; // the receiver's own war score
     return mine < 10 || (years > 4 && mine < 25) || (years > 8 && mine < 50) || armiesOf(s, offer.to).length === 0;
   }
-  const stubborn = s.nations[offer.to]?.x.stubborn ?? 1;
+  const stubborn = (s.nations[offer.to]?.x.stubborn ?? 1) * (1 - Math.min(0.4, Math.max(0, years - 1) * 0.08));
   return ws >= cost * stubborn || (provincesOf(s, offer.to).every((p) => p.controller !== offer.to) && cost <= 100);
 }
 
@@ -567,6 +653,7 @@ export function makePeace(s: GameState, o: Omit<PeaceOffer, 'id' | 'day'>) {
   if (o.gold > 0) { const g = Math.min(o.gold, Math.max(0, loser.treasury)); loser.treasury -= g; winner.treasury += g; }
   if (o.extra) r.onPeaceExtra?.(s, o.from, o.to, o.extra);
   if (o.provinces.length) winner.infamy += o.provinces.length * 0.8;
+  if (o.provinces.length || o.gold > 0 || o.extra) { bumpRecord(s, o.from, 'won'); bumpRecord(s, o.to, 'lost'); bumpRecord(s, o.from, 'conquered', o.provinces.length); }
   const leaving = ending ? [...w.attackers, ...w.defenders] : [leaver!];
   if (ending) s.wars = s.wars.filter((x) => x !== w);
   else { w.attackers = w.attackers.filter((t) => t !== leaver); w.defenders = w.defenders.filter((t) => t !== leaver); }
@@ -587,6 +674,7 @@ export function transferProvince(s: GameState, pid: string, to: string) {
   const p = s.provinces[pid];
   const prev = p.owner ? s.nations[p.owner] : undefined;
   p.owner = to;
+  touchOwners(s);
   p.controller = to;
   p.siege = null;
   if (!p.cores.includes(to) && s.nations[to]?.culture === p.culture) p.cores.push(to);
@@ -632,7 +720,8 @@ function checkCapitulations(s: GameState) {
         for (const p of owned) if (p.controller && enemies.includes(p.controller) && p.controller !== 'REB') transferProvince(s, p.id, p.controller);
         const leader = enemies[0];
         const left = provincesOf(s, tag);
-        if (left.length) r.onPeaceExtra?.(s, leader, tag, fully ? 'annex' : 'vassalize');
+        // the other side may already be gone (both leaders capitulated in the same pass)
+        if (left.length && leader && s.nations[leader]?.alive) r.onPeaceExtra?.(s, leader, tag, fully ? 'annex' : 'vassalize');
         if (!w.attackers.includes(tag) && !w.defenders.includes(tag)) continue;
         w.attackers = w.attackers.filter((t) => t !== tag);
         w.defenders = w.defenders.filter((t) => t !== tag);
@@ -705,18 +794,44 @@ function checkCondition(s: GameState, tag: string, c: Condition): boolean {
     case 'minStability': return (n?.stability ?? 0) >= c.value;
     case 'maxStability': return (n?.stability ?? 0) <= c.value;
     case 'isPlayer': return (t === s.player) === c.value;
+    case 'notExists': return !s.nations[c.tag]?.alive;
+    case 'ownsAll': return c.provinces.every((p) => s.provinces[p]?.owner === t);
+    case 'ownsCount': return c.provinces.filter((p) => s.provinces[p]?.owner === t).length >= c.count;
+    case 'minProvinces': return provincesOf(s, t).length >= c.value;
+    case 'minPrestige': return (n?.prestige ?? 0) >= c.value;
+    case 'minTreasury': return (n?.treasury ?? 0) >= c.value;
+    case 'minX': return (n?.x[c.key] ?? 0) >= c.value;
+    case 'allied': return !!n?.allies.includes(c.other) || (!!n?.faction && n.faction === s.nations[c.other]?.faction);
+    case 'minAllies': return (n?.allies.filter((a) => s.nations[a]?.alive).length ?? 0) >= c.value;
+    case 'liegeOf': return s.nations[c.other]?.liege === t;
+    case 'notVassal': return !n?.liege;
+    case 'minYear': return dateOf(s.day).y >= c.value;
+    case 'maxYear': return dateOf(s.day).y <= c.value;
+    case 'warsWon': return (s.record?.[t]?.won ?? 0) >= c.value;
+    case 'religionIs': return n?.religion === c.value;
+    case 'missionDone': return !!s.missionsDone?.[t]?.includes(c.mission);
+    case 'maxTreasury': return (n?.treasury ?? 0) <= c.value;
+    case 'maxPrestige': return (n?.prestige ?? 0) <= c.value;
+    case 'maxX': return (n?.x[c.key] ?? 0) <= c.value;
+    case 'isVassal': return !!n?.liege;
+    case 'minWarMonths': return warsOf(s, t).some((w) => s.day - w.start >= c.value * 30);
+    case 'minUnrest': return provincesOf(s, t).some((p) => p.unrest >= c.value);
+    case 'maxProvinces': return provincesOf(s, t).length <= c.value;
   }
 }
+export const conditionMet = (s: GameState, tag: string, c: Condition) => checkCondition(s, tag, c);
 
 function checkEvents(s: GameState) {
   for (const ev of s.events) {
+    if (ev.triggeredOnly) continue;
     if (ev.oneShot !== false && s.firedEvents.includes(ev.id) && !ev.mtthMonths) continue;
     if (ev.date && s.day < dayFromISO(ev.date)) continue;
     const receivers = ev.tag ? [ev.tag] : livingNations(s).map((n) => n.tag);
     for (const tag of receivers) {
       if (!s.nations[tag]?.alive) continue;
       if (ev.condition && !ev.condition.every((c) => checkCondition(s, tag, c))) continue;
-      if (ev.mtthMonths && !chance(s, 1 / ev.mtthMonths)) continue;
+      // the player's realm lives a little more intensely than the background world
+      if (ev.mtthMonths && !chance(s, (tag === s.player && !ev.tag ? 2.2 : 1) / ev.mtthMonths)) continue;
       if (ev.oneShot !== false && !ev.mtthMonths) s.firedEvents.push(ev.id);
       fireEvent(s, ev, tag);
     }
@@ -759,7 +874,83 @@ export function applyEffect(s: GameState, tag: string, e: Effect) {
     case 'claim': if (n) n.claims.push(...e.provinces.filter((p) => !n.claims.includes(p))); break;
     case 'government': if (n) n.government = e.value; break;
     case 'religion': for (const pid of e.provinces) if (s.provinces[pid]) s.provinces[pid].religion = e.value; if (e.nation && n) n.religion = e.value; break;
+    case 'trigger': (s.scheduled ??= []).push({ eventId: e.event, tag: t, day: s.day + Math.max(1, e.days) }); break;
+    case 'breakAlliance': breakAlliance(s, t, e.other, true); break;
+    case 'release': if (s.nations[e.target]?.liege === t) { s.nations[e.target].liege = null; log(s, `${s.nations[e.target].name} recupera su independencia.`, [t, e.target], 'diplo'); } break;
+    case 'char': {
+      const A = s.characters[e.a], B = e.b ? s.characters[e.b] : undefined;
+      if (!A) break;
+      if (e.op === 'lovers' && B?.alive && A.alive) { A.lover = B.id; B.lover = A.id; }
+      if (e.op === 'breakup') { if (A.lover && s.characters[A.lover]) s.characters[A.lover].lover = null; A.lover = null; }
+      if (e.op === 'legitimize') A.bastard = false;
+      if (e.op === 'banish' && A.alive) { if (A.lover && s.characters[A.lover]) s.characters[A.lover].lover = null; A.lover = null; A.tag = 'REB'; }
+      if (e.op === 'kill' && A.alive) killCharacter(s, A.id, e.value ?? 'circunstancias extrañas');
+      if (e.op === 'inLove') A.inLove = true;
+      if (e.op === 'trait' && e.value && !A.traits.includes(e.value)) A.traits.push(e.value);
+      break;
+    }
+    case 'chronicle': log(s, e.text, [t], 'story'); break;
+    case 'unrestRealm': for (const p of provincesOf(s, t)) p.unrest = Math.max(0, p.unrest + e.amount); break;
+    case 'relationsWith': for (const o of livingNations(s)) if (o.tag !== t && (!e.religion || o.religion === e.religion) && (!e.culture || o.culture === e.culture)) addRelation(s, t, o.tag, e.amount); break;
   }
+}
+
+/** follow-up events whose day has come */
+function runScheduled(s: GameState) {
+  if (!s.scheduled?.length) return;
+  const due = s.scheduled.filter((x) => x.day <= s.day);
+  if (!due.length) return;
+  s.scheduled = s.scheduled.filter((x) => x.day > s.day);
+  for (const d of due) {
+    const ev = s.events.find((e) => e.id === d.eventId);
+    if (!ev || !s.nations[d.tag]?.alive) continue;
+    if (ev.condition && !ev.condition.every((c) => checkCondition(s, d.tag, c))) continue;
+    fireEvent(s, ev, d.tag);
+  }
+}
+
+// ------------------------------------------------------------------ missions
+export function missionsOf(s: GameState, tag: string): Mission[] { return (s.missions ?? []).filter((m) => m.tag === tag); }
+export function missionStatus(s: GameState, tag: string, m: Mission): 'done' | 'ready' | 'open' | 'locked' {
+  if (s.missionsDone?.[tag]?.includes(m.id)) return 'done';
+  if (m.requires?.some((r) => !s.missionsDone?.[tag]?.includes(r))) return 'locked';
+  return m.conditions.every((c) => checkCondition(s, tag, c)) ? 'ready' : 'open';
+}
+export function completeMission(s: GameState, tag: string, id: string): string | null {
+  const m = (s.missions ?? []).find((x) => x.id === id && x.tag === tag);
+  if (!m) return 'Misión desconocida';
+  const st = missionStatus(s, tag, m);
+  if (st === 'done') return 'Ya completada';
+  if (st !== 'ready') return 'Aún no se cumplen las condiciones';
+  ((s.missionsDone ??= {})[tag] ??= []).push(id);
+  for (const e of m.rewards) applyEffect(s, tag, e);
+  log(s, `${s.nations[tag].name} cumple el objetivo «${m.title}».`, [tag], 'mission');
+  return null;
+}
+function aiMissions(s: GameState) {
+  for (const m of s.missions ?? []) {
+    if (m.tag === s.player || !s.nations[m.tag]?.alive) continue;
+    if (missionStatus(s, m.tag, m) === 'ready') completeMission(s, m.tag, m.id);
+  }
+}
+
+/** overall standing, used by the ledger, the end screen and victory */
+export function nationScore(s: GameState, tag: string): number {
+  const n = s.nations[tag];
+  if (!n?.alive) return 0;
+  const own = provincesOf(s, tag);
+  const dev = own.reduce((t, p) => t + p.dev, 0);
+  const vassals = vassalsOf(s, tag).reduce((t, v) => t + provincesOf(s, v.tag).reduce((u, p) => u + p.dev, 0), 0);
+  const rec = s.record?.[tag];
+  const missions = s.missionsDone?.[tag]?.length ?? 0;
+  const base = dev * 4 + vassals * 2 + Math.max(0, n.prestige) / 4 + missions * 25 + (rec ? rec.won * 30 + rec.battlesWon * 2 : 0);
+  if (s.era === 'ww2') return Math.round(base + own.reduce((t, p) => t + (p.x.vp ?? 0), 0) * 3 + (n.x.ic ?? 0) * 2);
+  if (s.era === 'earlymodern') return Math.round(base + Object.values(n.tech).reduce((t, v) => t + v, 0) * 10);
+  return Math.round(base + (n.x.piety ?? 0) / 10);
+}
+export function bumpRecord(s: GameState, tag: string, k: 'won' | 'lost' | 'battlesWon' | 'battlesLost' | 'conquered', v = 1) {
+  const r = ((s.record ??= {})[tag] ??= { won: 0, lost: 0, battlesWon: 0, battlesLost: 0, conquered: 0 });
+  r[k] += v;
 }
 
 export function joinFaction(s: GameState, tag: string, faction: string) {
@@ -800,34 +991,45 @@ function aiMilitary(s: GameState, n: Nation) {
       if (closest) moveArmy(s, closest.id, cap.id);
     }
   }
-  for (const a of armiesOf(s, n.tag)) {
+  // candidate provinces and enemy threat are the same for every army of this nation: compute them once
+  const myArmies = armiesOf(s, n.tag);
+  const threatAt = new Map<string, number>();
+  const hostileArmies = Object.values(s.armies).filter((b) => b.owner !== n.tag && (b.owner === 'REB' ? b.rebelAgainst === n.tag : isHostile(s, n.tag, b.owner)));
+  for (const b of hostileArmies) threatAt.set(b.location, (threatAt.get(b.location) ?? 0) + armyStrength(s, b));
+  const goals = new Set(s.wars.filter((w) => sideOf(w, n.tag)).map((w) => w.goal).filter(Boolean) as string[]);
+  const candidates: { p: Province; base: number }[] = [];
+  for (const p of Object.values(s.provinces)) {
+    if (!p.owner) continue;
+    const ownOccupied = isFriendly(s, n.tag, p.owner) && p.controller && isHostile(s, n.tag, p.controller);
+    const enemy = isHostile(s, n.tag, p.controller);
+    if (!ownOccupied && !enemy) continue;
+    let base = (ownOccupied ? 30 : 10) + p.dev * 2 + ((threatAt.get(p.id) ?? 0) > 0 ? 8 : 0);
+    if (goals.has(p.id)) base += 25;
+    if (p.id === s.nations[p.owner]?.capital) base += 10;
+    candidates.push({ p, base });
+  }
+  const heading = new Map<string, number>();
+  for (const b of myArmies) { const dest = b.path[b.path.length - 1] ?? b.location; heading.set(dest, (heading.get(dest) ?? 0) + 1); }
+  for (const a of myArmies) {
     if (a.inBattle || a.retreating || !s.armies[a.id]) continue;
     if (a.path.length && rand(s) < 0.4) continue;
     if (a.path[a.path.length - 1] === n.capital && s.provinces[n.capital].owner === n.tag) continue;
     const strength = armyStrength(s, a);
     const avgStr = a.units.reduce((t, u) => t + u.str, 0) / Math.max(1, a.units.length);
     if (avgStr < 0.5) { moveArmy(s, a.id, n.capital); continue; }
-    // choose a target: own occupied provinces first, then enemy provinces (prefer war goal)
+    // choose a target: own occupied provinces first, then enemy provinces (prefer war goal), spread over fronts
+    const here = s.provinces[a.location];
+    const mine = a.path[a.path.length - 1] ?? a.location;
     const targets: { pid: string; score: number }[] = [];
-    const enemyArmies = Object.values(s.armies).filter((b) => armiesHostile(s, a, b));
-    for (const p of Object.values(s.provinces)) {
-      if (!p.owner) continue;
-      const ownOccupied = isFriendly(s, n.tag, p.owner) && p.controller && isHostile(s, n.tag, p.controller);
-      const enemy = isHostile(s, n.tag, p.controller);
-      if (!ownOccupied && !enemy) continue;
-      const threat = enemyArmies.filter((b) => b.location === p.id).reduce((t, b) => t + armyStrength(s, b), 0);
-      if (threat > strength * 1.3) continue;
-      const d = Math.hypot(p.lon - s.provinces[a.location].lon, p.lat - s.provinces[a.location].lat);
-      let score = (ownOccupied ? 30 : 10) + p.dev * 2 - d * 2 + (threat > 0 ? 8 : 0);
-      // spread armies over several fronts
-      score -= Object.values(s.armies).filter((b) => b.owner === n.tag && b.id !== a.id && (b.path[b.path.length - 1] ?? b.location) === p.id).length * 12;
-      if (s.wars.some((w) => w.goal === p.id && sideOf(w, n.tag))) score += 25;
-      if (p.id === s.nations[p.owner]?.capital) score += 10;
-      targets.push({ pid: p.id, score });
+    for (const { p, base } of candidates) {
+      if ((threatAt.get(p.id) ?? 0) > strength * 1.3) continue;
+      const d = Math.hypot(p.lon - here.lon, p.lat - here.lat);
+      const others = (heading.get(p.id) ?? 0) - (mine === p.id ? 1 : 0);
+      targets.push({ pid: p.id, score: base - d * 2 - others * 12 });
     }
     targets.sort((x, y) => y.score - x.score);
     for (const t of targets.slice(0, 4)) {
-      if (moveArmy(s, a.id, t.pid)) break;
+      if (moveArmy(s, a.id, t.pid)) { const nd = s.armies[a.id]?.path.slice(-1)[0]; if (nd) heading.set(nd, (heading.get(nd) ?? 0) + 1); break; }
     }
   }
   // peace
@@ -836,6 +1038,8 @@ function aiMilitary(s: GameState, n: Nation) {
     const myLeader = side === 'att' ? w.attackers[0] : w.defenders[0];
     const enemyLeader = side === 'att' ? w.defenders[0] : w.attackers[0];
     if (myLeader !== n.tag || !enemyLeader) continue;
+    // do not pester the player with the same peace every month
+    if (enemyLeader === s.player && s.day - (n.flags[`po_${w.id}`] ?? -9999) < 300) continue;
     const ws = warScore(s, w, n.tag);
     const years = yearsBetween(w.start, s.day);
     if (ws >= 25 && rand(s) < 0.4) {
@@ -847,8 +1051,8 @@ function aiMilitary(s: GameState, n: Nation) {
       for (const p of occupied) {
         if (peaceCost(s, w, n.tag, enemyLeader, [...pick, p.id], 0, null) <= ws) pick.push(p.id);
       }
-      if (pick.length) sendPeace(s, n.tag, enemyLeader, w.id, pick, 0, null);
-      else if (years > 1.5) sendPeace(s, n.tag, enemyLeader, w.id, [], 0, null);
+      if (pick.length) { if (enemyLeader === s.player) n.flags[`po_${w.id}`] = s.day; sendPeace(s, n.tag, enemyLeader, w.id, pick, 0, null); }
+      else if (years > 1.5) { if (enemyLeader === s.player) n.flags[`po_${w.id}`] = s.day; sendPeace(s, n.tag, enemyLeader, w.id, [], 0, null); }
     } else if ((ws < -30 || years > 5) && rand(s) < 0.25) {
       if (enemyLeader === s.player) {
         if (!s.peaceOffers.some((o) => o.warId === w.id)) s.peaceOffers.push({ id: uid(s, 'po'), warId: w.id, from: n.tag, to: enemyLeader, provinces: [], gold: 0, extra: null, day: s.day });
@@ -877,38 +1081,84 @@ function aiDiplomacy(s: GameState, n: Nation) {
     return;
   }
   const neighbourTags = new Set<string>();
+  const border: Record<string, number> = {};
   for (const p of provincesOf(s, n.tag)) for (const e of neighbours(s, p.id)) {
     const o = s.provinces[e.to].owner;
-    if (o && o !== n.tag) neighbourTags.add(topLiege(s, o));
+    if (o && o !== n.tag && o !== 'REB') { const top = topLiege(s, o); neighbourTags.add(top); border[top] = (border[top] ?? 0) + 1; }
   }
   neighbourTags.delete(n.tag);
-  if (rand(s) < 0.15) {
-    const t = [...neighbourTags][Math.floor(rand(s) * neighbourTags.size)];
-    if (t && relation(s, n.tag, t) < 100) addRelation(s, n.tag, t, rand(s) < 0.5 ? 10 : -5);
+  const myPowOnly = militaryPower(s, n.tag);
+  // relations drift towards a "natural" level: borders breed friction, faith, blood and alliances breed friendship
+  for (const t of [...neighbourTags, ...n.allies]) {
+    if (rand(s) > 0.35) continue;
+    const o = s.nations[t];
+    if (!o?.alive) continue;
+    let base = neighbourTags.has(t) ? -15 - Math.min(20, (border[t] ?? 0) * 4) : 0;
+    base += o.religion === n.religion ? 20 : -15;
+    if (n.allies.includes(t)) base += 70;
+    if (n.flags[`rm_${t}`]) base += 30;
+    if (n.faction && n.faction === o.faction) base += 60;
+    if (n.flags[`rival_${t}`]) base -= 60;
+    if ((o.infamy ?? 0) > 15) base -= (o.infamy - 15) * 2;
+    const cur = relation(s, n.tag, t);
+    addRelation(s, n.tag, t, Math.sign(base - cur) * Math.min(4, Math.abs(base - cur)) + Math.round((rand(s) - 0.5) * 6));
   }
-  // alliances with friendly powers
-  if (n.allies.length < 3 && rand(s) < 0.05) {
-    const cand = livingNations(s).filter((o) => o.tag !== n.tag && !o.liege && !n.allies.includes(o.tag) && relation(s, n.tag, o.tag) > 80 && !isHostile(s, n.tag, o.tag) && (!n.faction || n.faction === o.faction));
-    const c = cand[0];
-    if (c && c.tag !== s.player) makeAlliance(s, n.tag, c.tag);
-  }
-  // declare war
-  const aggression = n.x.aggression ?? 1;
-  if (!atWar(s, n.tag) && n.stability >= -1 && rand(s) < 0.025 * aggression && s.day - s.startDay > 120) {
-    const myPow = militaryPower(s, n.tag) + n.allies.reduce((t, al) => t + militaryPower(s, al) * 0.5, 0);
-    const options = [...neighbourTags].filter((t) => {
+  // pick a rival: the neighbour of similar strength we share most border with
+  if (!Object.keys(n.flags).some((k) => k.startsWith('rival_') && s.nations[k.slice(6)]?.alive) && rand(s) < 0.04) {
+    const r = [...neighbourTags].filter((t) => {
       const o = s.nations[t];
-      if (!o?.alive || n.allies.includes(t) || (n.truces[t] ?? 0) > s.day || o.x.pseudo) return false;
-      if (n.faction && n.faction === o.faction) return false;
+      if (!o?.alive || o.x.pseudo || n.allies.includes(t) || (n.faction && n.faction === o.faction)) return false;
+      const ratio = militaryPower(s, t) / Math.max(1, myPowOnly);
+      return ratio > 0.5 && ratio < 2.5;
+    }).sort((a, b) => (border[b] ?? 0) - (border[a] ?? 0))[0];
+    if (r) { n.flags[`rival_${r}`] = s.day; addRelation(s, n.tag, r, -25); log(s, `${n.name} considera a ${s.nations[r].name} su gran rival.`, [n.tag, r], 'diplo'); }
+  }
+  // alliances: with friends, and against a common threat
+  if (n.allies.length < 3 && rand(s) < 0.06) {
+    const threat = [...neighbourTags].map((t) => s.nations[t]).filter((o) => o && militaryPower(s, o.tag) > myPowOnly * 1.6 && relation(s, n.tag, o.tag) < 0)[0];
+    const cand = livingNations(s).filter((o) => {
+      if (o.tag === n.tag || o.liege || n.allies.includes(o.tag) || isHostile(s, n.tag, o.tag) || o.tag === s.player) return false;
+      if (n.faction && n.faction !== o.faction) return false;
+      const rel = relation(s, n.tag, o.tag);
+      if (rel > 80) return true;
+      // common enemy
+      return !!threat && rel > 30 && o.tag !== threat.tag && relation(s, o.tag, threat.tag) < 0;
+    }).sort((a, b) => militaryPower(s, b.tag) - militaryPower(s, a.tag));
+    const c = cand[0];
+    if (c) { makeAlliance(s, n.tag, c.tag); if (threat) log(s, `${n.name} y ${c.name} se alían frente a ${threat.name}.`, [n.tag, c.tag], 'diplo'); }
+  }
+  // declare war: claims, rivals and opportunities (a neighbour already at war)
+  const aggression = n.x.aggression ?? 1;
+  const wars = warsOf(s, n.tag).length;
+  if (wars === 0 && n.stability >= -1 && rand(s) < 0.035 * aggression && s.day - s.startDay > 120) {
+    const myPow = myPowOnly + n.allies.reduce((t, al) => t + militaryPower(s, al) * 0.5, 0);
+    const scored = [...neighbourTags].map((t) => {
+      const o = s.nations[t];
+      if (!o?.alive || n.allies.includes(t) || (n.truces[t] ?? 0) > s.day || o.x.pseudo) return null;
+      if (n.faction && n.faction === o.faction) return null;
       const theirPow = militaryPower(s, t) + o.allies.reduce((tt, al) => tt + militaryPower(s, al) * 0.8, 0);
       const claim = provincesOf(s, t).some((p) => n.claims.includes(p.id) || p.cores.includes(n.tag));
-      if (myPow <= theirPow * (claim ? 1.2 : 1.8) || !(relation(s, n.tag, t) < 0 || claim)) return false;
+      const rival = !!n.flags[`rival_${t}`];
+      const busy = atWar(s, t);
+      const rel = relation(s, n.tag, t);
+      const need = claim ? 1.05 : rival ? 1.3 : busy ? 1.15 : 1.7;
+      if (myPow <= theirPow * need) return null;
+      if (!claim && !rival && rel > 25) return null;
       const r = rules(s);
-      return r.aiMayDeclare ? r.aiMayDeclare(s, n, t, claim ? 'claim' : null) : true;
-    });
-    const target = options[Math.floor(rand(s) * options.length)];
+      if (r.aiMayDeclare && !r.aiMayDeclare(s, n, t, claim ? 'claim' : null)) return null;
+      return { t, score: myPow / Math.max(1, theirPow) + (claim ? 1 : 0) + (rival ? 0.8 : 0) + (busy ? 0.5 : 0) - rel / 100 };
+    }).filter(Boolean) as { t: string; score: number }[];
+    const target = scored.sort((a, b) => b.score - a.score)[0]?.t;
+    if (target && !provincesOf(s, target).some((p) => n.claims.includes(p.id) || p.cores.includes(n.tag))) {
+      // no casus belli yet: first forge a claim on a border province, the war comes later
+      const bp = provincesOf(s, target).find((p) => neighbours(s, p.id).some((e) => s.provinces[e.to].owner === n.tag));
+      if (bp) { n.claims.push(bp.id); addRelation(s, target, n.tag, -15); }
+      return;
+    }
     if (target) {
-      const goal = provincesOf(s, target).find((p) => n.claims.includes(p.id) || p.cores.includes(n.tag))?.id ?? null;
+      const tp = provincesOf(s, target);
+      const goal = tp.find((p) => n.claims.includes(p.id) || p.cores.includes(n.tag))?.id
+        ?? tp.find((p) => neighbours(s, p.id).some((e) => s.provinces[e.to].owner === n.tag))?.id ?? null;
       declareWar(s, n.tag, target, goal);
     }
   }
@@ -1014,6 +1264,7 @@ export function applyCommand(s: GameState, tag: string, c: Command): string | nu
       log(s, `${ev.title}: ${opt.label}`, [tag], 'event');
       return null;
     }
+    case 'claimMission': return completeMission(s, tag, c.id);
     case 'action': {
       const def = r.actions.find((a) => a.id === c.id);
       if (!def) return 'Acción desconocida';
@@ -1028,3 +1279,42 @@ export function applyCommand(s: GameState, tag: string, c: Command): string | nu
 export function serialize(s: GameState): string { return JSON.stringify(s); }
 export function deserialize(json: string): GameState { return JSON.parse(json) as GameState; }
 export type { Province };
+
+/** the player's own character takes the throne and founds a house; the old line stays at court as pretenders */
+function foundDynasty(s: GameState, tag: string, f: FounderDef) {
+  const n = s.nations[tag];
+  const iso = (yearsAgo: number) => { const d = dateOf(s.day); return `${String(d.y - yearsAgo).padStart(4, '0')}-${String(d.m).padStart(2, '0')}-${String(Math.min(28, d.d)).padStart(2, '0')}`; };
+  const old = n.rulerId ? s.characters[n.rulerId] : null;
+  const c = addCharacter(s, { name: f.name, dynasty: f.dynasty, born: iso(f.age), female: f.female, dip: f.dip, mar: f.mar, ste: f.ste, int: f.int, traits: f.traits }, tag);
+  if (f.portrait) c.portrait = f.portrait;
+  c.bio = f.bio || `Fundador${f.female ? 'a' : ''} de la casa de ${f.dynasty}.`;
+  n.rulerId = c.id;
+  n.heirId = null;
+  if (old && old.alive) {
+    // the deposed line keeps its blood right: a ready-made source of pretenders
+    for (const k of Object.values(s.characters)) if (k.alive && k.tag === tag && k.dynasty === old.dynasty && k.id !== c.id) k.claims = [...new Set([...(k.claims ?? []), tag])];
+    log(s, `${old.name} de ${old.dynasty} ha sido apartad${old.female ? 'a' : 'o'} del trono; su linaje no lo olvidará.`, [tag], 'story');
+  }
+  const pool = Object.values(s.characters);
+  const mkSpouse = () => {
+    const sp = addCharacter(s, { name: f.female ? 'Consorte' : 'Consorte', dynasty: pool.find((k) => k.tag !== tag && k.dynasty)?.dynasty ?? 'Linaje menor', born: iso(Math.max(16, f.age - 3)), female: !f.female, dip: 5, mar: 5, ste: 5, int: 5 }, tag);
+    return sp;
+  };
+  if (f.spouse) {
+    const sp = mkSpouse();
+    const names = s.era === 'ww2' ? (f.female ? ['Ernesto', 'Julián', 'Víctor', 'Andrés'] : ['Elena', 'Clara', 'Lucía', 'Margarita']) : (f.female ? ['Rodrigo', 'Álvaro', 'Hugo', 'Fernán'] : ['Leonor', 'Blanca', 'Urraca', 'Constanza']);
+    sp.name = names[Math.floor(rand(s) * names.length)];
+    c.spouse = sp.id; sp.spouse = c.id;
+    const kids = Math.max(0, Math.min(4, f.children ?? 0));
+    for (let i = 0; i < kids; i++) {
+      const female = rand(s) < 0.45;
+      const pick = female ? ['Isabel', 'María', 'Juana', 'Teresa', 'Inés'] : ['Juan', 'Pedro', 'Alonso', 'Diego', 'Martín'];
+      const k = addCharacter(s, { name: pick[Math.floor(rand(s) * pick.length)], dynasty: f.dynasty, born: iso(Math.max(0, Math.min(f.age - 18, 2 + i * 3))), female, dip: 4 + Math.round(rand(s) * 4), mar: 4 + Math.round(rand(s) * 4), ste: 4 + Math.round(rand(s) * 4), int: 4 + Math.round(rand(s) * 4) }, tag);
+      if (f.female) { k.mother = c.id; k.father = sp.id; } else { k.father = c.id; k.mother = sp.id; }
+    }
+  }
+  const kids = Object.values(s.characters).filter((k) => k.alive && (k.father === c.id || k.mother === c.id)).sort((a, b) => a.born - b.born);
+  n.heirId = (kids.find((k) => !k.female) ?? kids[0])?.id ?? null;
+  (s.dynasties ??= {})[f.dynasty] = { renown: 10, founded: s.day };
+  log(s, `${f.name} funda la casa de ${f.dynasty} y toma las riendas de ${n.name}.`, [tag], 'story');
+}

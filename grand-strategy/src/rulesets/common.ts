@@ -1,5 +1,6 @@
 import { age, addCharacter, armiesOf, killCharacter, log, provincesOf, rules, spawnArmy } from '@/engine/core';
 import type { ActionDef } from '@/engine/ruleset';
+import { birthClaims } from './dynasty';
 import type { Character, GameState, Nation, Province } from '@/engine/types';
 import { chance, dateOf, rand, randInt, pick } from '@/engine/util';
 
@@ -21,12 +22,13 @@ export function namePool(culture: string) {
   return NAMES[culture] ?? NAMES.latin;
 }
 
-const TRAITS = ['valiente', 'cobarde', 'justo', 'codicioso', 'cruel', 'amable', 'genio', 'torpe', 'piadoso', 'cínico', 'ambicioso', 'perezoso', 'enfermizo', 'fuerte'];
+export const TRAITS = ['valiente', 'cobarde', 'justo', 'codicioso', 'cruel', 'amable', 'genio', 'torpe', 'piadoso', 'cínico', 'ambicioso', 'perezoso', 'enfermizo', 'fuerte', 'seductor', 'bello', 'casto', 'lujurioso', 'celoso'];
 export const TRAIT_EFFECTS: Record<string, Partial<Record<'diplomacy' | 'martial' | 'stewardship' | 'intrigue', number>>> = {
   valiente: { martial: 2 }, cobarde: { martial: -2 }, justo: { stewardship: 1, diplomacy: 1 }, codicioso: { stewardship: 2, diplomacy: -1 },
   cruel: { intrigue: 2, diplomacy: -2 }, amable: { diplomacy: 2, intrigue: -1 }, genio: { diplomacy: 3, martial: 3, stewardship: 3, intrigue: 3 },
   torpe: { diplomacy: -3, martial: -3, stewardship: -3, intrigue: -3 }, piadoso: { diplomacy: 1 }, cínico: { intrigue: 2 },
   ambicioso: { martial: 1, intrigue: 1 }, perezoso: { stewardship: -2 }, enfermizo: {}, fuerte: { martial: 1 },
+  seductor: { intrigue: 1, diplomacy: 1 }, bello: { diplomacy: 1 }, casto: {}, lujurioso: {}, celoso: { intrigue: 1 },
 };
 export function stat(c: Character | undefined | null, k: 'diplomacy' | 'martial' | 'stewardship' | 'intrigue'): number {
   if (!c) return 3;
@@ -83,12 +85,13 @@ export function monthlyCharacters(s: GameState, births: boolean) {
   for (const c of Object.values(s.characters)) {
     if (!c.alive) continue;
     if (chance(s, mortality(s, c))) { killCharacter(s, c.id, 'causas naturales'); continue; }
-    if (births && c.female && c.spouse && age(s, c) >= 16 && age(s, c) <= 44 && chance(s, 0.028)) {
+    if (births && c.female && c.spouse && age(s, c) >= 16 && age(s, c) <= 44 && chance(s, 0.028 * (c.inLove || s.characters[c.spouse]?.inLove ? 1.6 : 1))) {
       const father = s.characters[c.spouse];
       if (!father?.alive) continue;
       const child = randomCharacter(s, father.tag, { dynasty: father.dynasty, female: chance(s, 0.48), ageYears: 0, culture: s.nations[father.tag]?.culture });
       child.father = father.id; child.mother = c.id;
       for (const k of ['diplomacy', 'martial', 'stewardship', 'intrigue'] as const) child[k] = Math.round((father[k] + c[k]) / 2 + (rand(s) * 6 - 3));
+      birthClaims(s, child);
       const n = s.nations[father.tag];
       if (n && (n.rulerId === father.id || n.heirId === father.id)) log(s, `Nace ${child.name} de ${child.dynasty}, hij${child.female ? 'a' : 'o'} de ${father.name}.`, [n.tag], 'character');
     }

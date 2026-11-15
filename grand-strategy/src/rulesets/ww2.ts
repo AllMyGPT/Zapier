@@ -19,7 +19,13 @@ const unitTypes: Record<string, UnitType> = {
   motorized: U('motorized', 'Infantería motorizada', 1.3, 1.6, 1.8, 1.2, 700, 12000, 120),
   armor: U('armor', 'División acorazada', 3, 1.8, 1.8, 1.5, 1100, 10000, 150),
   marines: U('marines', 'Infantería de marina', 1.1, 1.3, 1, 1, 500, 10000, 120),
+  artillery: U('artillery', 'Artillería pesada', 1.6, 0.9, 0.8, 2.5, 420, 8000, 100),
+  drones: U('drones', 'Unidad de drones', 2.1, 0.7, 2.2, 1.2, 380, 3000, 60),
+  ai_swarm: U('ai_swarm', 'Sistemas autónomos de IA', 3.6, 1.4, 2.4, 2, 1300, 2000, 160),
 };
+/** units of the classic 1936–45 scenarios; others need scenario options or an unlock */
+const CLASSIC = ['militia', 'infantry', 'mountain', 'cavalry', 'motorized', 'armor', 'marines'];
+export const allowedUnit = (s: GameState, n: Nation, id: string) => (s.options?.allowedUnits ?? CLASSIC).includes(id) || (n.x[`unlock_${id}`] ?? 0) > 0;
 const SPECIAL: Record<string, { name: string; cost: number; days: number; key: string }> = {
   fighters: { name: 'Ala de cazas', cost: 500, days: 100, key: 'fighters' },
   bombers: { name: 'Ala de bombarderos', cost: 700, days: 120, key: 'bombers' },
@@ -27,7 +33,8 @@ const SPECIAL: Record<string, { name: string; cost: number; days: number; key: s
   submarines: { name: 'Flotilla de submarinos', cost: 600, days: 150, key: 'subs' },
   factory: { name: 'Fábrica (+1 CI)', cost: 600, days: 270, key: 'factory' },
 };
-const TECHS: Record<string, string> = { infantry: 'Infantería', armor: 'Blindados', air: 'Aviación', naval: 'Naval', industry: 'Industria', doctrine: 'Doctrina' };
+const TECHS: Record<string, string> = { infantry: 'Infantería', armor: 'Blindados', air: 'Aviación', naval: 'Naval', industry: 'Industria', doctrine: 'Doctrina', ai: 'IA y sistemas autónomos' };
+const techKeys = (s: GameState) => Object.keys(TECHS).filter((k) => k !== 'ai' || s.options?.aiRace);
 const ALLOC = ['prod', 'supply', 'reinf', 'cg', 'upg'] as const;
 const ALLOC_LABEL: Record<string, string> = { prod: 'Producción', supply: 'Suministros', reinf: 'Refuerzos', cg: 'Bienes de consumo', upg: 'Mejoras' };
 const IDEOLOGY_FACTION: Record<string, string> = { fascist: 'axis', democracy: 'allies', communist: 'comintern' };
@@ -52,7 +59,19 @@ function effectiveIC(s: GameState, n: Nation) {
 const techCost = (n: Nation, k: string) => 60 + 45 * Math.pow((n.tech[k] ?? 0) + 1, 1.3);
 
 /** provinces connected to the capital through friendly-controlled land (or the sea with naval superiority) */
+// supply networks change slowly: recompute each nation's at most every 5 days (or when its wars change)
+const supplyCache = new WeakMap<GameState, Map<string, { day: number; wars: number; set: Set<string> }>>();
 function supplied(s: GameState, n: Nation): Set<string> {
+  let m = supplyCache.get(s);
+  if (!m) { m = new Map(); supplyCache.set(s, m); }
+  const wars = s.wars.length * 1000 + s.wars.reduce((t, w) => t + w.attackers.length + w.defenders.length, 0);
+  const hit = m.get(n.tag);
+  if (hit && s.day - hit.day < 5 && hit.wars === wars) return hit.set;
+  const set = computeSupplied(s, n);
+  m.set(n.tag, { day: s.day, wars, set });
+  return set;
+}
+function computeSupplied(s: GameState, n: Nation): Set<string> {
   const seen = new Set<string>();
   const roots = provincesOf(s, n.tag).filter((p) => p.controller === n.tag && (p.id === n.capital || p.x.ic)).map((p) => p.id);
   for (const al of n.allies) { const a = s.nations[al]; if (a?.alive && s.provinces[a.capital]?.controller === al) roots.push(a.capital); }
@@ -97,7 +116,10 @@ const actions: ActionDef[] = [
       if (!a) return true;
       const u = unitTypes[a.item as string];
       if (u && s.nations[tag].manpower < u.manpower * Math.max(1, Number(a.count || 1))) return 'Mano de obra insuficiente';
+      if (u && !allowedUnit(s, s.nations[tag], u.id)) return 'No disponible en esta época';
       if (a.item === 'armor' && (s.nations[tag].tech.armor ?? 0) < 1) return 'Requiere Blindados 1';
+      if (a.item === 'ai_swarm' && (s.nations[tag].tech.ai ?? 0) < 3) return 'Requiere IA y sistemas autónomos 3';
+      if (a.item === 'drones' && (s.nations[tag].tech.air ?? 0) < 2) return 'Requiere Aviación 2';
       if ((a.item === 'navy' || a.item === 'submarines') && !provincesOf(s, tag).some((p) => p.coastal)) return 'Sin costa';
       return u || SPECIAL[a.item as string] ? true : 'Elige elemento';
     },
@@ -132,6 +154,7 @@ const actions: ActionDef[] = [
     id: 'research', label: 'Elegir investigación', group: 'Investigación',
     description: 'Fija la rama tecnológica que investigan tus equipos.',
     args: [{ key: 'tech', label: 'Rama', kind: 'choice', options: Object.entries(TECHS).map(([k, v]) => ({ value: k, label: v })) }],
+    available: (s, _tag, a) => (!a || a.tech !== 'ai' || s.options?.aiRace ? true : 'No disponible en esta época'),
     run: (s, tag, a) => { s.nations[tag].flags[`research_${a.tech}`] = s.day; s.nations[tag].x.researchIdx = Object.keys(TECHS).indexOf(a.tech as string); },
   },
   {
@@ -218,7 +241,7 @@ export const ww2: Ruleset & { canUseSea(s: GameState, tag: string): boolean } = 
   init(s) {
     for (const n of Object.values(s.nations)) {
       if (n.x.pseudo) continue;
-      for (const k of Object.keys(TECHS)) n.tech[k] ??= 0;
+      for (const k of techKeys(s)) n.tech[k] ??= 0;
       n.x.al_prod ??= 45; n.x.al_supply ??= 20; n.x.al_reinf ??= 10; n.x.al_cg ??= 20; n.x.al_upg ??= 5;
       n.x.dissent ??= 0; n.x.nu ??= 70; n.x.stubborn ??= Math.max(1, n.x.nu / 45); n.x.rp ??= 0; n.x.researchIdx ??= 4;
       n.x.fighters ??= 0; n.x.bombers ??= 0; n.x.navy ??= 0; n.x.subs ??= 0;
@@ -268,7 +291,7 @@ export const ww2: Ruleset & { canUseSea(s: GameState, tag: string): boolean } = 
       }
       n.queue = n.queue.filter((x) => x.progress < x.cost - 1e-6);
       // research
-      const keys = Object.keys(TECHS);
+      const keys = techKeys(s);
       const key = keys[n.x.researchIdx ?? 4] ?? 'industry';
       n.x.rp += (1 + ic * 0.012) * (1 + n.x.al_upg / 200);
       if (n.x.rp >= techCost(n, key)) {
@@ -330,7 +353,7 @@ export const ww2: Ruleset & { canUseSea(s: GameState, tag: string): boolean } = 
     }
     if (n.queue.length < 3) {
       const ic = n.x.ic ?? 0;
-      const options = ['infantry', 'infantry', 'infantry', ...(n.tech.armor >= 1 && ic > 20 ? ['armor', 'motorized'] : []), ...(ic > 15 ? ['fighters', 'bombers'] : []), ...(n.x.navy < ic / 15 && provincesOf(s, n.tag).some((p) => p.coastal) ? ['navy'] : []), ...(!war && ic < 30 ? ['factory'] : [])];
+      const options = ['infantry', 'infantry', 'infantry', ...['artillery', 'drones', 'ai_swarm', 'cavalry'].filter((u) => allowedUnit(s, n, u)), ...(n.tech.armor >= 1 && ic > 20 && allowedUnit(s, n, 'armor') ? ['armor', 'motorized'] : []), ...(ic > 15 ? ['fighters', 'bombers'] : []), ...(n.x.navy < ic / 15 && provincesOf(s, n.tag).some((p) => p.coastal) ? ['navy'] : []), ...(!war && ic < 30 ? ['factory'] : [])];
       const item = pick(s, options);
       const ok = actions[0].available!(s, n.tag, { item, count: 1 });
       if (ok === true) actions[0].run(s, n.tag, { item, count: 1 });
@@ -351,6 +374,8 @@ export const ww2: Ruleset & { canUseSea(s: GameState, tag: string): boolean } = 
     let m = (1 + (n.tech.doctrine ?? 0) * 0.05) * (n.x.combat ?? 1);
     if (unit.type === 'armor' || unit.type === 'motorized') m *= 1 + (n.tech.armor ?? 0) * 0.1;
     else m *= 1 + (n.tech.infantry ?? 0) * 0.08;
+    m *= 1 + (n.tech.ai ?? 0) * 0.05;
+    if (unit.type === 'drones' || unit.type === 'ai_swarm') m *= 1 + (n.tech.ai ?? 0) * 0.08 + (n.tech.air ?? 0) * 0.04;
     if (unit.type === 'mountain' && ['m', 'h'].includes(s.provinces[army.location].terrain)) m *= 1.4;
     if (unit.type === 'armor' && ['m', 'w', 'j', 'f'].includes(s.provinces[army.location].terrain)) m *= 0.7;
     // air superiority over the battlefield
@@ -393,7 +418,7 @@ export const ww2: Ruleset & { canUseSea(s: GameState, tag: string): boolean } = 
   },
   nationStats(s, tag) {
     const n = s.nations[tag];
-    const keys = Object.keys(TECHS);
+    const keys = techKeys(s);
     const cur = keys[n.x.researchIdx ?? 4];
     return [
       { label: 'Gobierno', value: { fascist: 'Fascista', democracy: 'Democracia', communist: 'Comunista', authoritarian: 'Autoritario' }[n.government] ?? n.government },
@@ -427,7 +452,7 @@ export const ww2: Ruleset & { canUseSea(s: GameState, tag: string): boolean } = 
   peaceExtras: [{ id: 'puppet', label: 'Gobierno títere', cost: 70 }, { id: 'annex', label: 'Anexión', cost: 100 }],
   onPeaceExtra(s, winner, loser, extra) {
     if (extra === 'annex') annex(s, winner, loser);
-    else { s.nations[loser].liege = winner; s.nations[loser].faction = s.nations[winner].faction; s.nations[loser].government = s.nations[winner].government; }
+    else if (s.nations[winner] && s.nations[loser]) { s.nations[loser].liege = winner; s.nations[loser].faction = s.nations[winner].faction; s.nations[loser].government = s.nations[winner].government; }
   },
   onWarDeclared(s, attacker, target, goal) {
     const n = s.nations[attacker];
