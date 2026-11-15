@@ -1,7 +1,0 @@
-node_modules/
-.venv/
-.bin/
-dist/
-server-data/
-behavior_pack/scripts/
-.DS_Store

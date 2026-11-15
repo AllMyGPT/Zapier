@@ -1,0 +1,21 @@
+{
+  "resource_pack_name": "galaxia",
+  "texture_name": "atlas.items",
+  "texture_data": {
+    "galaxia_espada_azul": {
+      "textures": "textures/items/espada_plasma_azul"
+    },
+    "galaxia_espada_verde": {
+      "textures": "textures/items/espada_plasma_verde"
+    },
+    "galaxia_espada_roja": {
+      "textures": "textures/items/espada_plasma_roja"
+    },
+    "galaxia_blaster": {
+      "textures": "textures/items/blaster"
+    },
+    "galaxia_credito": {
+      "textures": "textures/items/credito"
+    }
+  }
+}

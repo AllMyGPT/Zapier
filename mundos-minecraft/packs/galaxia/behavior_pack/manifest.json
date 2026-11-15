@@ -1,0 +1,54 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Galaxia (Comportamiento)",
+    "description": "Espadas de plasma, blásters, invasiones imperiales y un puesto avanzado en el desierto.",
+    "uuid": "e400bc0a-c1ae-415b-83d9-875e53654d23",
+    "version": [
+      1,
+      0,
+      0
+    ],
+    "min_engine_version": [
+      1,
+      21,
+      100
+    ]
+  },
+  "modules": [
+    {
+      "type": "data",
+      "uuid": "910434e6-25f9-4a7b-adf0-be8fbb9a8102",
+      "version": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "script",
+      "language": "javascript",
+      "uuid": "f38d1a4d-4c45-4e18-bdf9-24560deee22d",
+      "version": [
+        1,
+        0,
+        0
+      ],
+      "entry": "scripts/galaxia/main.js"
+    }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "2.1.0"
+    },
+    {
+      "uuid": "9b869487-0dbd-4fe0-a70d-67945342dfcb",
+      "version": [
+        1,
+        0,
+        0
+      ]
+    }
+  ]
+}

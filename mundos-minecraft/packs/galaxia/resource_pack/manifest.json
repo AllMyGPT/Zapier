@@ -1,0 +1,29 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Galaxia (Recursos)",
+    "description": "Espadas de plasma, blásters, invasiones imperiales y un puesto avanzado en el desierto.",
+    "uuid": "9b869487-0dbd-4fe0-a70d-67945342dfcb",
+    "version": [
+      1,
+      0,
+      0
+    ],
+    "min_engine_version": [
+      1,
+      21,
+      100
+    ]
+  },
+  "modules": [
+    {
+      "type": "resources",
+      "uuid": "79e76708-478d-48fb-98f9-793c6e115e0f",
+      "version": [
+        1,
+        0,
+        0
+      ]
+    }
+  ]
+}

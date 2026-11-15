@@ -1,0 +1,5 @@
+{
+  "romano":  { "titulo": "Mundo Romano", "archivo": "MundoRomano", "packs": ["roma"] },
+  "galos":   { "titulo": "Aldea Gala",   "archivo": "AldeaGala",   "packs": ["roma", "galos"] },
+  "galaxia": { "titulo": "Galaxia",      "archivo": "Galaxia",     "packs": ["galaxia"] }
+}

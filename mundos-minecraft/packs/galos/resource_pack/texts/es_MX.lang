@@ -1,0 +1,5 @@
+tile.galos:menhir.name=Menhir
+entity.galos:jabali.name=Jabalí
+item.spawn_egg.entity.galos:jabali.name=Generar Jabalí
+pack.name=Aldea Gala
+pack.description=¡Por Tutatis!

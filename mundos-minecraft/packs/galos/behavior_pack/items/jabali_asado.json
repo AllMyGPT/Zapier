@@ -1,0 +1,29 @@
+{
+  "format_version": "1.21.10",
+  "minecraft:item": {
+    "description": {
+      "identifier": "galos:jabali_asado",
+      "menu_category": {
+        "category": "items"
+      }
+    },
+    "components": {
+      "minecraft:display_name": {
+        "value": "§6Jabalí Asado"
+      },
+      "minecraft:icon": "galos_jabali_asado",
+      "minecraft:max_stack_size": {
+        "value": 64
+      },
+      "minecraft:food": {
+        "nutrition": 10,
+        "saturation_modifier": 1.0
+      },
+      "minecraft:use_animation": "eat",
+      "minecraft:use_modifiers": {
+        "use_duration": 1.6,
+        "movement_modifier": 0.35
+      }
+    }
+  }
+}

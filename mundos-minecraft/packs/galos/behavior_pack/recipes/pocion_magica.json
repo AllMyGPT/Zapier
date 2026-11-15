@@ -1,0 +1,29 @@
+{
+  "format_version": "1.21.10",
+  "minecraft:recipe_shapeless": {
+    "description": {
+      "identifier": "galos:pocion_magica"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "ingredients": [
+      {
+        "item": "minecraft:glass_bottle"
+      },
+      {
+        "item": "minecraft:golden_carrot"
+      },
+      {
+        "item": "minecraft:sweet_berries"
+      },
+      {
+        "item": "minecraft:fermented_spider_eye"
+      }
+    ],
+    "result": {
+      "item": "galos:pocion_magica",
+      "count": 1
+    }
+  }
+}
