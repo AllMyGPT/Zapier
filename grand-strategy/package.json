@@ -1,0 +1,38 @@
+{
+  "name": "grand-strategy",
+  "version": "0.1.0",
+  "private": true,
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "npx serve out",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "desktop": "electron .",
+    "desktop:build:mac": "next build && electron-builder --mac"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "d3-delaunay": "^6.0.4",
+    "next": "15.5.4",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@types/d3-delaunay": "^6.0.4",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "build": {
+    "appId": "app.grandstrategy.engine",
+    "productName": "Grand Strategy Engine",
+    "files": ["out/**/*", "electron/**/*"],
+    "mac": { "category": "public.app-category.strategy-games", "target": ["dmg", "zip"] }
+  }
+}
