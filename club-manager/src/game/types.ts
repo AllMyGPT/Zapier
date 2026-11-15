@@ -103,6 +103,12 @@ export interface Training { intensity: 1 | 2 | 3; focus: 'general' | 'ataque' | 
 export interface League {
   id: string; name: string; country: string; tier: 1 | 2 | 3; clubIds: string[];
   promote: number; relegate: number; euroSpots: number;
+  euro2Spots?: number;            // places in the second continental cup (defaults to euroSpots)
+  nat?: string;                   // nationality code for generated players
+  countryName?: string;           // display name of the country
+  continent?: 'eu' | 'sa';        // which continental cups the league feeds
+  tv?: number;                    // weekly TV income of a top-flight club (base)
+  legs?: 1 | 2;                   // single round-robin for very large leagues
 }
 
 export interface Fixture {

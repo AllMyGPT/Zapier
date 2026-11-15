@@ -1,7 +1,7 @@
 import type { GameState, Player } from './types';
 import { age, ovr } from './player';
 import { inWindow } from './calendar';
-import { news, strengthOf } from './season';
+import { invalidateStrength, news, strengthOf } from './season';
 
 /** Reserve (B) team of a club, if it has one. */
 export function reserveOf(gs: GameState, clubId: string) {
@@ -11,6 +11,7 @@ export function reserveOf(gs: GameState, clubId: string) {
 export const RESERVE_MAX_AGE = 23;
 
 function dropFromLineup(gs: GameState, p: Player) {
+  invalidateStrength();
   if (!p.clubId) return;
   const c = gs.clubs[p.clubId];
   c.lineup = c.lineup.map(x => (x === p.id ? -1 : x));

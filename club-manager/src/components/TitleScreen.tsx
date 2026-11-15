@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
 import type { GameState } from '@/game/types';
+import type { RawLeague } from '@/data/types';
 import { createWorld, RAW_LEAGUES } from '@/game/data';
 import { startCareer, expectationLabel, fmtMoney, strengthOf } from '@/game/season';
 import { Crest, Stars } from './ui';
@@ -58,7 +59,7 @@ export default function TitleScreen({ onStart }: { onStart: (g: GameState) => vo
           <AuthBox onChange={reloadCloud} />
         </div>
       </div>
-      <p className="legal">Juego independiente sin afiliación con clubes, ligas ni editores. Escudos y fotos de Wikipedia/Wikimedia Commons, propiedad de sus titulares (se pueden desactivar en Partida); arte de escenarios generado; datos de jugadores aproximados (temporada 2025/26).</p>
+      <p className="legal">Juego independiente sin afiliación con clubes, ligas ni editores. Escudos y fotos de Wikipedia/Wikimedia Commons, propiedad de sus titulares (se pueden desactivar en Partida); arte de escenarios generado; plantillas y valores de mercado de Transfermarkt (temporada 2026/27), medias estimadas.</p>
     </div>
   );
 }
@@ -70,14 +71,25 @@ function NewGame({ onBack, onStart }: { onBack: () => void; onStart: (g: GameSta
   const [life, setLife] = useState(true);
   const [interest, setInterest] = useState<Interest>('mujeres');
   const [mAge, setMAge] = useState(38);
-  const world = useMemo(() => createWorld('preview', 777), []);
+  const [region, setRegion] = useState<'big' | 'Europa' | 'Sudamérica'>('big');
+  const [scope, setScope] = useState<'big' | 'eu' | 'all'>('all');
+  const [extra, setExtra] = useState<RawLeague[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { fetch('/world/leagues.json').then(r => r.ok ? r.json() : []).then(setExtra).catch(() => setExtra([])); }, []);
+  const world = useMemo(() => createWorld('preview', 777, extra ?? []), [extra]);
   const clubs = Object.values(world.clubs).filter(c => c.country === league).sort((a, b) => (world.leagues[a.leagueId].tier - world.leagues[b.leagueId].tier) || b.reputation - a.reputation);
   const sel = club ? world.clubs[club] : null;
+  const regionLeagues = (extra ?? []).filter(l => l.region === region);
   const start = () => {
-    const g = createWorld(name.trim() || 'Mister', (Date.now() % 1_000_000_007) >>> 0);
-    startCareer(g, club!);
-    if (life) initLife(g, interest, mAge);
-    onStart(g);
+    setBusy(true);
+    setTimeout(() => {
+      // the user's own league is always simulated, whatever the scope
+      const keep = (extra ?? []).filter(l => l.id === sel!.country || scope === 'all' || (scope === 'eu' && (l.continent ?? 'eu') === 'eu'));
+      const g = createWorld(name.trim() || 'Mister', (Date.now() % 1_000_000_007) >>> 0, keep);
+      startCareer(g, club!);
+      if (life) initLife(g, interest, mAge);
+      onStart(g);
+    }, 30);
   };
   return (
     <div className="title-screen" style={{ alignItems: 'flex-start' }}>
@@ -89,8 +101,12 @@ function NewGame({ onBack, onStart }: { onBack: () => void; onStart: (g: GameSta
           <div className="panel">
             <div className="row wrap" style={{ marginBottom: 12 }}>
               <input type="text" placeholder="Tu nombre de mánager" value={name} onChange={e => setName(e.target.value)} style={{ width: 240 }} maxLength={30} />
-              <div className="seg">{RAW_LEAGUES.map(l => <button key={l.id} className={league === l.id ? 'on' : ''} onClick={() => { setLeague(l.id); setClub(null); }}>{l.country}</button>)}</div>
+              <div className="seg">{([['big', 'Grandes ligas'], ['Europa', 'Resto de Europa'], ['Sudamérica', 'Sudamérica']] as const).map(([k, t]) => <button key={k} className={region === k ? 'on' : ''} disabled={k !== 'big' && !extra?.length} onClick={() => { setRegion(k); setClub(null); setLeague(k === 'big' ? 'esp' : (extra ?? []).find(l => l.region === k)?.id ?? 'esp'); }}>{t}</button>)}</div>
+              {region === 'big'
+                ? <div className="seg">{RAW_LEAGUES.map(l => <button key={l.id} className={league === l.id ? 'on' : ''} onClick={() => { setLeague(l.id); setClub(null); }}>{l.country}</button>)}</div>
+                : <select value={league} onChange={e => { setLeague(e.target.value); setClub(null); }}>{regionLeagues.map(l => <option key={l.id} value={l.id}>{l.country} · {l.name}</option>)}</select>}
             </div>
+            {extra === null && <div className="small muted" style={{ marginBottom: 8 }}>Cargando ligas de Europa y Sudamérica…</div>}
             {Object.values(world.leagues).filter(l => l.country === league).sort((a, b) => a.tier - b.tier || a.id.localeCompare(b.id)).map(l => (
               <div key={l.id} style={{ marginBottom: 12 }}>
                 <h3>{l.name}</h3>
@@ -125,7 +141,12 @@ function NewGame({ onBack, onStart }: { onBack: () => void; onStart: (g: GameSta
                     <span className="small">Edad:</span><input type="number" min={28} max={65} value={mAge} onChange={e => setMAge(Math.max(28, Math.min(65, +e.target.value)))} style={{ width: 64 }} />
                   </div>}
                 </div>
-                <button className="btn primary big" style={{ marginTop: 12 }} onClick={start}>Firmar contrato</button>
+                {!!extra?.length && <div className="life-opt">
+                  <b>Ligas simuladas</b>
+                  <div className="seg" style={{ marginTop: 6 }}>{([['big', '5 grandes'], ['eu', 'Toda Europa'], ['all', 'Europa y Sudamérica']] as const).map(([k, t]) => <button key={k} className={scope === k ? 'on' : ''} onClick={() => setScope(k)}>{t}</button>)}</div>
+                  <div className="small muted">Más ligas = más mercado y más rivales, pero los días avanzan algo más despacio. Tu liga siempre se incluye.</div>
+                </div>}
+                <button className="btn primary big" style={{ marginTop: 12 }} onClick={start} disabled={busy}>{busy ? 'Creando el mundo…' : 'Firmar contrato'}</button>
               </div>
             ) : <div className="empty">Elige un club para ver los detalles.</div>}
           </div>

@@ -11,7 +11,8 @@ real squad; brand-new clubs take their metadata from NEW.
 Ratings follow scripts/build-laliga.py: known players keep their rating nudged
 toward what their value suggests (fit per league), new ones are estimated.
 """
-import json, math, re, subprocess, sys, glob
+import json, math, re, subprocess, sys, glob, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 SRC = sys.argv[1]
 SEASON = 2026
@@ -39,22 +40,8 @@ NEW = {
 }
 PROMOTED_BUDGET = {'eng': 30, 'ger': 10, 'ita': 10, 'fra': 6}
 
-NAT = {'España': 'ESP', 'Francia': 'FRA', 'Alemania': 'GER', 'Italia': 'ITA', 'Inglaterra': 'ENG', 'Portugal': 'POR', 'Países Bajos': 'NED', 'Bélgica': 'BEL',
-  'Brasil': 'BRA', 'Argentina': 'ARG', 'Uruguay': 'URU', 'Croacia': 'CRO', 'Colombia': 'COL', 'Marruecos': 'MAR', 'Senegal': 'SEN', 'Noruega': 'NOR',
-  'Dinamarca': 'DEN', 'Suiza': 'SUI', 'Estados Unidos': 'USA', 'Japón': 'JPN', 'Polonia': 'POL', 'Austria': 'AUT', 'Turquía': 'TUR', 'Serbia': 'SRB',
-  'Ucrania': 'UKR', 'Escocia': 'SCO', 'Gales': 'WAL', 'Nigeria': 'NGA', 'Ghana': 'GHA', 'Costa de Marfil': 'CIV', 'Egipto': 'EGY', 'Argelia': 'ALG',
-  'Camerún': 'CMR', 'México': 'MEX', 'Ecuador': 'ECU', 'Chile': 'CHI', 'Corea del Sur': 'KOR', 'Suecia': 'SWE', 'República Checa': 'CZE', 'Georgia': 'GEO',
-  'Rumania': 'ROU', 'Guinea': 'GUI', 'Venezuela': 'VEN', 'Paraguay': 'PAR', 'Perú': 'PER', 'Eslovenia': 'SVN', 'Eslovaquia': 'SVK', 'Grecia': 'GRE',
-  'Hungría': 'HUN', 'Mali': 'MLI', 'Malí': 'MLI', 'Túnez': 'TUN', 'Canadá': 'CAN', 'Irlanda': 'IRL', 'Bosnia-Herzegovina': 'BIH', 'Bosnia y Herzegovina': 'BIH',
-  'Montenegro': 'MNE', 'Albania': 'ALB', 'Kosovo': 'KVX', 'Islandia': 'ISL', 'Finlandia': 'FIN', 'Rusia': 'RUS', 'Israel': 'ISR', 'Gabón': 'GAB',
-  'Guinea Ecuatorial': 'EQG', 'Cabo Verde': 'CPV', 'Angola': 'ANG', 'RD del Congo': 'COD', 'Burkina Faso': 'BFA', 'Níger': 'NIG', 'Gambia': 'GAM',
-  'Togo': 'TOG', 'Benín': 'BEN', 'Uzbekistán': 'UZB', 'Australia': 'AUS', 'Jamaica': 'JAM', 'Honduras': 'HON', 'Costa Rica': 'CRC', 'Panamá': 'PAN',
-  'Bolivia': 'BOL', 'Armenia': 'ARM', 'Macedonia del Norte': 'MKD', 'Bulgaria': 'BUL', 'República Dominicana': 'DOM', 'Mozambique': 'MOZ',
-  'Sudáfrica': 'RSA', 'Zambia': 'ZAM', 'Guinea-Bissau': 'GNB', 'Guinea-Bisáu': 'GNB', 'Lituania': 'LTU', 'Letonia': 'LVA', 'Luxemburgo': 'LUX',
-  'Chipre': 'CYP', 'Irán': 'IRN', 'Haití': 'HAI', 'Curazao': 'CUW', 'Surinam': 'SUR', 'Estonia': 'EST', 'Irlanda del Norte': 'NIR',
-  'República Centroafricana': 'CTA', 'Mauritania': 'MTN', 'Martinica': 'FRA', 'Guadalupe': 'FRA', 'Indonesia': 'IDN', 'Comoras': 'COM', 'Congo': 'CGO',
-  'Tanzania': 'TAN', 'Tailandia': 'THA', 'Sierra Leona': 'SLE', 'Nueva Zelanda': 'NZL', 'Jordania': 'JOR', 'Filipinas': 'PHI', 'China': 'CHN',
-  'Burundi': 'BDI', 'Arabia Saudita': 'KSA', 'Guayana Francesa': 'FRA'}
+from tm_common import NAT
+
 
 def yy(s, default):
     s = s.strip()

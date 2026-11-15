@@ -1,0 +1,33 @@
+"""Shared tables for the Transfermarkt import scripts."""
+NAT = {'España': 'ESP', 'Francia': 'FRA', 'Alemania': 'GER', 'Italia': 'ITA', 'Inglaterra': 'ENG', 'Portugal': 'POR', 'Países Bajos': 'NED', 'Bélgica': 'BEL',
+  'Brasil': 'BRA', 'Argentina': 'ARG', 'Uruguay': 'URU', 'Croacia': 'CRO', 'Colombia': 'COL', 'Marruecos': 'MAR', 'Senegal': 'SEN', 'Noruega': 'NOR',
+  'Dinamarca': 'DEN', 'Suiza': 'SUI', 'Estados Unidos': 'USA', 'Japón': 'JPN', 'Polonia': 'POL', 'Austria': 'AUT', 'Turquía': 'TUR', 'Serbia': 'SRB',
+  'Ucrania': 'UKR', 'Escocia': 'SCO', 'Gales': 'WAL', 'Nigeria': 'NGA', 'Ghana': 'GHA', 'Costa de Marfil': 'CIV', 'Egipto': 'EGY', 'Argelia': 'ALG',
+  'Camerún': 'CMR', 'México': 'MEX', 'Ecuador': 'ECU', 'Chile': 'CHI', 'Corea del Sur': 'KOR', 'Suecia': 'SWE', 'República Checa': 'CZE', 'Georgia': 'GEO',
+  'Rumania': 'ROU', 'Guinea': 'GUI', 'Venezuela': 'VEN', 'Paraguay': 'PAR', 'Perú': 'PER', 'Eslovenia': 'SVN', 'Eslovaquia': 'SVK', 'Grecia': 'GRE',
+  'Hungría': 'HUN', 'Mali': 'MLI', 'Malí': 'MLI', 'Túnez': 'TUN', 'Canadá': 'CAN', 'Irlanda': 'IRL', 'Bosnia-Herzegovina': 'BIH', 'Bosnia y Herzegovina': 'BIH',
+  'Montenegro': 'MNE', 'Albania': 'ALB', 'Kosovo': 'KVX', 'Islandia': 'ISL', 'Finlandia': 'FIN', 'Rusia': 'RUS', 'Israel': 'ISR', 'Gabón': 'GAB',
+  'Guinea Ecuatorial': 'EQG', 'Cabo Verde': 'CPV', 'Angola': 'ANG', 'RD del Congo': 'COD', 'Burkina Faso': 'BFA', 'Níger': 'NIG', 'Gambia': 'GAM',
+  'Togo': 'TOG', 'Benín': 'BEN', 'Uzbekistán': 'UZB', 'Australia': 'AUS', 'Jamaica': 'JAM', 'Honduras': 'HON', 'Costa Rica': 'CRC', 'Panamá': 'PAN',
+  'Bolivia': 'BOL', 'Armenia': 'ARM', 'Macedonia del Norte': 'MKD', 'Bulgaria': 'BUL', 'República Dominicana': 'DOM', 'Mozambique': 'MOZ',
+  'Sudáfrica': 'RSA', 'Zambia': 'ZAM', 'Guinea-Bissau': 'GNB', 'Guinea-Bisáu': 'GNB', 'Lituania': 'LTU', 'Letonia': 'LVA', 'Luxemburgo': 'LUX',
+  'Chipre': 'CYP', 'Irán': 'IRN', 'Haití': 'HAI', 'Curazao': 'CUW', 'Surinam': 'SUR', 'Estonia': 'EST', 'Irlanda del Norte': 'NIR',
+  'República Centroafricana': 'CTA', 'Mauritania': 'MTN', 'Martinica': 'FRA', 'Guadalupe': 'FRA', 'Indonesia': 'IDN', 'Comoras': 'COM', 'Congo': 'CGO',
+  'Tanzania': 'TAN', 'Tailandia': 'THA', 'Sierra Leona': 'SLE', 'Nueva Zelanda': 'NZL', 'Jordania': 'JOR', 'Filipinas': 'PHI', 'China': 'CHN',
+  'Burundi': 'BDI', 'Arabia Saudita': 'KSA', 'Guayana Francesa': 'FRA'}
+
+NAT.update({'Malta': 'MLT', 'Andorra': 'AND', 'San Marino': 'SMR', 'Gibraltar': 'GIB', 'Islas Feroe': 'FRO', 'Kirguistán': 'KGZ', 'Tayikistán': 'TJK',
+  'Turkmenistán': 'TKM', 'Afganistán': 'AFG', 'Irak': 'IRQ', 'Siria': 'SYR', 'Líbano': 'LBN', 'Palestina': 'PLE', 'Libia': 'LBY', 'Sudán': 'SDN',
+  'Sudán del Sur': 'SSD', 'Etiopía': 'ETH', 'Kenia': 'KEN', 'Uganda': 'UGA', 'Ruanda': 'RWA', 'Madagascar': 'MAD', 'Zimbabue': 'ZIM', 'Namibia': 'NAM',
+  'Botsuana': 'BOT', 'Malaui': 'MWI', 'Liberia': 'LBR', 'Santo Tomé y Príncipe': 'STP', 'Chad': 'CHA', 'Eritrea': 'ERI', 'Somalia': 'SOM', 'Yibuti': 'DJI',
+  'Islas Comoras': 'COM', 'Guinea-Bisáu': 'GNB', 'Trinidad y Tobago': 'TRI', 'Guatemala': 'GUA', 'El Salvador': 'SLV', 'Nicaragua': 'NCA', 'Cuba': 'CUB',
+  'Puerto Rico': 'PUR', 'Granada': 'GRN', 'Barbados': 'BRB', 'Bermudas': 'BER', 'Guyana': 'GUY', 'Aruba': 'ARU', 'San Cristóbal y Nieves': 'SKN',
+  'Santa Lucía': 'LCA', 'Antigua y Barbuda': 'ATG', 'Bahamas': 'BAH', 'Belice': 'BLZ', 'Vietnam': 'VIE', 'India': 'IND', 'Pakistán': 'PAK',
+  'Malasia': 'MAS', 'Singapur': 'SIN', 'Hong Kong': 'HKG', 'Taiwán': 'TPE', 'Corea del Norte': 'PRK', 'Mongolia': 'MNG', 'Catar': 'QAT', 'Kuwait': 'KUW',
+  'Baréin': 'BHR', 'Omán': 'OMA', 'Emiratos Árabes Unidos': 'UAE', 'Yemen': 'YEM', 'Nueva Caledonia': 'NCL', 'Tahití': 'TAH', 'Fiyi': 'FIJ',
+  'Papúa Nueva Guinea': 'PNG', 'Reunión': 'FRA', 'Mayotte': 'FRA', 'Saint-Martin': 'FRA', 'Sint Maarten': 'NED', 'Bonaire': 'NED', 'Inglaterra ': 'ENG',
+  'Escocia ': 'SCO', 'Islas Vírgenes Estadounidenses': 'VIR', 'Islas Caimán': 'CAY', 'Montserrat': 'MSR', 'Liechtenstein': 'LIE', 'Mónaco': 'MON',
+  'Kosovo ': 'KVX', 'Gambia ': 'GAM', 'Corea, Sur': 'KOR', 'Sri Lanka': 'SRI', 'Bangladés': 'BAN', 'Nepal': 'NEP', 'Camboya': 'CAM', 'Laos': 'LAO',
+  'Myanmar': 'MYA', 'Brunéi': 'BRU', 'Timor Oriental': 'TLS', 'Islas Salomón': 'SOL', 'Vanuatu': 'VAN', 'Samoa': 'SAM', 'Tonga': 'TGA',
+  'Esuatini': 'SWZ', 'Lesoto': 'LES', 'Seychelles': 'SEY', 'Mauricio': 'MRI', 'República del Congo': 'CGO', 'Guinea Francesa': 'FRA'})
+NAT.update({'Azerbaiyán': 'AZE', 'Moldavia': 'MDA', 'Bielorrusia': 'BLR', 'Kazajistán': 'KAZ'})

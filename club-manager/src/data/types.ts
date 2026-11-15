@@ -29,6 +29,11 @@ export interface RawLeague {
   tier2: RawLowerClub[];
   // Optional third tier split in groups (e.g. Primera Federación); squads are generated procedurally
   tier3?: { name: string; groups: { name: string; clubs: RawLowerClub[] }[] };
+  continent?: 'eu' | 'sa';  // default 'eu'
+  euro?: [number, number];  // places in the first and second continental cups
+  tv?: number;              // weekly TV income base for top-flight clubs (€)
+  cup?: string;             // name of the domestic cup
+  region?: string;          // grouping for the club picker (e.g. 'Europa', 'Sudamérica')
 }
 
 export type RawLowerClub = { id: string; name: string; short: string; city: string; stadium: string; capacity: number; colors: [string, string]; reputation: number; parent?: string };

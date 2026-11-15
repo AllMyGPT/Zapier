@@ -8,11 +8,24 @@ import type { Club, GameState, League, Player, Pos } from './types';
 import { Rng, hashStr } from './rng';
 import { emptyStats, fairWage, genAttrs, modelValue } from './player';
 import { genName, FOREIGN_NATS, SPONSORS } from './names';
-import { autoPick } from './lineup';
+import { autoPick, clubPlayers, withPlayerIndex } from './lineup';
 
 export const RAW_LEAGUES: RawLeague[] = [ESP, ENG, ITA, GER, FRA];
 export const EURO_SPOTS: Record<string, number> = { esp: 7, eng: 7, ita: 6, ger: 6, fra: 6 };
 export const TV_WEEKLY: Record<string, number> = { esp: 1_400_000, eng: 2_600_000, ita: 1_100_000, ger: 1_100_000, fra: 800_000 };
+/** Continental places of the big five when the rest of Europe is in the world too. */
+export const EURO_SPOTS_WIDE: Record<string, [number, number]> = { eng: [5, 2], esp: [5, 2], ita: [4, 2], ger: [4, 2], fra: [3, 2] };
+
+/** Nationality code used for generated players of a country (works with old saves too). */
+export function natOf(gs: GameState, country: string): string {
+  for (const l of Object.values(gs.leagues)) if (l.country === country && l.nat) return l.nat;
+  return RAW_LEAGUES.find(l => l.id === country)?.nat ?? 'ESP';
+}
+/** Weekly TV base of a country's top flight. */
+export function tvOf(gs: GameState, country: string): number {
+  for (const l of Object.values(gs.leagues)) if (l.country === country && l.tier === 1 && l.tv) return l.tv;
+  return TV_WEEKLY[country] ?? 150_000;
+}
 export const START_SEASON = 2026;
 const POSITIONS: Pos[] = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'];
 
@@ -65,7 +78,7 @@ export function genSquad(gs: GameState, rng: Rng, club: Club, nat: string, level
 }
 
 export function assignNumbers(gs: GameState, clubId: string) {
-  const ps = Object.values(gs.players).filter(p => p.clubId === clubId && !p.youth);
+  const ps = clubPlayers(gs, clubId);
   const used = new Set<number>();
   const pref: Record<Pos, number[]> = { GK: [1, 13, 25, 31], CB: [4, 5, 3, 15, 24], LB: [3, 12, 18], RB: [2, 22, 20], DM: [6, 16, 14], CM: [8, 6, 14, 16], AM: [10, 8, 21], LW: [11, 7, 17], RW: [7, 11, 19], ST: [9, 19, 23, 29] };
   ps.sort((a, b) => b.attrs.sho + b.attrs.pas - a.attrs.sho - a.attrs.pas);
@@ -77,16 +90,22 @@ export function assignNumbers(gs: GameState, clubId: string) {
   }
 }
 
-export function createWorld(managerName: string, seed = Date.now() % 1e9): GameState {
+export function createWorld(managerName: string, seed = Date.now() % 1e9, extra: RawLeague[] = []): GameState {
   const rng = new Rng(seed);
   const gs: GameState = {
     version: 1, seed, manager: { name: managerName, clubId: '', reputation: 50, board: 60, history: [] },
     season: START_SEASON, day: 0, seasonStartDay: 0, players: {}, clubs: {}, leagues: {}, fixtures: [], cups: {}, news: [], offers: [], shortlist: [], finance: [], nextId: 1, trophies: [],
   };
-  for (const L of RAW_LEAGUES) {
-    const l1: League = { id: L.id + '1', name: L.name, country: L.id, tier: 1, clubIds: [], promote: 0, relegate: 3, euroSpots: EURO_SPOTS[L.id] };
-    const l2: League = { id: L.id + '2', name: L.tier2Name, country: L.id, tier: 2, clubIds: [], promote: 3, relegate: 0, euroSpots: 0 };
-    gs.leagues[l1.id] = l1; gs.leagues[l2.id] = l2;
+  const wideEurope = extra.some(l => (l.continent ?? 'eu') === 'eu');
+  for (const L of [...RAW_LEAGUES, ...extra]) {
+    const spots: [number, number] = L.euro ?? (wideEurope ? EURO_SPOTS_WIDE[L.id] : undefined) ?? [EURO_SPOTS[L.id] ?? 0, EURO_SPOTS[L.id] ?? 0];
+    const l1: League = {
+      id: L.id + '1', name: L.name, country: L.id, tier: 1, clubIds: [], promote: 0, relegate: L.tier2.length ? 3 : 0,
+      euroSpots: spots[0], euro2Spots: spots[1], nat: L.nat, countryName: L.country, continent: L.continent ?? 'eu',
+      tv: L.tv ?? TV_WEEKLY[L.id], legs: L.clubs.length > 24 ? 1 : 2,
+    };
+    const l2: League = { id: L.id + '2', name: L.tier2Name, country: L.id, tier: 2, clubIds: [], promote: 3, relegate: 0, euroSpots: 0, nat: L.nat, countryName: L.country, continent: L.continent ?? 'eu' };
+    gs.leagues[l1.id] = l1; if (L.tier2.length) gs.leagues[l2.id] = l2;
     for (const rc of L.clubs) {
       const club = newClub(rc, l1.id, L.id, rc.budget, rng);
       gs.clubs[club.id] = club; l1.clubIds.push(club.id);
@@ -107,7 +126,7 @@ export function createWorld(managerName: string, seed = Date.now() % 1e9): GameS
     if (L.tier3) {
       l2.relegate = 4; // Segunda sends four down when there is a third tier
       L.tier3.groups.forEach((g, gi) => {
-        const l3: League = { id: L.id + '3' + 'abcdefgh'[gi], name: `${L.tier3!.name} · ${g.name}`, country: L.id, tier: 3, clubIds: [], promote: 2, relegate: 0, euroSpots: 0 };
+        const l3: League = { id: L.id + '3' + 'abcdefgh'[gi], name: `${L.tier3!.name} · ${g.name}`, country: L.id, tier: 3, clubIds: [], promote: 2, relegate: 0, euroSpots: 0, nat: L.nat, countryName: L.country, continent: L.continent ?? 'eu' };
         gs.leagues[l3.id] = l3;
         for (const rc of g.clubs) {
           const club = newClub(rc, l3.id, L.id, 0.5 + rc.reputation / 40, rng);
@@ -123,12 +142,13 @@ export function createWorld(managerName: string, seed = Date.now() % 1e9): GameS
     const age = rng.int(19, 33);
     makePlayer(gs, rng, { name: genName(['ESP', 'ENG', 'ITA', 'GER', 'FRA'].includes(nat) ? nat : rng.pick(['ESP', 'FRA', 'ITA']), rng), pos: rng.pick(POSITIONS), born: gs.season - age, nat, ovr: rng.int(55, 70), pot: rng.int(60, 74), clubId: null, rep: 60, generated: true });
   }
-  for (const c of Object.values(gs.clubs)) {
-    assignNumbers(gs, c.id);
-    const ps = Object.values(gs.players).filter(p => p.clubId === c.id);
-    const pick = autoPick(ps, c.tactics.formation);
-    c.lineup = pick.lineup; c.bench = pick.bench;
-  }
+  withPlayerIndex(gs, () => {
+    for (const c of Object.values(gs.clubs)) {
+      assignNumbers(gs, c.id);
+      const pick = autoPick(clubPlayers(gs, c.id, true), c.tactics.formation);
+      c.lineup = pick.lineup; c.bench = pick.bench;
+    }
+  });
   return gs;
 }
 

@@ -3,7 +3,7 @@ import { Rng } from './rng';
 import { age, fairWage, marketValue, ovr, roundMoney } from './player';
 import { clubPlayers } from './lineup';
 import { inWindow } from './calendar';
-import { fmtMoney, money, news, strengthOf } from './season';
+import { fmtMoney, invalidateStrength, money, news, strengthOf } from './season';
 
 export function askingPrice(gs: GameState, p: Player): number {
   const v = marketValue(p, gs.season);
@@ -126,6 +126,7 @@ export function acceptIncoming(gs: GameState, offerId: number): string {
 export function rejectIncoming(gs: GameState, offerId: number) { const o = gs.offers.find(x => x.id === offerId); if (o) o.status = 'rejected'; }
 
 export function transferPlayer(gs: GameState, p: Player, toClub: string, fee: number) {
+  invalidateStrength();
   const from = p.clubId;
   if (from) { money(gs, from, fee, `Venta de ${p.name}`); const fc = gs.clubs[from]; fc.lineup = fc.lineup.map(x => x === p.id ? -1 : x); fc.bench = fc.bench.filter(x => x !== p.id); }
   money(gs, toClub, -fee, `Fichaje de ${p.name}`);

@@ -26,6 +26,21 @@ function meta(gs: GameState, slot: number, where: 'local' | 'cloud'): SaveMeta {
 }
 
 const LKEY = (slot: number) => `pizarra-save-${slot}`;
+
+// Saves live in IndexedDB (big worlds do not fit in localStorage's ~5 MB); old localStorage saves are still read.
+function idb(): Promise<IDBDatabase | null> {
+  return new Promise(res => {
+    try {
+      const req = indexedDB.open('pizarra', 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('saves');
+      req.onsuccess = () => res(req.result); req.onerror = () => res(null);
+    } catch { res(null); }
+  });
+}
+async function idbDo<T>(mode: IDBTransactionMode, fn: (st: IDBObjectStore) => IDBRequest<T>): Promise<T | undefined> {
+  const db = await idb(); if (!db) throw new Error('no idb');
+  return new Promise((res, rej) => { const tx = db.transaction('saves', mode); const r = fn(tx.objectStore('saves')); tx.oncomplete = () => res(r.result); tx.onerror = () => rej(tx.error); });
+}
 const MKEY = 'pizarra-saves-meta';
 
 export function localList(): SaveMeta[] {
@@ -34,16 +49,23 @@ export function localList(): SaveMeta[] {
 export async function saveLocal(gs: GameState, slot: number) {
   const data = await gzip(JSON.stringify(gs));
   try {
-    localStorage.setItem(LKEY(slot), data);
+    try { await idbDo('readwrite', st => st.put(data, LKEY(slot))); try { localStorage.removeItem(LKEY(slot)); } catch { /* ignore */ } }
+    catch { localStorage.setItem(LKEY(slot), data); }
     const list = localList().filter(m => m.slot !== slot); list.push(meta(gs, slot, 'local'));
     localStorage.setItem(MKEY, JSON.stringify(list));
     return true;
   } catch { return false; }
 }
 export async function loadLocal(slot: number): Promise<GameState | null> {
-  try { const d = localStorage.getItem(LKEY(slot)); return d ? JSON.parse(await gunzip(d)) : null; } catch { return null; }
+  try {
+    let d: string | null | undefined = null;
+    try { d = await idbDo<string>('readonly', st => st.get(LKEY(slot))); } catch { /* no idb */ }
+    d = d ?? localStorage.getItem(LKEY(slot));
+    return d ? JSON.parse(await gunzip(d)) : null;
+  } catch { return null; }
 }
 export function deleteLocal(slot: number) {
+  idbDo('readwrite', st => st.delete(LKEY(slot))).catch(() => undefined);
   try { localStorage.removeItem(LKEY(slot)); localStorage.setItem(MKEY, JSON.stringify(localList().filter(m => m.slot !== slot))); } catch { /* ignore */ }
 }
 

@@ -50,33 +50,37 @@ function scheduleEuro(gs: GameState, rng: Rng, id: string, teams: string[], offs
 
 export function addFixture(gs: GameState, f: Omit<Fixture, 'id'>) { const fx = { ...f, id: gs.nextId++ } as Fixture; gs.fixtures.push(fx); return fx; }
 
-export const EURO_NAMES: Record<string, string> = { euro: 'Copa de Campeones', euro2: 'Copa Continental' };
-export const EURO_DAY_OFFSET: Record<string, number> = { euro: 0, euro2: 2 }; // +2 keeps clear of domestic cup days
-export const isEuro = (comp: string) => comp === 'euro' || comp === 'euro2';
+export const EURO_NAMES: Record<string, string> = { euro: 'Copa de Campeones', euro2: 'Copa Continental', sud: 'Copa de Campeones de América' };
+export const EURO_DAY_OFFSET: Record<string, number> = { euro: 0, euro2: 2, sud: 2 }; // sud never shares clubs with euro2 // +2 keeps clear of domestic cup days
+export const isEuro = (comp: string) => comp === 'euro' || comp === 'euro2' || comp === 'sud';
 
-export function scheduleSeason(gs: GameState, rng: Rng, euroTeams: string[], euro2Teams: string[] = []) {
+export function scheduleSeason(gs: GameState, rng: Rng, euroTeams: string[], euro2Teams: string[] = [], sudTeams: string[] = []) {
   gs.fixtures = [];
   gs.cups = {};
   for (const L of Object.values(gs.leagues)) {
-    const rounds = roundRobin(L.clubIds, rng);
+    const rr = roundRobin(L.clubIds, rng);
+    const rounds = L.legs === 1 ? rr.slice(0, rr.length / 2) : rr;
     const gap = Math.min(14, (SEASON_END_DAY - 14 - LEAGUE_START) / rounds.length);
     const day = (r: number) => (L.tier === 1 ? leagueDay(r) : rounds.length <= 18 ? T2_DAY(r) : LEAGUE_START + Math.round(r * gap) + L.tier - 1);
     rounds.forEach((rd, r) => rd.forEach(([h, a]) => addFixture(gs, { comp: L.id, round: r + 1, date: day(r), home: h, away: a })));
   }
   // domestic cups
-  for (const country of ['esp', 'eng', 'ita', 'ger', 'fra']) {
+  const countries = [...new Set(Object.values(gs.leagues).map(l => l.country))];
+  for (const country of countries) {
     // up to 32 entrants: the whole top flight plus a random draw from the lower tiers
     const ls = Object.values(gs.leagues).filter(l => l.country === country);
+    if (ls.reduce((a, l) => a + l.clubIds.length, 0) < 16) continue; // too small for a 16-team knockout
     const top = ls.filter(l => l.tier === 1).flatMap(l => l.clubIds);
     const rest = rng.shuffle(ls.filter(l => l.tier > 1).flatMap(l => l.clubIds));
     const ids = [...top, ...rest].slice(0, 32);
     const id = 'cup_' + country;
-    gs.cups[id] = { id, name: CUP_NAME[country], country, stage: 0, rounds: CUP_ROUNDS, alive: ids.slice() };
+    gs.cups[id] = { id, name: CUP_NAME[country] ?? `Copa de ${ls[0].countryName ?? country}`, country, stage: 0, rounds: CUP_ROUNDS, alive: ids.slice() };
     drawCupRound(gs, rng, id);
   }
   // european cups: Copa de Campeones and, two days later in the week, Copa Continental
   scheduleEuro(gs, rng, 'euro', euroTeams, 0);
   if (euro2Teams.length >= 32) scheduleEuro(gs, rng, 'euro2', euro2Teams.slice(0, 32), EURO_DAY_OFFSET.euro2);
+  if (sudTeams.length >= 32) scheduleEuro(gs, rng, 'sud', sudTeams.slice(0, 32), EURO_DAY_OFFSET.sud);
 }
 
 export const CUP_NAME: Record<string, string> = { esp: 'Copa Nacional (ESP)', eng: 'Copa Inglesa', ita: 'Copa Italiana', ger: 'Copa Alemana', fra: 'Copa Francesa' };

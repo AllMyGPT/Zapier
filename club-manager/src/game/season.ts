@@ -4,7 +4,7 @@ import { createMatch, runToEnd, type Match } from './engine';
 import { autoPick, clubPlayers, ensureLineup, withPlayerIndex } from './lineup';
 import { CUP_DAYS, EURO_FINAL_DAY, EURO_GROUP_DAYS, EURO_KO_DAYS, EURO_DAY_OFFSET, isEuro, SEASON_END_DAY, addFixture, compName, drawCupRound, inWindow, scheduleSeason, seasonLabel, table, WINDOWS } from './calendar';
 import { age, emptyStats, fairWage, marketValue, ovr, ratingAt, ATTR_KEYS, WEIGHTS } from './player';
-import { TV_WEEKLY, assignNumbers, genSquad, makePlayer, RAW_LEAGUES } from './data';
+import { assignNumbers, genSquad, makePlayer, natOf, tvOf } from './data';
 import { genName, FOREIGN_NATS, SPONSORS } from './names';
 import { aiTransfers, incomingOffers } from './market';
 import { weeklyEvents, internationalBreak } from './events';
@@ -22,12 +22,32 @@ export function money(gs: GameState, clubId: string, amount: number, label: stri
   if (clubId === gs.manager.clubId) { gs.finance.push({ date: gs.day + gs.season * 1000, label, amount }); if (gs.finance.length > 600) gs.finance.splice(0, gs.finance.length - 600); }
 }
 
-/** Euro participants for the very first season: by reputation within each league */
-export function initialEuroTeams(gs: GameState, second = false) {
-  const out: string[] = [];
-  for (const L of Object.values(gs.leagues)) if (L.tier === 1) out.push(...L.clubIds.slice().sort((a, b) => gs.clubs[b].reputation - gs.clubs[a].reputation).slice(second ? L.euroSpots : 0, second ? L.euroSpots * 2 : L.euroSpots));
-  return out;
+/** Continental cups: which continent feeds them and whether they take the places after the first cup's. */
+export const CONT_CUPS: { id: string; continent: 'eu' | 'sa'; second: boolean }[] = [
+  { id: 'euro', continent: 'eu', second: false }, { id: 'euro2', continent: 'eu', second: true }, { id: 'sud', continent: 'sa', second: false },
+];
+/** The 32 entrants of a continental cup: league places from final standings (or reputation in the first
+ *  season), trimmed or topped up by reputation. Empty when the continent has too few clubs in this world. */
+export function continentalTeams(gs: GameState, cupId: string, standings?: Record<string, string[]>): string[] {
+  const cup = CONT_CUPS.find(c => c.id === cupId)!;
+  const rep = (id: string) => gs.clubs[id].reputation;
+  const tops = Object.values(gs.leagues).filter(l => l.tier === 1 && (l.continent ?? 'eu') === cup.continent);
+  const taken = new Set(cup.second ? CONT_CUPS.filter(c => c.continent === cup.continent && !c.second).flatMap(c => continentalTeams(gs, c.id, standings)) : []);
+  const picked: string[] = [];
+  for (const L of tops) {
+    const order = standings?.[L.id] ?? L.clubIds.slice().sort((a, b) => rep(b) - rep(a));
+    const from = cup.second ? L.euroSpots : 0, n = cup.second ? (L.euro2Spots ?? L.euroSpots) : L.euroSpots;
+    picked.push(...order.slice(from, from + n));
+  }
+  let out = [...new Set(picked)].filter(id => !taken.has(id));
+  if (out.length > 32) out = out.sort((a, b) => rep(b) - rep(a)).slice(0, 32);
+  if (out.length < 32) {
+    const pool = tops.flatMap(l => l.clubIds).filter(id => !out.includes(id) && !taken.has(id)).sort((a, b) => rep(b) - rep(a));
+    out.push(...pool.slice(0, 32 - out.length));
+  }
+  return out.length === 32 ? out : [];
 }
+const continental = (gs: GameState, standings?: Record<string, string[]>) => CONT_CUPS.map(c => continentalTeams(gs, c.id, standings)) as [string[], string[], string[]];
 
 /** Same-city clubs in the same country play a derby. */
 export function isDerby(gs: GameState, a: string, b: string) {
@@ -71,7 +91,7 @@ export function startCareer(gs: GameState, clubId: string) {
   const c = gs.clubs[clubId];
   gs.manager.reputation = Math.max(35, c.reputation - 15);
   gs.manager.board = 65;
-  scheduleSeason(gs, rngFor(gs, 'sched'), initialEuroTeams(gs), initialEuroTeams(gs, true));
+  scheduleSeason(gs, rngFor(gs, 'sched'), ...continental(gs));
   youthIntake(gs, c, rngFor(gs, 'youth'));
   setObjectives(gs);
   news(gs, 'board', `Bienvenido a ${c.name}`, `La directiva te da la bienvenida como nuevo entrenador. Objetivo de la temporada: ${expectationLabel(gs, clubId)}. Presupuesto de fichajes: ${fmtMoney(c.transferBudget)}.`);
@@ -86,6 +106,7 @@ export function fmtMoney(v: number) {
 }
 
 export function expectedPos(gs: GameState, clubId: string) {
+  // strengthOf is cached per day, so this is cheap
   const L = gs.leagues[gs.clubs[clubId].leagueId];
   const st = new Map(L.clubIds.map(id => [id, strengthOf(gs, id)] as const)); // compute once, not per comparison
   const sorted = L.clubIds.slice().sort((a, b) => st.get(b)! - st.get(a)!);
@@ -101,9 +122,20 @@ export function expectationLabel(gs: GameState, clubId: string) {
   if (e <= L.clubIds.length - 6) return 'quedar en mitad de tabla';
   return 'evitar el descenso';
 }
+/** Squad strength (mean of the best 14). Cached for the whole game day and computed for every club in one
+ *  pass, because AI heuristics ask for it thousands of times; transfers call invalidateStrength(). */
+let sCache: { gs: GameState; key: string; m: Map<string, number> } | null = null;
+export function invalidateStrength() { sCache = null; }
 export function strengthOf(gs: GameState, clubId: string) {
-  const ps = clubPlayers(gs, clubId).map(ovr).sort((a, b) => b - a).slice(0, 14);
-  return ps.reduce((a, b) => a + b, 0) / (ps.length || 1);
+  const key = `${gs.season}:${gs.day}`;
+  if (!sCache || sCache.gs !== gs || sCache.key !== key) {
+    const by = new Map<string, number[]>();
+    for (const id in gs.players) { const p = gs.players[id]; if (!p.clubId || p.youth) continue; let a = by.get(p.clubId); if (!a) by.set(p.clubId, a = []); a.push(ovr(p)); }
+    const m = new Map<string, number>();
+    for (const [cid, a] of by) { a.sort((x, y) => y - x); const top = a.slice(0, 14); m.set(cid, top.reduce((x, y) => x + y, 0) / top.length); }
+    sCache = { gs, key, m };
+  }
+  return sCache.m.get(clubId) ?? 0;
 }
 
 // ---------------- matches ----------------
@@ -179,7 +211,7 @@ export function applyResult(gs: GameState, f: Fixture, m: Match) {
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
 function gate(gs: GameState, home: Club, away: Club, f: Fixture) {
-  const big = f.comp === 'euro' ? 1.25 : f.comp === 'euro2' ? 1.1 : f.comp.startsWith('cup_') ? 0.85 : 1;
+  const big = f.comp === 'euro' ? 1.25 : f.comp === 'euro2' || f.comp === 'sud' ? 1.1 : f.comp.startsWith('cup_') ? 0.85 : 1;
   const demand = (0.45 + home.reputation / 200 + away.reputation / 400) * (0.7 + home.fans / 200) * big * (home.city === away.city ? 1.2 : 1);
   const priceRef = 15 + Math.pow(home.reputation / 100, 3) * 70;
   const priceF = Math.pow(priceRef / Math.max(5, home.ticketPrice), 0.8);
@@ -272,7 +304,7 @@ function weeklyFinance(gs: GameState, rng: Rng) {
     const wages = ps.reduce((a, p) => a + p.wage, 0);
     const staffW = Object.values(c.staff).reduce((a, l) => a + l * l * 6000, 0);
     const tier = gs.leagues[c.leagueId].tier;
-    const tv = tier === 1 ? TV_WEEKLY[c.country] * (0.6 + c.reputation / 160) : tier === 2 ? 120_000 + c.reputation * 1500 : 25_000 + c.reputation * 500;
+    const tv = tier === 1 ? tvOf(gs, c.country) * (0.6 + c.reputation / 160) : tier === 2 ? 120_000 + c.reputation * 1500 : 25_000 + c.reputation * 500;
     const merch = Math.pow(c.reputation / 10, 3.3) * 220 * (0.7 + c.fans / 200);
     money(gs, c.id, -wages, 'Salarios jugadores');
     money(gs, c.id, -staffW, 'Salarios cuerpo técnico');
@@ -415,7 +447,7 @@ function progressEuro(gs: GameState, rng: Rng, id: string) {
     const f = gs.fixtures.find(x => x.comp === id && x.roundName === 'Final')!;
     finishCup(gs, id, winnerOf(gs, f));
   }
-  if (cup.stage >= 1 && cup.stage <= 4 && cup.alive.includes(u) && !cup.done) news(gs, 'match', `${cup.name}: ${cup.rounds[cup.stage]}`, 'Seguimos vivos en Europa. Consulta el cruce en Competiciones.');
+  if (cup.stage >= 1 && cup.stage <= 4 && cup.alive.includes(u) && !cup.done) news(gs, 'match', `${cup.name}: ${cup.rounds[cup.stage]}`, id === 'sud' ? 'Seguimos vivos en el torneo continental. Consulta el cruce en Competiciones.' : 'Seguimos vivos en Europa. Consulta el cruce en Competiciones.');
 }
 
 function twoLeg(gs: GameState, a: string, b: string, stage: number, id: string) {
@@ -429,16 +461,16 @@ function twoLeg(gs: GameState, a: string, b: string, stage: number, id: string) 
 function finishCup(gs: GameState, cupId: string, winner: string) {
   const cup = gs.cups[cupId]; cup.done = true; cup.winner = winner;
   gs.trophies.push({ season: gs.season, comp: cup.name, club: winner });
-  const prize = cupId === 'euro' ? 25_000_000 : cupId === 'euro2' ? 9_000_000 : 4_000_000;
+  const prize = cupId === 'euro' ? 25_000_000 : cupId === 'euro2' ? 9_000_000 : cupId === 'sud' ? 8_000_000 : 4_000_000;
   money(gs, winner, prize, `Premio campeón ${cup.name}`);
-  gs.clubs[winner].reputation = Math.min(99, gs.clubs[winner].reputation + (cupId === 'euro' ? 3 : cupId === 'euro2' ? 2 : 1));
+  gs.clubs[winner].reputation = Math.min(99, gs.clubs[winner].reputation + (cupId === 'euro' ? 3 : cupId === 'euro2' || cupId === 'sud' ? 2 : 1));
   if (winner === gs.manager.clubId) { news(gs, 'board', `¡CAMPEONES de la ${cup.name}!`, `Título histórico. Premio de ${fmtMoney(prize)}. La afición está eufórica.`); gs.manager.board = Math.min(100, gs.manager.board + 20); gs.manager.reputation = Math.min(100, gs.manager.reputation + 6); }
   else news(gs, 'info', `${gs.clubs[winner].name} gana la ${cup.name}`, '');
 }
 
 // ---------------- youth ----------------
 export function youthIntake(gs: GameState, c: Club, rng: Rng) {
-  const L = RAW_LEAGUES.find(l => l.id === c.country)!;
+  const L = { nat: natOf(gs, c.country) };
   const acad = c.academy ?? 2;
   const n = rng.int(3, 5) + (acad >= 5 ? 2 : acad >= 4 ? 1 : 0);
   const names: string[] = [];
@@ -462,7 +494,6 @@ export function endSeason(gs: GameState): string[] {
   const rng = rngFor(gs, 'end');
   const summary: string[] = [];
   const u = gs.manager.clubId;
-  const prevEuro: string[] = [], prevEuro2: string[] = [];
   const order: Record<string, string[]> = {}; // final standings per league, best first
   for (const L of Object.values(gs.leagues)) {
     const rows = table(gs, L.id);
@@ -473,13 +504,12 @@ export function endSeason(gs: GameState): string[] {
     const expMap = new Map(L.clubIds.slice().sort((a, b) => st.get(b)! - st.get(a)!).map((id, k) => [id, k + 1] as const));
     rows.forEach((r, i) => {
       const c = gs.clubs[r.id];
-      const prize = (L.tier === 1 ? (TV_WEEKLY[L.country] / 1e6) * 20_000_000 : L.tier === 2 ? 3_000_000 : 600_000) * (1 - i / rows.length) * 0.5;
+      const prize = (L.tier === 1 ? (tvOf(gs, L.country) / 1e6) * 20_000_000 : L.tier === 2 ? 3_000_000 : 600_000) * (1 - i / rows.length) * 0.5;
       money(gs, c.id, Math.round(prize), `Premio clasificación (${i + 1}º)`);
       const exp = expMap.get(c.id) ?? i + 1;
       c.reputation = clamp(c.reputation + (exp - (i + 1)) * 0.35 + (i === 0 ? 2 : 0) + (L.tier === 2 ? -0.3 : L.tier === 3 ? -0.5 : 0), 30, 99);
     });
     order[L.id] = rows.map(r => r.id);
-    if (L.tier === 1) { prevEuro.push(...rows.slice(0, L.euroSpots).map(r => r.id)); prevEuro2.push(...rows.slice(L.euroSpots, L.euroSpots * 2).map(r => r.id)); }
     if (L.clubIds.includes(u)) {
       const pos = rows.findIndex(r => r.id === u) + 1; const exp = expectedPos(gs, u);
       const trophies = gs.trophies.filter(t => t.season === gs.season && t.club === u).map(t => t.comp);
@@ -576,10 +606,19 @@ export function endSeason(gs: GameState): string[] {
   lifeSeasonEnd(gs);
   gs.season = nextSeason; gs.day = 0;
   for (const p of Object.values(gs.players)) p.startOvr = ovr(p);
-  for (const c of Object.values(gs.clubs)) { fillSquad(gs, c, rng); assignNumbers(gs, c.id); }
+  {
+    // free agents by position, best first, shared by every club topping up its squad
+    const fa = new Map<string, Player[]>();
+    for (const p of Object.values(gs.players)) if (!p.clubId) { let a = fa.get(p.pos); if (!a) fa.set(p.pos, a = []); a.push(p); }
+    for (const a of fa.values()) a.sort((x, y) => ovr(y) - ovr(x));
+    const squads = withPlayerIndex(gs, () => new Map(Object.values(gs.clubs).map(c => [c.id, clubPlayers(gs, c.id)] as const)));
+    for (const c of Object.values(gs.clubs)) fillSquad(gs, c, rng, fa, squads.get(c.id) ?? []);
+    invalidateStrength();
+    withPlayerIndex(gs, () => { for (const c of Object.values(gs.clubs)) assignNumbers(gs, c.id); });
+  }
   const uc = gs.clubs[u];
   uc.cohesion = Math.max(50, uc.cohesion - 10);
-  scheduleSeason(gs, rngFor(gs, 'sched'), prevEuro.length === 32 ? prevEuro : initialEuroTeams(gs), prevEuro2.length === 32 ? prevEuro2 : initialEuroTeams(gs, true));
+  scheduleSeason(gs, rngFor(gs, 'sched'), ...continental(gs, order));
   youthIntake(gs, uc, rng);
   setObjectives(gs);
   // emergency signings: the board never lets the user's first team drop below 18 players
@@ -606,7 +645,7 @@ export function endSeason(gs: GameState): string[] {
 }
 
 function youthAI(gs: GameState, c: Club, rng: Rng) {
-  const L = RAW_LEAGUES.find(l => l.id === c.country)!;
+  const L = { nat: natOf(gs, c.country) };
   const acad = c.academy ?? 2;
   for (let i = 0; i < 2 + (acad >= 5 ? 2 : 0); i++) {
     const pos = rng.pick(['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'] as const);
@@ -616,30 +655,32 @@ function youthAI(gs: GameState, c: Club, rng: Rng) {
   }
 }
 
-function fillSquad(gs: GameState, c: Club, rng: Rng) {
+function fillSquad(gs: GameState, c: Club, rng: Rng, fa: Map<string, Player[]>, ps: Player[]) {
   if (c.id === gs.manager.clubId) return;
-  const ps = clubPlayers(gs, c.id);
   const need: [string, number][] = [['GK', 2], ['CB', 4], ['LB', 2], ['RB', 2], ['DM', 1], ['CM', 3], ['AM', 1], ['LW', 1], ['RW', 1], ['ST', 2]];
   const level = strengthOf(gs, c.id) - 3;
+  const added: Player[] = [];
+  const young = !!c.parentId;
   for (const [pos, n] of need) {
-    let have = ps.filter(p => p.pos === pos).length;
+    let have = ps.filter(p => p.pos === pos && p.clubId === c.id).length;
     while (have < n) {
       // try free agents first
-      const young = !!c.parentId;
-      const fa = Object.values(gs.players).filter(p => !p.clubId && p.pos === pos && (!young || gs.season - p.born <= 21)).sort((a, b) => ovr(b) - ovr(a))[0];
-      if (fa && ovr(fa) >= level - 8) { fa.clubId = c.id; fa.contractEnd = gs.season + 2; fa.wage = fairWage(fa, gs.season, c.reputation); }
-      else makePlayer(gs, rng, { name: genName(RAW_LEAGUES.find(l => l.id === c.country)!.nat, rng), pos: pos as Player['pos'], born: gs.season - (young ? rng.int(18, 21) : rng.int(20, 29)), nat: RAW_LEAGUES.find(l => l.id === c.country)!.nat, ovr: Math.round(level + rng.gauss(0, 2)), pot: Math.round(level + (young ? rng.int(5, 14) : 4)), clubId: c.id, rep: c.reputation, generated: true });
+      const list = fa.get(pos) ?? [];
+      const i = list.findIndex(p => !p.clubId && (!young || gs.season - p.born <= 21));
+      const cand = i >= 0 ? list[i] : undefined;
+      if (cand && ovr(cand) >= level - 8) { list.splice(i, 1); cand.clubId = c.id; cand.contractEnd = gs.season + 2; cand.wage = fairWage(cand, gs.season, c.reputation); added.push(cand); }
+      else added.push(makePlayer(gs, rng, { name: genName(natOf(gs, c.country), rng), pos: pos as Player['pos'], born: gs.season - (young ? rng.int(18, 21) : rng.int(20, 29)), nat: natOf(gs, c.country), ovr: Math.round(level + rng.gauss(0, 2)), pot: Math.round(level + (young ? rng.int(5, 14) : 4)), clubId: c.id, rep: c.reputation, generated: true }));
       have++;
     }
   }
   // trim
-  const all = clubPlayers(gs, c.id).sort((a, b) => ovr(b) - ovr(a));
+  const all = [...ps, ...added].filter(p => p.clubId === c.id).sort((a, b) => ovr(b) - ovr(a));
   for (const p of all.filter(x => !x.loanFrom).slice(30)) { p.clubId = null; }
 }
 
 function strengthenPromoted(gs: GameState, c: Club, rng: Rng, target: number) {
   // promoted clubs sign a few better players so they can compete
-  const L = RAW_LEAGUES.find(l => l.id === c.country)!;
+  const L = { nat: natOf(gs, c.country) };
   const ps = clubPlayers(gs, c.id).sort((a, b) => ovr(a) - ovr(b));
   for (const p of ps.filter(x => !x.loanFrom).slice(0, 6)) p.clubId = null;
   for (const pos of ['CB', 'CM', 'ST', 'LW', 'GK', 'RB'] as const) makePlayer(gs, rng, { name: genName(L.nat, rng), pos, born: gs.season - rng.int(23, 30), nat: L.nat, ovr: Math.round(target + rng.gauss(0, 2)), pot: Math.round(target + 2), clubId: c.id, rep: c.reputation, generated: true });
