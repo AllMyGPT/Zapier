@@ -59,7 +59,7 @@ export default function LifeScreen() {
                   <b>{p.name}</b>
                   <div className="small muted">{ageOf(gs, p.born)} años · {p.job}</div>
                   <div className="small">{p.traits.join(' · ')}</div>
-                  <div className="life-meter"><span>Afinidad</span><div className="bar"><i style={{ width: `${p.affinity}%`, background: 'linear-gradient(90deg,#ff5d8f,#ffb3c7)' }} /></div><b className="num">{p.affinity}</b></div>
+                  <div className="life-meter"><span>Afinidad</span><div className="bar"><i style={{ width: `${p.affinity}%`, background: 'linear-gradient(90deg,#ff5d8f,#ffb3c7)' }} /></div><b className="num">{Math.round(p.affinity)}</b></div>
                   <div className="row wrap" style={{ gap: 6 }}>
                     <button className="btn sm primary" onClick={() => setDating(p)}>Proponer cita</button>
                     <button className="btn sm" onClick={() => act(gift(gs, p.id))}>Regalo (2.500 €)</button>

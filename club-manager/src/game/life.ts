@@ -111,7 +111,7 @@ export function date(gs: GameState, personId: number, venueId: string): string {
   if (v.fame) { gs.manager.reputation = Math.min(100, gs.manager.reputation + 0.5); news(gs, 'info', `El míster, en la alfombra roja con ${p.name}`, 'La prensa rosa se hace eco de la pareja de moda.'); }
   const mood = gain >= 14 ? '¡Una cita perfecta!' : gain >= 8 ? 'Buena cita.' : 'Cita algo fría.';
   log(gs, 'love', `${v.name} con ${p.name}. ${mood}`);
-  return `${mood} Afinidad con ${p.name.split(' ')[0]}: ${p.affinity}.`;
+  return `${mood} Afinidad con ${p.name.split(' ')[0]}: ${Math.round(p.affinity)}.`;
 }
 
 export function gift(gs: GameState, personId: number): string {

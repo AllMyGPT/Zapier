@@ -28,7 +28,7 @@ export function newClub(raw: { id: string; name: string; short: string; city: st
     staff: (() => { const l = Math.max(1, Math.min(5, Math.round((rep - 50) / 10))); return { coach: l, gk: l, fitness: l, physio: l, scout: l, youth: l }; })(),
     tactics: { formation: rng.pick(['4-4-2', '4-3-3', '4-2-3-1', '4-3-3', '4-2-3-1', '3-5-2', '4-1-4-1']), mentality: 0, pressing: 2, tempo: 2, width: 2, passing: 'mixto', offside: true },
     lineup: [], bench: [],
-    sponsor: { name: rng.pick(SPONSORS), weekly: Math.round(Math.pow(rep / 10, 3.2) * 120 / 1000) * 1000, until: START_SEASON + 2 },
+    sponsor: { name: rng.pick(SPONSORS), weekly: Math.round(Math.pow(rep / 10, 3.2) * 360 / 1000) * 1000, until: START_SEASON + 2 },
     training: { intensity: 2, focus: 'general' },
     cohesion: 70,
     parentId: raw.parent,

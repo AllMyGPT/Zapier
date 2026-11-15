@@ -4,7 +4,7 @@ import { age, marketValue, ovr } from './player';
 import { clubPlayers } from './lineup';
 import { LEAGUE_START, inWindow } from './calendar';
 import { fmtMoney, money, news, strengthOf } from './season';
-import { askingPrice } from './market';
+import { askingPrice, wageDemand } from './market';
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 /** International breaks (days since 1 July). */
@@ -160,12 +160,35 @@ const boardCuts: Gen = (gs) => {
   return true;
 };
 
+/** Contract renewals: key players whose deal ends this summer ask for an answer (once each). */
+function renewalDecision(gs: GameState): boolean {
+  const me = gs.manager.clubId;
+  if (gs.day < 120 || gs.day > 300) return false;
+  const squad = clubPlayers(gs, me);
+  const avg = squad.map(ovr).sort((a, b) => b - a).slice(0, 14).reduce((a, b) => a + b, 0) / 14;
+  const p = squad.filter(x => x.contractEnd <= gs.season + 1 && !x.loanFrom && ovr(x) >= avg - 5 && gs.season - x.born <= 33 && gs.eventLog?.[`renew:${x.id}`] == null).sort((a, b) => ovr(b) - ovr(a))[0];
+  if (!p) return false;
+  gs.eventLog = { ...(gs.eventLog ?? {}), [`renew:${p.id}`]: gs.day };
+  const ask = wageDemand(gs, p) * 0.95; const mul = Math.max(1, ask / Math.max(1, p.wage));
+  push(gs, {
+    kind: 'renew', pid: p.id, title: `${p.name} termina contrato en junio`,
+    body: `Su agente quiere saber tu decisión. Pide ${fmtMoney(ask)}/semana (ahora cobra ${fmtMoney(p.wage)}). Si no renueva, se marchará libre en verano.`,
+    options: [
+      { label: 'Renovar 3 temporadas', hint: `${fmtMoney(ask)}/semana hasta ${gs.season + 3}.`, effect: { pid: p.id, wageMul: mul, extendYears: 3, morale: 8 } },
+      { label: 'Renovar 1 temporada', hint: `Un poco más caro: ${fmtMoney(ask * 1.08)}/semana, solo un año.`, effect: { pid: p.id, wageMul: mul * 1.08, extendYears: 1, morale: 3 } },
+      { label: 'Dejarle marchar', hint: 'Se irá libre en verano (puedes venderlo antes).', effect: { pid: p.id, morale: -10, listed: true } },
+    ],
+  });
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 /** Called once a week from the daily loop. */
 export function weeklyEvents(gs: GameState, rng: Rng) {
   const me = gs.manager.clubId; const c = gs.clubs[me];
   if (!c || gs.manager.sacked) return;
   // decision events: at most one waiting at a time, roughly every three weeks
+  if (!(gs.pending?.length) && rng.chance(0.45) && renewalDecision(gs)) return;
   if (!(gs.pending?.length) && rng.chance(0.33)) {
     const gens: [string, Gen, number][] = [['discipline', indiscipline, 3], ['raise', raiseRequest, 3], ['sponsor', sponsor, 1.5], ['youthbid', youthBid, 2], ['friendly', friendly, 2], ['cuts', boardCuts, c.balance < 0 ? 4 : 0]];
     const open = gens.filter(g => g[2] > 0 && ready(gs, g[0]));
@@ -187,8 +210,8 @@ export function weeklyEvents(gs: GameState, rng: Rng) {
     }
   }
   // fans and board mood
-  if (c.fans < 28 && rng.chance(0.25)) news(gs, 'club', 'Pañolada en la grada', 'La afición muestra su enfado con pañuelos blancos. La asistencia al estadio se resiente.');
-  if (gs.manager.board < 25 && rng.chance(0.3)) news(gs, 'board', 'Ultimátum de la directiva', 'El presidente avisa: o llegan resultados en las próximas semanas o habrá cambios en el banquillo.');
+  if (c.fans < 28 && gs.day - (gs.eventLog?.protest ?? -99) >= 42 && rng.chance(0.4)) { gs.eventLog = { ...(gs.eventLog ?? {}), protest: gs.day }; news(gs, 'club', 'Pañolada en la grada', 'La afición muestra su enfado con pañuelos blancos. La asistencia al estadio se resiente.'); }
+  if (gs.manager.board < 18 && gs.day - (gs.eventLog?.ultimatum ?? -99) >= 56 && rng.chance(0.5)) { gs.eventLog = { ...(gs.eventLog ?? {}), ultimatum: gs.day }; news(gs, 'board', 'Ultimátum de la directiva', 'El presidente avisa: o llegan resultados en las próximas semanas o habrá cambios en el banquillo.'); }
 }
 
 /** International break: national-team call-ups for the user's players. */

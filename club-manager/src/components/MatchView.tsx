@@ -223,9 +223,9 @@ export default function MatchView({ m, f, onFinish }: { m: Match; f: Fixture; on
     <div className="match-wrap">
       <div className="match">
         <div className="scoreboard">
-          <div className="team"><Crest club={home} size={48} /><div style={{ minWidth: 0 }}><div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{home.name}</div><div className="small muted" style={{ fontFamily: 'var(--font-body)', fontWeight: 400 }}>{scorers(0)}</div></div></div>
+          <div className="team"><Crest club={home} size={48} /><div style={{ minWidth: 0 }}><div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><span className="tn-full">{home.name}</span><span className="tn-short">{home.short}</span></div><div className="small muted" style={{ fontFamily: 'var(--font-body)', fontWeight: 400 }}>{scorers(0)}</div></div></div>
           <div><div className="score num">{S[0].goals} - {S[1].goals}</div><div className="clock">{m.finished ? 'FINAL' : `${min}'`}{m.pens ? ` · PEN ${m.pens[0]}-${m.pens[1]}` : ''} · {compName(gs, f.comp)}</div></div>
-          <div className="team away"><div style={{ minWidth: 0, textAlign: 'right' }}><div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{away.name}</div><div className="small muted" style={{ fontFamily: 'var(--font-body)', fontWeight: 400 }}>{scorers(1)}</div></div><Crest club={away} size={48} /></div>
+          <div className="team away"><div style={{ minWidth: 0, textAlign: 'right' }}><div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><span className="tn-full">{away.name}</span><span className="tn-short">{away.short}</span></div><div className="small muted" style={{ fontFamily: 'var(--font-body)', fontWeight: 400 }}>{scorers(1)}</div></div><Crest club={away} size={48} /></div>
         </div>
         {(() => {
           // momentum: territorial pressure over the last ~40 ticks shown so far (positive = home pushing)

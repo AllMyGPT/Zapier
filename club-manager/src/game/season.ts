@@ -184,7 +184,7 @@ function gate(gs: GameState, home: Club, away: Club, f: Fixture) {
   const priceRef = 15 + Math.pow(home.reputation / 100, 3) * 70;
   const priceF = Math.pow(priceRef / Math.max(5, home.ticketPrice), 0.8);
   const att = Math.round(Math.min(1, demand * priceF) * home.capacity);
-  const income = att * home.ticketPrice;
+  const income = Math.round(att * home.ticketPrice * 0.5); // season-ticket holders pay far less than the matchday price
   (f as Fixture & { att?: number }).att = att;
   money(gs, home.id, income, `Taquilla vs ${away.name} (${att.toLocaleString('es-ES')} esp.)`);
 }
@@ -278,8 +278,10 @@ function weeklyFinance(gs: GameState, rng: Rng) {
     money(gs, c.id, -staffW, 'Salarios cuerpo técnico');
     money(gs, c.id, Math.round(tv), 'Derechos de TV');
     money(gs, c.id, Math.round(merch), 'Merchandising');
+    if (c.reputation > 60) money(gs, c.id, Math.round(2_000_000 * Math.pow((c.reputation - 60) / 37, 3)), 'Ingresos comerciales (giras, marca, derechos de imagen)');
     money(gs, c.id, c.sponsor.weekly, `Patrocinio ${c.sponsor.name}`);
     money(gs, c.id, -Math.round(c.capacity * 3.5), 'Mantenimiento estadio');
+    money(gs, c.id, -Math.round(Math.pow(c.reputation / 10, 3) * 900 + tv * 0.3), 'Gastos operativos (viajes, oficinas, cantera)');
     training(gs, c, ps, rng);
   }
 }
@@ -299,7 +301,7 @@ function weeklyRest(gs: GameState, rng: Rng) {
       news(gs, 'board', 'Has sido destituido', `La directiva de ${u.name} ha decidido prescindir de tus servicios tras los malos resultados (puesto ${pos}º, objetivo ${exp}º).`);
       return;
     }
-    if (gs.manager.board < 25 && rng.chance(0.3)) news(gs, 'board', 'La directiva está preocupada', `Los resultados no acompañan. Vamos ${pos}º y el objetivo era ${expectationLabel(gs, u.id)}. Necesitamos una reacción inmediata.`);
+    if (gs.manager.board < 25 && gs.day - (gs.eventLog?.boardWarn ?? -99) >= 42) { gs.eventLog = { ...(gs.eventLog ?? {}), boardWarn: gs.day }; news(gs, 'board', 'La directiva está preocupada', `Los resultados no acompañan. Vamos ${pos}º y el objetivo era ${expectationLabel(gs, u.id)}. Necesitamos una reacción inmediata.`); }
   }
   // contract warnings
   if (gs.day === 175 || gs.day === 280) {
@@ -564,8 +566,8 @@ export function endSeason(gs: GameState): string[] {
   // budgets, sponsors, squads
   for (const c of Object.values(gs.clubs)) {
     const base = Math.pow(c.reputation / 10, 3) * 120_000;
-    c.transferBudget = Math.max(500_000, Math.round((base + Math.max(0, c.balance) * 0.35) / 100_000) * 100_000);
-    if (c.sponsor.until <= nextSeason) c.sponsor = { name: rng.pick(SPONSORS), weekly: Math.round(Math.pow(c.reputation / 10, 3.2) * 120 / 1000) * 1000, until: nextSeason + 2 };
+    c.transferBudget = Math.max(500_000, Math.round(Math.min(base * 2.5, base + Math.max(0, c.balance) * 0.15) / 100_000) * 100_000);
+    if (c.sponsor.until <= nextSeason) c.sponsor = { name: rng.pick(SPONSORS), weekly: Math.round(Math.pow(c.reputation / 10, 3.2) * 360 / 1000) * 1000, until: nextSeason + 2 };
     if (c.id !== u) youthAI(gs, c, rng);
   }
   lifeSeasonEnd(gs);
@@ -577,6 +579,20 @@ export function endSeason(gs: GameState): string[] {
   scheduleSeason(gs, rngFor(gs, 'sched'), prevEuro.length === 32 ? prevEuro : initialEuroTeams(gs), prevEuro2.length === 32 ? prevEuro2 : initialEuroTeams(gs, true));
   youthIntake(gs, uc, rng);
   setObjectives(gs);
+  // emergency signings: the board never lets the user's first team drop below 18 players
+  {
+    const uc0 = gs.clubs[u]; const have = clubPlayers(gs, u).length;
+    if (have < 18) {
+      const lvl = strengthOf(gs, u) - 4; const signed: string[] = [];
+      const fas = Object.values(gs.players).filter(p => !p.clubId && gs.season + 1 - p.born <= 31).sort((a, b) => Math.abs(ovr(a) - lvl) - Math.abs(ovr(b) - lvl));
+      for (const p of fas.slice(0, 18 - have)) { p.clubId = u; p.contractEnd = nextSeason + 1; p.wage = fairWage(p, nextSeason, uc0.reputation); signed.push(p.name); }
+      if (signed.length) summary.push(`La directiva ficha de urgencia (plantilla corta): ${signed.join(', ')}.`);
+    }
+  }
+  // free agents: retire the old or weak ones nobody signed, keep the pool around 250
+  const pool = Object.values(gs.players).filter(p => !p.clubId).sort((a, b) => ovr(b) - ovr(a));
+  for (const p of pool.slice(250)) delete gs.players[p.id];
+  for (const p of pool.slice(0, 250)) if (gs.season - p.born >= 33 || (ovr(p) < 55 && gs.season - p.born > 24)) delete gs.players[p.id];
   // free agents refill
   const fa = Object.values(gs.players).filter(p => !p.clubId).length;
   for (let i = fa; i < 60; i++) makePlayer(gs, rng, { name: genName(rng.pick(['ESP', 'ENG', 'ITA', 'GER', 'FRA']), rng), pos: rng.pick(['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST']), born: gs.season - rng.int(19, 32), nat: rng.pick(['ESP', 'ENG', 'ITA', 'GER', 'FRA', ...FOREIGN_NATS]), ovr: rng.int(55, 70), pot: rng.int(60, 74), clubId: null, rep: 60, generated: true });

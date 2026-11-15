@@ -14,7 +14,7 @@ const BRANDS = ['Nexa Telecom', 'Solaria Energía', 'Banco Atlántico', 'Vuelo A
 export function sponsorOffers(gs: GameState, c: Club): SponsorOffer[] {
   const rng = new Rng(hashStr(`${gs.seed}:${gs.season}:${c.id}:sponsor`));
   const tier = gs.leagues[c.leagueId].tier;
-  const base = Math.round(Math.pow(c.reputation / 10, 3.2) * 120 * (tier === 1 ? 1 : tier === 2 ? 0.35 : 0.12) / 1000) * 1000;
+  const base = Math.round(Math.pow(c.reputation / 10, 3.2) * 360 * (tier === 1 ? 1 : tier === 2 ? 0.35 : 0.12) / 1000) * 1000;
   const goal: SponsorGoal = tier > 1 ? 'ascenso' : c.reputation >= 85 ? 'top4' : c.reputation >= 72 ? 'europa' : 'copa';
   const names = rng.shuffle(BRANDS.slice());
   return [
