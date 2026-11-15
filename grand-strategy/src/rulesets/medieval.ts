@@ -422,6 +422,8 @@ export const medieval: Ruleset & { onCharacterDeath(s: GameState, c: Character):
     }
   },
   yearly(s) {
+    // keep saves small: forget characters dead for more than 80 years
+    for (const c of Object.values(s.characters)) if (!c.alive && c.died !== undefined && s.day - c.died > 365 * 80) delete s.characters[c.id];
     for (const n of livingNations(s)) if ((n.x.piety ?? 0) < -100) { n.stability = clamp(n.stability - 1, -3, 3); log(s, `${n.name} ha sido excomulgado por su impiedad.`, [n.tag], 'event'); n.x.piety = -50; }
   },
   ai(s, n) {

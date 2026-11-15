@@ -946,6 +946,12 @@ export function applyCommand(s: GameState, tag: string, c: Command): string | nu
       b.units = half;
       return null;
     }
+    case 'stop': {
+      const a = s.armies[c.armyId];
+      if (!a || a.owner !== tag || a.retreating) return 'No se puede detener';
+      a.path = []; a.progress = 0;
+      return null;
+    }
     case 'merge': mergeArmies(s, c.armyIds.filter((id) => s.armies[id]?.owner === tag)); return null;
     case 'disband': {
       const a = s.armies[c.armyId];

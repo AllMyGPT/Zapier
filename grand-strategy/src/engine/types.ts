@@ -205,6 +205,7 @@ export interface PeaceOffer {
 export type Command =
   | { type: 'move'; armyId: string; to: string }
   | { type: 'split'; armyId: string }
+  | { type: 'stop'; armyId: string }
   | { type: 'merge'; armyIds: string[] }
   | { type: 'disband'; armyId: string }
   | { type: 'declareWar'; target: string; goal?: string | null }

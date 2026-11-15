@@ -234,6 +234,11 @@ export const ww2: Ruleset & { canUseSea(s: GameState, tag: string): boolean } = 
       // resources consumption
       const inc = resourceIncome(s, n);
       const used = baseIC(s, n);
+      // world market: part of the shortfall is imported, unless an enemy navy blockades the coast
+      const share = atWar(s, n.tag) && !navalSuperiority(s, n.tag) ? 0.35 : 1;
+      const need = { energy: used * 0.2, metal: used * 0.1, rare: used * 0.05 };
+      for (const k of ['energy', 'metal', 'rare'] as const) inc[k] += Math.max(0, need[k] - inc[k]) * share;
+      inc.oil += Math.max(0, 2 - inc.oil) * share;
       n.x.stock_energy = clamp((n.x.stock_energy ?? 0) + inc.energy - used * 2 / 10, 0, 99999);
       n.x.stock_metal = clamp((n.x.stock_metal ?? 0) + inc.metal - used / 10, 0, 99999);
       n.x.stock_rare = clamp((n.x.stock_rare ?? 0) + inc.rare - used * 0.5 / 10, 0, 99999);
@@ -377,6 +382,7 @@ export const ww2: Ruleset & { canUseSea(s: GameState, tag: string): boolean } = 
       { label: 'Metal', value: Math.round(n.x.stock_metal).toString() },
       { label: 'Raros', value: Math.round(n.x.stock_rare).toString() },
       { label: 'Petróleo', value: Math.round(n.x.stock_oil).toString() },
+      { label: 'Comercio', value: atWar(s, tag) && !navalSuperiority(s, tag) ? 'Bloqueado' : 'Abierto' },
       { label: 'Suministros', value: Math.round(n.x.stock_supplies).toString() },
       { label: 'Disidencia', value: `${(n.x.dissent ?? 0).toFixed(1)} %` },
     ];

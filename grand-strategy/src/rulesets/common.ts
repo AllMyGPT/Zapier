@@ -54,7 +54,9 @@ export function ensureRulers(s: GameState, withFamily: boolean) {
   for (const n of Object.values(s.nations)) {
     if (n.x.pseudo || n.rulerId) continue;
     const pool = namePool(n.culture);
-    const dyn = pick(s, pool.d);
+    const used = new Set(Object.values(s.characters).map((c) => c.dynasty));
+    const free = pool.d.filter((d) => !used.has(d));
+    const dyn = free.length ? pick(s, free) : `${pick(s, pool.d)} de ${s.provinces[n.capital]?.name ?? n.name}`;
     const ruler = randomCharacter(s, n.tag, { dynasty: dyn, ageYears: randInt(s, 22, 55) });
     n.rulerId = ruler.id;
     if (withFamily) {
