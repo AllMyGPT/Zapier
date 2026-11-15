@@ -63,7 +63,7 @@ export function offerContract(gs: GameState, pid: number, wage: number, years: n
   if (projected * 52 > Math.max(me.balance, 0) * 0.6 + me.reputation * 2_500_000 && wage > p.wage) return { ok: false, msg: 'La directiva no aprueba ese salario: la masa salarial sería insostenible.' };
   if (renewing) {
     p.wage = wage; p.contractEnd = gs.season + years; p.morale = Math.min(100, p.morale + 8);
-    return { ok: true, msg: `${p.name} renueva hasta ${gs.season + years + 1}.` };
+    return { ok: true, msg: `${p.name} renueva hasta junio de ${gs.season + years}.` };
   }
   if (deal!.fee > me.transferBudget) return { ok: false, msg: 'Presupuesto insuficiente.' };
   const from = p.clubId;

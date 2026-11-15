@@ -49,7 +49,7 @@ export default function Squad() {
                   <td className="c num">{p.stats.apps ? avgRating(p).toFixed(1) : '-'}</td>
                   <td className="r num">{fmtMoney(marketValue(p, gs.season))}</td>
                   <td className="r num">{fmtMoney(p.wage)}</td>
-                  <td className="c num" style={{ color: p.contractEnd <= gs.season + 1 ? 'var(--warn)' : undefined }}>{p.contractEnd + 1}</td>
+                  <td className="c num" style={{ color: p.contractEnd <= gs.season + 1 ? 'var(--warn)' : undefined }}>{p.contractEnd}</td>
                   <td className="small">{playerStatus(p) && <span className="pill bad">{playerStatus(p)}</span>}</td>
                 </tr>
               );

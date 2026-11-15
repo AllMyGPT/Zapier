@@ -272,7 +272,7 @@ function training(gs: GameState, c: Club, ps: Player[], rng: Rng) {
     const extra = focusAttrs[t.focus] ?? [];
     for (const k of keys) {
       const share = (w[k] ?? 0) * 1.0 + (extra.includes(k) ? 0.15 : 0);
-      const delta = g * share * (p.pos === 'GK' && k === 'gk' ? 1.1 : 1) * 1.15;
+      const delta = g * share * (p.pos === 'GK' ? (0.7 + c.staff.gk * 0.1) / (0.7 + c.staff.coach * 0.1) * (k === 'gk' ? 1.1 : 1) : 1) * 1.15;
       if (rng.chance(Math.abs(delta) % 1)) p.attrs[k] = Math.max(1, Math.min(99, p.attrs[k] + Math.sign(delta)));
       if (Math.abs(delta) >= 1) p.attrs[k] = Math.max(1, Math.min(99, p.attrs[k] + Math.trunc(delta)));
     }

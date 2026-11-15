@@ -71,7 +71,7 @@ export default function Transfers() {
               <tr key={p.id} className="click" onClick={() => openPlayer(p.id)}>
                 <td><PosBadge pos={p.pos} /></td><td><Flag nat={p.nat} /><b>{p.name}</b> {p.listed && <span className="pill warn">Transferible</span>}</td><td className="c">{age(p, gs.season)}</td><td className="c"><Ovr v={ovr(p)} /></td>
                 <td>{p.clubId ? <span className="row" style={{ gap: 6 }}><Crest club={gs.clubs[p.clubId]} size={16} />{gs.clubs[p.clubId].name}</span> : <span className="pill good">Libre</span>}</td>
-                <td className="r num">{fmtMoney(marketValue(p, gs.season))}</td><td className="r num">{p.clubId ? fmtMoney(askingPrice(gs, p)) : '—'}</td><td className="r num">{fmtMoney(p.wage)}</td><td className="c">{p.contractEnd + 1}</td>
+                <td className="r num">{fmtMoney(marketValue(p, gs.season))}</td><td className="r num">{p.clubId ? fmtMoney(askingPrice(gs, p)) : '—'}</td><td className="r num">{fmtMoney(p.wage)}</td><td className="c">{p.contractEnd}</td>
               </tr>
             ))}</tbody>
           </table>

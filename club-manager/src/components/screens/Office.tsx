@@ -27,7 +27,7 @@ export default function Office() {
   }, [gs, club.id]);
 
   const takeJob = (id: string) => {
-    gs.manager.clubId = id; gs.manager.sacked = false; gs.manager.board = 60;
+    gs.manager.clubId = id; gs.manager.sacked = false; gs.manager.board = 60; gs.finance = []; gs.offers = gs.offers.filter(o => o.status === "done"); gs.shortlist = [];
     news(gs, 'board', `Nuevo reto: ${gs.clubs[id].name}`, `Firmas como nuevo entrenador. Objetivo: ${expectationLabel(gs, id)}.`);
     toast(`Eres el nuevo entrenador del ${gs.clubs[id].name}`); refresh();
   };

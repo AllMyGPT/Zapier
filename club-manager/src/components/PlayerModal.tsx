@@ -42,7 +42,7 @@ export default function PlayerModal({ id, onClose }: { id: number; onClose: () =
           <div className="grid g4" style={{ marginTop: 12 }}>
             <div><div className="small muted">Valor</div><b>{fmtMoney(value)}</b></div>
             <div><div className="small muted">Sueldo</div><b>{fmtMoney(p.wage)}/sem</b></div>
-            <div><div className="small muted">Contrato hasta</div><b>{p.contractEnd + 1}</b></div>
+            <div><div className="small muted">Contrato hasta</div><b>{p.contractEnd}</b></div>
             <div><div className="small muted">Potencial</div><Stars v={st.mid} />{st.unc > 0 && <span className="small muted"> ±{st.unc.toFixed(1)}</span>}</div>
           </div>
         </div>
