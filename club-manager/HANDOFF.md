@@ -35,11 +35,33 @@ npx tsc --noEmit && npx next build   # comprobaciones
 - URL y clave publishable en `.env.example` (son públicas por diseño).
 - Pendiente de decidir: la Auth es compartida con EmotivOS. Comprobar si el registro por email está habilitado, porque si no los jugadores no podrán crear cuenta. Revisar también la Site URL o las Redirect URLs para el dominio de Vercel.
 
-### 3. Vercel
-- Importar `AllMyGPT/Zapier` con **Root Directory = `club-manager`** (framework Next.js).
-- Variables de entorno: las tres de `.env.example` (incluida `NEXT_PUBLIC_SUPABASE_SCHEMA=pizarra`)
-- Rama de producción: `main` cuando se fusione el PR #14, o desplegar antes una preview de la rama.
-- Después, en Supabase → Auth → URL Configuration, AÑADIR la URL de Vercel a Redirect URLs (no cambiar la Site URL de EmotivOS).
+### 3. Vercel: PENDIENTE (bloqueado por permisos)
+- Equipo Vercel: **Emotiv** (`team_kOJsKhnuFG3OlGNbvN8sGeRl`, slug `emotiv`). Todavía no hay ningún proyecto ligado a `AllMyGPT/Zapier`.
+- Crear el proyecto vía MCP falló con **403 forbidden** (`create_project` y `create_git_project`). La cuenta conectada no tiene permiso para crear proyectos en el equipo; hace falta rol Owner o Member.
+- Opciones:
+  - Que un Owner suba el rol en Settings → Members y reintentar.
+  - Hacerlo en local con la CLI (`npm i -g vercel`, `vercel login`).
+  - Hacerlo desde el panel (vercel.com/new).
+- Configuración a usar:
+  - Nombre `pizarra-club-manager`, framework Next.js, **Root Directory `club-manager`**.
+  - Variables (production, preview y development; son públicas por diseño):
+    - `NEXT_PUBLIC_SUPABASE_URL=https://fpjsbjybsnnyanxgygvn.supabase.co`
+    - `NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_RTR8othuGqBnouJGhpXe7w_QFdMENbt`
+    - `NEXT_PUBLIC_SUPABASE_SCHEMA=pizarra`
+  - Rama: `claude/busy-noether-51g0mc` hasta que se fusione el PR #14 (`main` aún no tiene el juego).
+- Con la CLI, desde `club-manager/`:
+  ```bash
+  vercel link --scope emotiv --project pizarra-club-manager   # crea o enlaza el proyecto
+  for k in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY NEXT_PUBLIC_SUPABASE_SCHEMA; do
+    for e in production preview development; do grep "^$k=" .env.example | cut -d= -f2- | vercel env add $k $e; done
+  done
+  vercel --prod          # o `vercel` para una preview
+  ```
+  Si se usa `vercel link` desde `club-manager/`, revisar en Settings que Root Directory no quede duplicado.
+- Después del despliegue:
+  - En Supabase (EmotivOS) → Auth → URL Configuration, **añadir** la URL de Vercel a Redirect URLs. No cambiar la Site URL de EmotivOS.
+  - Probar crear una cuenta, guardar en la nube y cargar.
+- Decidido por el usuario: se acepta que la Auth sea compartida con EmotivOS.
 
 ## Ideas pendientes (opcionales)
 - Arte de portada o promo con Canva (el usuario lo ofreció; Gemini y Google Flow no estaban conectados en la sesión).
