@@ -44,14 +44,15 @@ export default function Office() {
         </div>
       )}
       <div className="grid g3">
-        <div className="panel">
+        <div className="panel nextmatch">
           <h3>Próximo partido</h3>
+          <div className="nm-bg" />
           {upcoming[0] ? (() => {
             const f = upcoming[0]; const h = gs.clubs[f.home], a = gs.clubs[f.away];
             return (
               <div className="col" style={{ alignItems: 'center' }}>
                 <div className="small muted">{compName(gs, f.comp)} · {f.roundName ?? `Jornada ${f.round}`}</div>
-                <div className="row" style={{ gap: 18, margin: '10px 0' }}><Crest club={h} size={54} /><b className="muted">VS</b><Crest club={a} size={54} /></div>
+                <div className="row" style={{ gap: 18, margin: '10px 0' }}><Crest club={h} size={62} /><span className="vs-big" style={{ fontSize: 34 }}>VS</span><Crest club={a} size={62} /></div>
                 <b>{h.name} – {a.name}</b>
                 <div className="small muted">{dateLabel(gs.season, f.date)}</div>
                 <button className="btn sm" style={{ marginTop: 8 }} onClick={() => goto('tactics')}>Preparar alineación</button>
@@ -61,8 +62,7 @@ export default function Office() {
         </div>
         <div className="panel">
           <h3>Directiva</h3>
-          <div className="kpi" style={{ color: gs.manager.board > 60 ? 'var(--good)' : gs.manager.board > 30 ? 'var(--warn)' : 'var(--bad)' }}>{Math.round(gs.manager.board)}%</div>
-          <div style={{ margin: '8px 0' }}><Bar v={gs.manager.board} /></div>
+          <Gauge v={gs.manager.board} />
           <div className="small">Objetivo: <b>{expectationLabel(gs, club.id)}</b> (puesto esperado {expectedPos(gs, club.id)}º)</div>
           <div className="small muted" style={{ marginTop: 6 }}>Reputación del mánager: {Math.round(gs.manager.reputation)} · Afición: {Math.round(club.fans)}%</div>
           <div style={{ marginTop: 10 }}><span className="small muted">Últimos resultados: </span><FormDots form={(gs.lastResults ?? []).map(r => (r > 0 ? 'V' : r < 0 ? 'D' : 'E'))} /></div>
@@ -83,7 +83,7 @@ export default function Office() {
           <div className="col scroll" style={{ gap: 6 }}>
             {gs.news.slice(0, 40).map(n => (
               <div key={n.id} className={`news-item ${n.read ? '' : 'unread'}`} onClick={() => { n.read = true; setOpen(open === n.id ? null : n.id); refresh(); }}>
-                <div className="row"><span>{({ board: '🏛️', transfer: '🔁', injury: '🩹', match: '⚽', club: '🏟️', youth: '🌱', info: '📰' } as Record<string, string>)[n.kind]}</span><b className="grow">{n.title}</b><span className="small muted">{dateLabel(gs.season, n.date, false)}</span></div>
+                <div className="row"><span className={`nicon ${n.kind}`}>{({ board: '🏛️', transfer: '🔁', injury: '🩹', match: '⚽', club: '🏟️', youth: '🌱', info: '📰' } as Record<string, string>)[n.kind]}</span><b className="grow">{n.title}</b><span className="small muted">{dateLabel(gs.season, n.date, false)}</span></div>
                 {open === n.id && n.body && <div className="small" style={{ marginTop: 6, color: '#c8d5ec' }}>{n.body}</div>}
               </div>
             ))}
@@ -129,5 +129,25 @@ function FxRow({ id }: { id: number }) {
       <td className="small muted">{compName(gs, f.comp).split(' ').slice(0, 2).join(' ')}</td>
       <td className="r">{f.played ? <span className={`pill ${cls}`}>{res}</span> : <span className="small muted">—</span>}</td>
     </tr>
+  );
+}
+
+/** Semicircular board-confidence gauge. */
+function Gauge({ v }: { v: number }) {
+  const pct = Math.max(0, Math.min(100, v));
+  const color = pct > 60 ? '#3ddc84' : pct > 30 ? '#ffb020' : '#ff5468';
+  const ang = Math.PI * (1 - pct / 100);
+  const R = 62, cx = 75, cy = 72;
+  const x = cx + R * Math.cos(ang), y = cy - R * Math.sin(ang);
+  return (
+    <div className="gauge">
+      <svg viewBox="0 0 150 82">
+        <defs><linearGradient id="gg" x1="0" x2="1"><stop offset="0" stopColor="#ff5468" /><stop offset=".5" stopColor="#ffb020" /><stop offset="1" stopColor="#3ddc84" /></linearGradient></defs>
+        <path d={`M${cx - R} ${cy} A${R} ${R} 0 0 1 ${cx + R} ${cy}`} fill="none" stroke="rgba(0,0,0,.45)" strokeWidth="12" strokeLinecap="round" />
+        <path d={`M${cx - R} ${cy} A${R} ${R} 0 0 1 ${cx + R} ${cy}`} fill="none" stroke="url(#gg)" strokeWidth="12" strokeLinecap="round" strokeDasharray={`${Math.PI * R * pct / 100} 999`} />
+        <circle cx={x} cy={y} r="7" fill="#fff" stroke={color} strokeWidth="3" />
+      </svg>
+      <div className="val"><span className="kpi" style={{ color }}>{Math.round(pct)}%</span></div>
+    </div>
   );
 }

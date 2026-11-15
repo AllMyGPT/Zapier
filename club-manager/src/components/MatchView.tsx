@@ -50,8 +50,23 @@ function positions(m: Match, tk: Tick, t: number): Map<number, Pt> {
 }
 
 function drawPitch(ctx: CanvasRenderingContext2D) {
+  // stadium surround: dark stand with a speckled crowd and LED boards (no text)
+  ctx.fillStyle = '#07101f'; ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 2600; i++) {
+    const x = Math.random() * W, y = Math.random() * H;
+    if (x > 14 && x < W - 14 && y > 14 && y < H - 14) continue;
+    ctx.fillStyle = `hsla(${200 + Math.random() * 40}, 40%, ${30 + Math.random() * 45}%, ${0.5 + Math.random() * 0.5})`;
+    ctx.fillRect(x, y, 2, 2);
+  }
+  const led = (x: number, y: number, w: number, h: number) => {
+    const lg = ctx.createLinearGradient(x, 0, x + w, 0);
+    lg.addColorStop(0, '#1d4fd8'); lg.addColorStop(0.33, '#46d2ff'); lg.addColorStop(0.5, '#c6f432'); lg.addColorStop(0.66, '#46d2ff'); lg.addColorStop(1, '#1d4fd8');
+    ctx.fillStyle = lg; ctx.globalAlpha = 0.85; ctx.fillRect(x, y, w, h); ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(x, y, w, h / 2);
+  };
+  led(M + 40, 16, PW - 80, 7); led(M + 40, H - 23, PW - 80, 7);
   const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2b8a4b'); g.addColorStop(1, '#23783f');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = g; ctx.fillRect(26, 28, W - 52, H - 56);
   for (let i = 0; i < 14; i++) { if (i % 2) continue; ctx.fillStyle = 'rgba(255,255,255,0.045)'; ctx.fillRect(M + (PW / 14) * i, M, PW / 14, PH); }
   const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.7); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.32)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
@@ -87,6 +102,7 @@ export default function MatchView({ m, f, onFinish }: { m: Match; f: Fixture; on
   const [feed, setFeed] = useState<(Tick & { min: number })[]>([]);
   const [, setUi] = useState(0);
   const [flash, setFlash] = useState<string | null>(null);
+  const [lower, setLower] = useState<{ name: string; club: Fixture['home']; min: number; side: number } | null>(null);
   const [panel, setPanel] = useState(false);
   const [subOut, setSubOut] = useState<number | null>(null);
   const st = useRef({ ti: 0, from: new Map<number, Pt>(), to: new Map<number, Pt>(), ballFrom: { x: .5, y: .5 }, ballTo: { x: .5, y: .5 }, t0: 0, dur: 600, arc: 0, hold: 0 });
@@ -121,7 +137,11 @@ export default function MatchView({ m, f, onFinish }: { m: Match; f: Fixture; on
     s.hold = 0;
     if (tk.text) {
       setFeed(fd => [{ ...tk, min: Math.min(m.half >= 3 ? 120 : 90, Math.floor(tk.t / 60) + 1) }, ...fd].slice(0, 120));
-      if (tk.kind === 'goal') { setFlash('¡GOL!'); setTimeout(() => setFlash(null), 2200); s.hold = speedRef.current < 4 ? 2200 : 600; }
+      if (tk.kind === 'goal') {
+        setFlash('¡GOL!'); setTimeout(() => setFlash(null), 2200);
+        const ev = [...m.events].reverse().find(e => e.kind === 'goal');
+        if (ev) { setLower({ name: ev.pid != null ? gs.players[ev.pid]?.name ?? '' : '', club: m.sides[ev.side].club.id, min: ev.min, side: ev.side }); setTimeout(() => setLower(null), 4200); }
+        s.hold = speedRef.current < 4 ? 2200 : 600; }
       else if (tk.kind === 'save' || tk.kind === 'miss' || tk.kind === 'red' || tk.kind === 'pen') s.hold = speedRef.current < 3 ? 700 : 150;
       if (tk.kind === 'half' && m.userSide != null) { setPlaying(false); setPanel(true); }
       if (tk.kind === 'injury' && m.userSide != null && gs.players[tk.holder]?.clubId === gs.manager.clubId) { /* auto sub happened */ }
@@ -206,7 +226,7 @@ export default function MatchView({ m, f, onFinish }: { m: Match; f: Fixture; on
         </div>
         <div className="mgrid">
           <div className="col">
-            <div className="canvas-box"><canvas ref={canvas} style={{ aspectRatio: `${W} / ${H}` }} />{flash && <div className="goal-flash">{flash}</div>}</div>
+            <div className="canvas-box"><canvas ref={canvas} style={{ aspectRatio: `${W} / ${H}` }} />{flash && <div className="goal-flash">{flash}</div>}{lower && <div className="lower-third"><Crest club={gs.clubs[lower.club]} size={34} /><div><div className="lt-k">Gol · {lower.min}&apos;</div><div className="lt-n">{lower.name}</div></div><div className="lt-s num">{m.sides[0].goals} - {m.sides[1].goals}</div></div>}</div>
             <div className="row wrap">
               {!doneAll && <button className="btn" onClick={() => setPlaying(p => !p)}>{playing ? '⏸ Pausa' : '▶ Reanudar'}</button>}
               <div className="seg">{[1, 2, 3, 4].map(sp => <button key={sp} className={speed === sp ? 'on' : ''} onClick={() => setSpeed(sp)}>{['', 'x1', 'x2', 'x4', 'x12'][sp]}</button>)}</div>

@@ -1,13 +1,15 @@
 'use client';
 import React, { useState } from 'react';
 import { useGame } from './GameApp';
-import { Modal, Ovr, PosBadge, Flag, Bar, Crest, Stars } from './ui';
+import { Modal, PosBadge, Flag, Bar, Crest, Stars, PlayerCard } from './ui';
 import { ATTR_KEYS, ATTR_LABEL, POS_LABEL, age, avgRating, fairWage, marketValue, ovr, playerStatus, slotRating } from '@/game/player';
 import type { Pos } from '@/game/types';
 import { fmtMoney } from '@/game/season';
 import { askingPrice, makeBid, offerContract, releasePlayer, wageDemand } from '@/game/market';
 import { inWindow } from '@/game/calendar';
 import { potStars } from './screens/Squad';
+
+const attrColor = (v: number) => (v >= 85 ? '#46d2ff' : v >= 75 ? '#3ddc84' : v >= 65 ? '#c6f432' : v >= 55 ? '#ffb020' : '#ff5468');
 
 const ALL_POS: Pos[] = ['GK', 'RB', 'CB', 'LB', 'DM', 'CM', 'AM', 'RW', 'LW', 'ST'];
 
@@ -32,18 +34,16 @@ export default function PlayerModal({ id, onClose }: { id: number; onClose: () =
   return (
     <Modal onClose={onClose}>
       <div className="row wrap" style={{ alignItems: 'flex-start', gap: 18 }}>
-        <div className="col" style={{ alignItems: 'center', minWidth: 110 }}>
-          <div style={{ width: 96, height: 96, borderRadius: 20, background: club ? `linear-gradient(135deg, ${club.colors[0]}, ${club.colors[1]})` : '#334', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-head)', fontSize: 44, fontWeight: 800, color: '#fff', textShadow: '0 2px 8px rgba(0,0,0,.6)', border: '2px solid rgba(255,255,255,.3)' }}>{p.num || '–'}</div>
-          <Ovr v={ovr(p)} />
-        </div>
+        <PlayerCard p={p} club={club} rating={ovr(p)} />
         <div className="grow">
-          <h1 style={{ marginBottom: 4 }}>{p.name}</h1>
+          <div className="kicker-sm">Ficha del jugador</div>
+          <h1 style={{ marginBottom: 6 }}>{p.name}</h1>
           <div className="row wrap small"><PosBadge pos={p.pos} /><span><Flag nat={p.nat} />{p.nat}</span><span>{age(p, gs.season)} años</span>{club ? <span className="row" style={{ gap: 6 }}><Crest club={club} size={18} />{club.name}</span> : <span className="pill good">Agente libre</span>}{p.youth && <span className="pill blue">Cantera</span>}{playerStatus(p) && <span className="pill bad">{playerStatus(p)}{p.injuryName ? ` · ${p.injuryName}` : ''}</span>}{p.generated && <span className="pill">Jugador generado</span>}</div>
-          <div className="grid g4" style={{ marginTop: 12 }}>
-            <div><div className="small muted">Valor</div><b>{fmtMoney(value)}</b></div>
-            <div><div className="small muted">Sueldo</div><b>{fmtMoney(p.wage)}/sem</b></div>
-            <div><div className="small muted">Contrato hasta</div><b>{p.contractEnd}</b></div>
-            <div><div className="small muted">Potencial</div><Stars v={st.mid} />{st.unc > 0 && <span className="small muted"> ±{st.unc.toFixed(1)}</span>}</div>
+          <div className="grid g4" style={{ marginTop: 14 }}>
+            <div className="statbox"><span>Valor</span><b>{fmtMoney(value)}</b></div>
+            <div className="statbox"><span>Sueldo</span><b>{fmtMoney(p.wage)}/sem</b></div>
+            <div className="statbox"><span>Contrato hasta</span><b>{p.contractEnd}</b></div>
+            <div className="statbox"><span>Potencial</span><div><Stars v={st.mid} />{st.unc > 0 && <span className="small muted"> ±{st.unc.toFixed(1)}</span>}</div></div>
           </div>
         </div>
       </div>
@@ -51,7 +51,7 @@ export default function PlayerModal({ id, onClose }: { id: number; onClose: () =
         <div className="panel tight">
           <h3>Atributos</h3>
           {ATTR_KEYS.filter(k => p.pos === 'GK' || k !== 'gk').map(k => (
-            <div className="attr" key={k}><span className="muted">{ATTR_LABEL[k]}</span><Bar v={p.attrs[k]} max={99} /><b className="num">{p.attrs[k]}</b></div>
+            <div className="attr" key={k}><span className="muted">{ATTR_LABEL[k]}</span><Bar v={p.attrs[k]} max={99} color={attrColor(p.attrs[k])} /><b className="num" style={{ color: attrColor(p.attrs[k]) }}>{p.attrs[k]}</b></div>
           ))}
           <div className="attr"><span className="muted">Físico</span><Bar v={p.fitness} /><b className="num">{Math.round(p.fitness)}</b></div>
           <div className="attr"><span className="muted">Moral</span><Bar v={p.morale} color="var(--blue)" /><b className="num">{Math.round(p.morale)}</b></div>

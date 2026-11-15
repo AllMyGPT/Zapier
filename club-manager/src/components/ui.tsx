@@ -40,7 +40,8 @@ export function Crest({ club, size = 36 }: { club: Pick<Club, 'colors' | 'name' 
     <svg width={size} height={size * 1.15} viewBox="0 0 100 115" style={{ flexShrink: 0, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,.4))' }}>
       <defs>
         <clipPath id={id}><path d="M50 3 L95 15 L92 60 Q88 95 50 112 Q12 95 8 60 L5 15 Z" /></clipPath>
-        <linearGradient id={id + 'g'} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff" stopOpacity=".35" /><stop offset=".5" stopColor="#fff" stopOpacity="0" /></linearGradient>
+        <linearGradient id={id + 'g'} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff" stopOpacity=".42" /><stop offset=".48" stopColor="#fff" stopOpacity=".08" /><stop offset=".5" stopColor="#fff" stopOpacity="0" /><stop offset="1" stopColor="#000" stopOpacity=".28" /></linearGradient>
+        <linearGradient id={id + 'c'} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffffff" /><stop offset=".45" stopColor="#b7c6e2" /><stop offset=".5" stopColor="#5d6f8f" /><stop offset=".75" stopColor="#c8d6ee" /><stop offset="1" stopColor="#7d90b2" /></linearGradient>
       </defs>
       <g clipPath={`url(#${id})`}>
         <rect width="100" height="115" fill={a} />
@@ -51,18 +52,57 @@ export function Crest({ club, size = 36 }: { club: Pick<Club, 'colors' | 'name' 
         {style === 3 && <rect x="0" y="0" width="100" height="38" fill={b} />}
         <rect width="100" height="115" fill={`url(#${id}g)`} />
       </g>
-      <path d="M50 3 L95 15 L92 60 Q88 95 50 112 Q12 95 8 60 L5 15 Z" fill="none" stroke="rgba(255,255,255,.85)" strokeWidth="4" />
+      <path d="M50 3 L95 15 L92 60 Q88 95 50 112 Q12 95 8 60 L5 15 Z" fill="none" stroke="#0a1a3a" strokeWidth="7" />
+      <path d="M50 3 L95 15 L92 60 Q88 95 50 112 Q12 95 8 60 L5 15 Z" fill="none" stroke={`url(#${id}c)`} strokeWidth="4.5" />
       <text x="50" y={txt.length > 2 ? 68 : 72} textAnchor="middle" fontFamily="Barlow Condensed, Arial Narrow, sans-serif" fontWeight="800" fontSize={txt.length > 2 ? 27 : 38} fill={textColor} stroke={textColor === '#ffffff' ? 'rgba(0,0,0,.35)' : 'rgba(255,255,255,.4)'} strokeWidth="1.5">{txt}</text>
     </svg>
   );
 }
 
-export function Modal({ onClose, children, wide }: { onClose: () => void; children: React.ReactNode; wide?: boolean }) {
+export function Modal({ onClose, children, wide, scene }: { onClose: () => void; children: React.ReactNode; wide?: boolean; scene?: string }) {
   return (
     <div className="overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal" style={wide ? { width: 'min(1200px, 100%)' } : undefined}>
-        <button className="btn sm ghost x" onClick={onClose}>✕</button>
-        {children}
+      <div className={`modal${scene ? ' scene' : ''}`} style={wide ? { width: 'min(1200px, 100%)' } : undefined}>
+        <button className="btn sm ghost x" onClick={onClose} aria-label="Cerrar">✕</button>
+        {scene ? <><div className="scene-bg" style={{ backgroundImage: `url(/art/${scene}.webp)` }} /><div className="inner">{children}</div></> : children}
+      </div>
+    </div>
+  );
+}
+
+/** Collectible-style player card: club colours, rating, position, silhouette and holographic sheen. */
+export function PlayerCard({ p, club, rating }: { p: Player; club: Pick<Club, 'colors' | 'name' | 'short' | 'id'> | null; rating: number }) {
+  const [a, b] = club ? club.colors : ['#2a3550', '#141c2e'];
+  const tier = rating >= 85 ? 'elite' : rating >= 78 ? 'gold' : rating >= 70 ? 'silver' : 'bronze';
+  return (
+    <div className={`pcard ${tier}`} style={{ ['--ca' as string]: a, ['--cb' as string]: b } as React.CSSProperties}>
+      <div className="pcard-bg" />
+      <div className="pcard-top">
+        <div className="pcard-ovr">{Math.round(rating)}</div>
+        <div className="pcard-pos">{POS_LABEL[p.pos]}</div>
+        <div className="pcard-flag">{flag(p.nat)}</div>
+        {club && <div className="pcard-crest"><Crest club={club} size={26} /></div>}
+      </div>
+      <svg className="pcard-sil" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="34" r="17" />
+        <path d="M14 100 C16 70 32 58 50 58 C68 58 84 70 86 100 Z" />
+      </svg>
+      <div className="pcard-num">{p.num || '–'}</div>
+      <div className="pcard-name">{p.name.split(' ').slice(-1)[0]}</div>
+      <div className="pcard-sheen" />
+    </div>
+  );
+}
+
+/** Cinematic banner at the top of each management screen. */
+export function SceneHero({ img, kicker, title, sub }: { img: string; kicker: string; title: string; sub?: string }) {
+  return (
+    <div className="scene-hero">
+      <div className="img" style={{ backgroundImage: `url(/art/${img}.webp)` }} />
+      <div className="txt">
+        <div className="kicker">{kicker}</div>
+        <h1>{title}</h1>
+        {sub && <div className="sub">{sub}</div>}
       </div>
     </div>
   );

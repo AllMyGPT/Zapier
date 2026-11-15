@@ -24,16 +24,22 @@ export default function TitleScreen({ onStart }: { onStart: (g: GameState) => vo
   };
   return (
     <div className="title-screen">
-      <div className="pitch-bg" />
-      <div className="hero grid g2" style={{ alignItems: 'center' }}>
+      <video className="bgvideo" autoPlay muted loop playsInline poster="/art/stadium.webp">
+        <source src="/art/stadium-loop.webm" type="video/webm" />
+        <source src="/art/stadium-loop.mp4" type="video/mp4" />
+      </video>
+      <div className="shade" />
+      <div className="hero grid" style={{ gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', alignItems: 'center', gap: 40 }}>
         <div>
-          <div className="logo">Pizarra<br /><em>Club</em> Manager</div>
-          <div className="tagline">Dirige a tu club favorito: tácticas, fichajes, cantera, finanzas y partidos en directo con las plantillas actuales de las 5 grandes ligas.</div>
-          <div className="row wrap">
-            <button className="btn primary big" onClick={() => setStep('new')}>Nueva partida</button>
-            {saves[0] && <button className="btn big" onClick={() => load(saves[0])} disabled={loading}>Continuar ({saves[0].club})</button>}
+          <div className="logo-lockup">
+            <img src="/art/emblem.svg" alt="" />
+            <div className="logo"><span className="chrome">Pizarra</span><em>Club Manager</em></div>
           </div>
-          <p className="small muted" style={{ marginTop: 26, maxWidth: 520 }}>Juego independiente sin afiliación con clubes, ligas ni editores. Escudos generados; datos de jugadores aproximados (temporada 2025/26).</p>
+          <div className="tagline">Dirige a tu club favorito: tácticas, fichajes, cantera, finanzas y partidos en directo con las plantillas actuales de las 5 grandes ligas.</div>
+          <div className="menu-stack">
+            <button className="menu-btn primary" onClick={() => setStep('new')}>Nueva carrera<small>Elige club entre 5 ligas y sus segundas divisiones</small></button>
+            {saves[0] && <button className="menu-btn" onClick={() => load(saves[0])} disabled={loading}>Continuar<small>{saves[0].club} · {saves[0].season}</small></button>}
+          </div>
         </div>
         <div className="col">
           <div className="panel">
@@ -51,6 +57,7 @@ export default function TitleScreen({ onStart }: { onStart: (g: GameState) => vo
           <AuthBox onChange={reloadCloud} />
         </div>
       </div>
+      <p className="legal">Juego independiente sin afiliación con clubes, ligas ni editores. Escudos y arte generados; datos de jugadores aproximados (temporada 2025/26).</p>
     </div>
   );
 }
@@ -69,8 +76,10 @@ function NewGame({ onBack, onStart }: { onBack: () => void; onStart: (g: GameSta
   };
   return (
     <div className="title-screen" style={{ alignItems: 'flex-start' }}>
+      <div className="bgvideo" style={{ background: 'url(/art/exterior.webp) center / cover' }} />
+      <div className="shade" />
       <div className="hero col" style={{ width: 'min(1200px, 100%)' }}>
-        <div className="row"><button className="btn ghost" onClick={onBack}>← Volver</button><h1 style={{ margin: 0 }}>Nueva carrera</h1></div>
+        <div className="row"><button className="btn ghost" onClick={onBack}>← Volver</button><img src="/art/emblem.svg" alt="" style={{ width: 44 }} /><h1 style={{ margin: 0, fontSize: 42 }}>Nueva carrera</h1></div>
         <div className="grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 320px' }}>
           <div className="panel">
             <div className="row wrap" style={{ marginBottom: 12 }}>
@@ -91,15 +100,18 @@ function NewGame({ onBack, onStart }: { onBack: () => void; onStart: (g: GameSta
               </div>
             ))}
           </div>
-          <div className="panel">
+          <div className="panel contract">
+            <h3>Contrato</h3>
             {sel ? (
-              <div className="col">
-                <div className="row"><Crest club={sel} size={64} /><div><h2>{sel.name}</h2><div className="muted">{sel.city}</div></div></div>
-                <div><span className="muted">Estadio:</span> {sel.stadium} ({sel.capacity.toLocaleString('es-ES')})</div>
-                <div><span className="muted">Nivel del equipo:</span> <Stars v={(strengthOf(world, sel.id) - 60) / 5} /></div>
-                <div><span className="muted">Presupuesto fichajes:</span> <b>{fmtMoney(sel.transferBudget)}</b></div>
-                <div><span className="muted">Objetivo de la directiva:</span> <b>{expectationLabel(world, sel.id)}</b></div>
-                <button className="btn primary big" onClick={start}>Firmar contrato</button>
+              <div className="col" style={{ gap: 4 }}>
+                <div className="crest-big"><Crest club={sel} size={110} /></div>
+                <h2 style={{ textAlign: 'center', fontStyle: 'italic', textTransform: 'uppercase', margin: '4px 0 0' }}>{sel.name}</h2>
+                <div className="muted" style={{ textAlign: 'center', marginBottom: 8 }}>{sel.city}</div>
+                <div className="kv"><span>Estadio</span><b>{sel.stadium} ({sel.capacity.toLocaleString('es-ES')})</b></div>
+                <div className="kv"><span>Nivel del equipo</span><Stars v={(strengthOf(world, sel.id) - 60) / 5} /></div>
+                <div className="kv"><span>Presupuesto fichajes</span><b>{fmtMoney(sel.transferBudget)}</b></div>
+                <div className="kv"><span>Objetivo de la directiva</span><b>{expectationLabel(world, sel.id)}</b></div>
+                <button className="btn primary big" style={{ marginTop: 12 }} onClick={start}>Firmar contrato</button>
               </div>
             ) : <div className="empty">Elige un club para ver los detalles.</div>}
           </div>

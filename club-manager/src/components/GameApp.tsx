@@ -3,7 +3,8 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import type { Fixture, GameState } from '@/game/types';
 import { advance, endSeason, fmtMoney, simFixture, buildMatch, applyResult } from '@/game/season';
 import { compName, dateLabel, seasonLabel, table, inWindow } from '@/game/calendar';
-import { Crest, Modal } from './ui';
+import { Crest, Modal, SceneHero } from './ui';
+import { Icon } from './Icons';
 import TitleScreen from './TitleScreen';
 import Office from './screens/Office';
 import Squad from './screens/Squad';
@@ -25,10 +26,23 @@ interface Ctx { gs: GameState; v: number; refresh: () => void; toast: (s: string
 const GameCtx = createContext<Ctx | null>(null);
 export const useGame = () => useContext(GameCtx)!;
 
-const NAV: [Tab, string, string][] = [
-  ['office', '🏠', 'Despacho'], ['squad', '👥', 'Plantilla'], ['tactics', '📋', 'Tácticas'], ['training', '🏃', 'Entrenamiento'],
-  ['transfers', '🔁', 'Fichajes'], ['finances', '💶', 'Finanzas'], ['club', '🏟️', 'Club'], ['comps', '🏆', 'Competiciones'], ['save', '💾', 'Partida'],
+const NAV: [Tab, string][] = [
+  ['office', 'Despacho'], ['squad', 'Plantilla'], ['tactics', 'Tácticas'], ['training', 'Entrenamiento'],
+  ['transfers', 'Fichajes'], ['finances', 'Finanzas'], ['club', 'Club'], ['comps', 'Competiciones'], ['save', 'Partida'],
 ];
+
+/** Scene photo, kicker and subtitle for each screen's banner. */
+const SCENES: Record<Tab, [string, string, string]> = {
+  office: ['office', 'Centro de mando', 'Agenda, directiva y noticias del club'],
+  squad: ['dressing', 'Vestuario', 'Tu plantilla, contratos, estado y rendimiento'],
+  tactics: ['chalkboard', 'La pizarra', 'Sistema, mentalidad y once titular'],
+  training: ['training', 'Ciudad deportiva', 'Planifica la semana y haz crecer a tus jugadores'],
+  transfers: ['negotiation', 'Mercado', 'Ojeadores, ofertas y negociaciones'],
+  finances: ['negotiation', 'Cuentas del club', 'Ingresos, gastos y presupuesto'],
+  club: ['exterior', 'Instalaciones', 'Estadio, personal y cantera'],
+  comps: ['trophies', 'Sala de trofeos', 'Clasificaciones, copas y calendario'],
+  save: ['stadium', 'Partida', 'Guarda y carga tu carrera'],
+};
 
 export default function GameApp() {
   const [gs, setGsState] = useState<GameState | null>(null);
@@ -87,22 +101,23 @@ export default function GameApp() {
 
   return (
     <GameCtx.Provider value={ctx}>
+      <div className="backdrop" style={{ ['--scene' as string]: `url(/art/${SCENES[tab][0]}.webp)` } as React.CSSProperties} />
       <div className="shell">
         <aside className="side">
-          <div className="brand">PIZARRA<span>·CM</span></div>
-          {NAV.map(([k, ic, label]) => (
+          <div className="brand"><img src="/art/emblem.svg" alt="" /><div className="wm"><b>Pizarra</b><span>Club Manager</span></div></div>
+          {NAV.map(([k, label]) => (
             <button key={k} className={`nav ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>
-              <span className="ic">{ic}</span>{label}
+              <span className="ic"><Icon name={k} /></span>{label}
               {k === 'office' && unread > 0 && <span className="badge">{unread}</span>}
               {k === 'transfers' && pendingOffers > 0 && <span className="badge">{pendingOffers}</span>}
             </button>
           ))}
           <div className="foot grow" />
-          <div className="foot small muted" style={{ padding: 8 }}>Temporada {seasonLabel(gs.season)}<br />{gs.manager.name}</div>
+          <div className="mgr"><div className="row" style={{ gap: 8 }}><Crest club={club} size={26} /><div><b>{gs.manager.name}</b><div className="muted">Temporada {seasonLabel(gs.season)}</div></div></div></div>
         </aside>
         <main className="main">
           <div className="topbar">
-            <div className="club"><Crest club={club} size={46} /><div><h2>{club.name}</h2><div className="muted small">{L.name} · {pos}º · {dateLabel(gs.season, gs.day)}</div></div></div>
+            <div className="club"><Crest club={club} size={46} /><div><h2>{club.name}</h2><div className="small"><span className="muted">{L.name} · {pos}º</span> · <span className="date-chip">{dateLabel(gs.season, gs.day)}</span></div></div></div>
             <div className="row wrap" style={{ gap: 0 }}>
               <div className="stat"><b className="num">{fmtMoney(club.balance)}</b><span>Saldo</span></div>
               <div className="stat"><b className="num">{fmtMoney(club.transferBudget)}</b><span>Fichajes</span></div>
@@ -113,6 +128,8 @@ export default function GameApp() {
               <button className="btn primary big" onClick={doContinue} disabled={busy || !!gs.manager.sacked}>{busy ? <span className="spin" /> : 'Continuar ▶'}</button>
             </div>
           </div>
+          <SceneHero img={SCENES[tab][0]} kicker={SCENES[tab][1]} title={NAV.find(n => n[0] === tab)![1]} sub={SCENES[tab][2]} />
+          <div key={tab} className="screen-in">
           {tab === 'office' && <Office />}
           {tab === 'squad' && <Squad />}
           {tab === 'tactics' && <TacticsScreen />}
@@ -122,7 +139,13 @@ export default function GameApp() {
           {tab === 'club' && <ClubScreen />}
           {tab === 'comps' && <Competitions />}
           {tab === 'save' && <SaveScreen />}
+          </div>
         </main>
+      </div>
+
+      <div className="ticker" aria-label="Últimas noticias">
+        <div className="lbl">Última hora</div>
+        <div className="track">{(() => { const items = gs.news.slice(-8).reverse().map(n => n.title); const list = items.length ? items : ['Bienvenido a tu nuevo club']; return [...list, ...list].map((t, i) => <span key={i}>{t}</span>); })()}</div>
       </div>
 
       {player != null && gs.players[player] && <PlayerModal id={player} onClose={() => { setPlayer(null); refresh(); }} />}
@@ -131,12 +154,12 @@ export default function GameApp() {
         const opp = gs.clubs[pre.home === club.id ? pre.away : pre.home];
         const home = gs.clubs[pre.home], away = gs.clubs[pre.away];
         return (
-          <Modal onClose={() => setPre(null)}>
-            <div className="muted small" style={{ textTransform: 'uppercase', letterSpacing: '.1em' }}>Día de partido · {compName(gs, pre.comp)} {pre.roundName ?? `· Jornada ${pre.round}`}</div>
-            <div className="row" style={{ justifyContent: 'center', gap: 30, margin: '22px 0' }}>
-              <div className="col" style={{ alignItems: 'center' }}><Crest club={home} size={80} /><h2>{home.name}</h2></div>
-              <h1 className="muted">VS</h1>
-              <div className="col" style={{ alignItems: 'center' }}><Crest club={away} size={80} /><h2>{away.name}</h2></div>
+          <Modal onClose={() => setPre(null)} scene="tunnel">
+            <div style={{ textAlign: 'center' }}><span className="matchday-kicker">Día de partido</span><div className="muted small" style={{ marginTop: 8, textTransform: 'uppercase', letterSpacing: '.14em' }}>{compName(gs, pre.comp)} {pre.roundName ?? `· Jornada ${pre.round}`}</div></div>
+            <div className="row" style={{ justifyContent: 'center', gap: 30, margin: '26px 0' }}>
+              <div className="col" style={{ alignItems: 'center', width: 220 }}><Crest club={home} size={96} /><h2 style={{ textAlign: 'center', fontStyle: 'italic', textTransform: 'uppercase' }}>{home.name}</h2></div>
+              <div className="vs-big">VS</div>
+              <div className="col" style={{ alignItems: 'center', width: 220 }}><Crest club={away} size={96} /><h2 style={{ textAlign: 'center', fontStyle: 'italic', textTransform: 'uppercase' }}>{away.name}</h2></div>
             </div>
             <p className="muted" style={{ textAlign: 'center' }}>{home.stadium} · Rival: {opp.name} ({opp.tactics.formation})</p>
             <div className="row" style={{ justifyContent: 'center', marginTop: 18 }}>
@@ -153,8 +176,9 @@ export default function GameApp() {
       {summary && <MatchSummary f={summary.f} m={summary.m} onClose={() => setSummary(null)} />}
 
       {seasonEnd && (
-        <Modal onClose={() => setSeasonEnd(null)}>
-          <h1>Fin de temporada</h1>
+        <Modal onClose={() => setSeasonEnd(null)} scene="trophies">
+          <span className="matchday-kicker">Balance</span>
+          <h1 style={{ marginTop: 10 }}>Fin de temporada</h1>
           <p className="muted">Comienza la temporada {seasonLabel(gs.season)}. Se ha abierto el mercado de verano y ha llegado una nueva hornada de juveniles.</p>
           <div className="col" style={{ gap: 6 }}>{seasonEnd.map((s, i) => <div key={i} className="news-item" style={{ cursor: 'default' }}>{s}</div>)}</div>
           <div className="row" style={{ marginTop: 16 }}><button className="btn primary right" onClick={() => setSeasonEnd(null)}>Empezar nueva temporada</button></div>
@@ -171,11 +195,11 @@ function MatchSummary({ f, m, onClose }: { f: Fixture; m: Match; onClose: () => 
   const h = gs.clubs[f.home], a = gs.clubs[f.away];
   return (
     <Modal onClose={onClose} wide>
-      <div className="muted small" style={{ textTransform: 'uppercase', letterSpacing: '.1em' }}>{compName(gs, f.comp)} · Final</div>
-      <div className="row" style={{ justifyContent: 'center', gap: 24, margin: '14px 0' }}>
-        <Crest club={h} size={56} /><h2>{h.name}</h2>
-        <h1 style={{ fontSize: 48 }}>{f.hg} - {f.ag}</h1>
-        <h2>{a.name}</h2><Crest club={a} size={56} />
+      <div style={{ textAlign: 'center' }}><span className="matchday-kicker">Final del partido</span><div className="muted small" style={{ marginTop: 8, textTransform: 'uppercase', letterSpacing: '.14em' }}>{compName(gs, f.comp)}</div></div>
+      <div className="scoreboard" style={{ margin: '16px auto', maxWidth: 760 }}>
+        <div className="team"><Crest club={h} size={46} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.name}</span></div>
+        <div className="score num">{f.hg} - {f.ag}</div>
+        <div className="team away"><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</span><Crest club={a} size={46} /></div>
       </div>
       {f.pens && <p style={{ textAlign: 'center' }} className="muted">Penaltis: {f.pens[0]} - {f.pens[1]}</p>}
       <div className="grid g2">

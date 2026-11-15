@@ -63,8 +63,16 @@ npx tsc --noEmit && npx next build   # comprobaciones
   - Probar crear una cuenta, guardar en la nube y cargar.
 - Decidido por el usuario: se acepta que la Auth sea compartida con EmotivOS.
 
+## Arte y tema visual (15 nov 2026)
+- Tema «noche de estadio» al estilo de los managers de los 2000, con diseño original: paneles de cristal con barras de título cromadas, botones con relieve, barra lateral con iconos propios, banner con foto en cada pantalla, teletipo de noticias, previa en el túnel, rótulo de gol, ficha de jugador tipo cromo y medidor de la directiva.
+- Recursos en `public/art/` (WebP optimizados):
+  - Fondos de Gemini (Nano Banana).
+  - `stadium-loop.mp4/.webm`: Google Flow (Omni 1.2 Flash), con el mismo fotograma al inicio y al final para el bucle.
+  - `og.jpg` y `keyart.webp`: Canva (diseño `DAHbAYdq8g8`).
+  - `emblem.svg`: dibujado a mano en vector.
+- Los originales a máxima resolución están en `art/raw/`, excluido de git. Son imágenes generadas, sin logos ni personas identificables.
+
 ## Ideas pendientes (opcionales)
-- Arte de portada o promo con Canva (el usuario lo ofreció; Gemini y Google Flow no estaban conectados en la sesión).
 - Revisar plantillas dudosas en `src/data/leagues/*.ts` (formato `Nombre|POS|año|NAC|media|potencial`), p. ej. canteranos poco seguros en `esp.ts`: David Otorbi, Ismael Bekhoucha, Yellu Santiago, Dani Budesca.
 - Los escudos son generados a propósito (no logos oficiales). Si se publica o monetiza, revisar los derechos de imagen de los nombres de jugadores.
 
