@@ -62,7 +62,7 @@ export const ALIMONY_WEEKLY = 1_800;
 /** The picture shown for a person, following the outfit they are wearing today. */
 export const lookImage = (p: Person) => (p.look && hasAltLook(p) ? `${p.img}-b` : p.img);
 /** Portraits whose second outfit (`<portrait>-b.webp`) is already in public/art/life. */
-export const ALT_LOOKS = new Set<string>(['f1', 'f2', 'f3', 'f4']);
+export const ALT_LOOKS = new Set<string>(Array.from({ length: 21 }, (_, i) => `f${i + 1}`));
 export const hasAltLook = (p: Person) => p.gender === 'f' && ALT_LOOKS.has(p.img);
 const NAMES_F = ['Lucía', 'Valentina', 'Irene', 'Daniela', 'Mei', 'Carla', 'Sofía', 'Elena', 'Marta', 'Chloé',
   'Valeria', 'Larissa', 'Freya', 'Camila', 'Amara', 'Gisela', 'Yuna', 'Giulia', 'Maeve', 'Carmen', 'Candela'];
