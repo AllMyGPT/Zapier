@@ -9,6 +9,28 @@ export function reserveOf(gs: GameState, clubId: string) {
 }
 
 export const RESERVE_MAX_AGE = 23;
+export const MAX_CALLUPS = 3;
+
+/** Call a youngster or a reserve player up for the next first-team match only (no transfer). */
+export function toggleCallup(gs: GameState, pid: number): string {
+  const me = gs.clubs[gs.manager.clubId]; const p = gs.players[pid]; const r = reserveOf(gs, me.id);
+  if (!p) return 'Jugador no encontrado.';
+  const list = me.callups ?? [];
+  if (list.includes(pid)) { me.callups = list.filter(x => x !== pid); return `${p.name} no vendrá al próximo partido.`; }
+  const fromYouth = p.clubId === me.id && !!p.youth;
+  const fromReserve = !!r && p.clubId === r.id;
+  if (!fromYouth && !fromReserve) return 'Solo puedes convocar juveniles o jugadores de tu filial.';
+  if (list.length >= MAX_CALLUPS) return `Máximo ${MAX_CALLUPS} convocatorias por partido.`;
+  me.callups = [...list, pid];
+  return `${p.name} se suma al próximo partido sin cambiar de club.`;
+}
+
+/** The manager takes over the lineup of the reserve team (or hands it back to the AI). */
+export function setReserveManual(gs: GameState, on: boolean): string {
+  const r = reserveOf(gs, gs.manager.clubId); if (!r) return 'Tu club no tiene filial.';
+  r.manual = on;
+  return on ? `Diriges tú al ${r.name}: su once y su táctica son decisión tuya.` : `El ${r.name} vuelve a ser gestionado por el ayudante.`;
+}
 
 function dropFromLineup(gs: GameState, p: Player) {
   invalidateStrength();

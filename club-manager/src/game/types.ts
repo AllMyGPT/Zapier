@@ -96,9 +96,13 @@ export interface Club {
   cohesion: number;     // 0-100 tactical familiarity
   parentId?: string;    // reserve (B) team: id of its first team
   academy?: number;     // youth academy level 1-6: intake quality and youth development
+  callups?: number[];  // youth / reserve players called up for the next match only (user club)
+  manual?: boolean;    // reserve team only: the manager sets its lineup instead of the AI
 }
 
-export interface Training { intensity: 1 | 2 | 3; focus: 'general' | 'ataque' | 'defensa' | 'fisico' | 'tactica' | 'balon_parado' | 'descanso' }
+export interface Training { intensity: 1 | 2 | 3; focus: 'general' | 'ataque' | 'defensa' | 'fisico' | 'tactica' | 'balon_parado' | 'descanso'; auto?: boolean; criteria?: TrainCriteria }
+/** Automatic training plan: what the coaching staff prioritises for each player. */
+export type TrainCriteria = 'desarrollo' | 'rendimiento' | 'recuperacion';
 
 export interface League {
   id: string; name: string; country: string; tier: 1 | 2 | 3; clubIds: string[];
@@ -134,6 +138,10 @@ export interface CupState {
   done?: boolean; winner?: string;
 }
 
+export interface ScoutState { missions: ScoutMission[]; known: string[]; nextId: number; reports: ScoutReport[] }
+export interface ScoutMission { id: number; target: string; label: string; start: number; end: number; cost: number; done?: boolean }
+export interface ScoutReport { id: number; day: number; season: number; title: string; pids: number[] }
+
 export interface NewsItem { id: number; date: number; title: string; body: string; read?: boolean; kind: 'board' | 'transfer' | 'injury' | 'match' | 'club' | 'youth' | 'info' }
 
 export interface TransferOffer {
@@ -145,6 +153,7 @@ export interface TransferOffer {
 export interface FinanceLog { date: number; label: string; amount: number }
 
 export interface GameState {
+  scouting?: ScoutState;   // scouting missions and reports (see scout.ts)
   version: number;
   seed: number;
   manager: { name: string; clubId: string; reputation: number; board: number; history: { season: number; club: string; pos: number; league: string; trophies: string[] }[]; sacked?: boolean };

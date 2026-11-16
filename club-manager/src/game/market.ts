@@ -1,6 +1,7 @@
-import type { GameState, Player, Role, TransferOffer } from './types';
+import type { Club, GameState, Player, Role, TransferOffer } from './types';
+import { FORMATIONS } from './tactics';
 import { Rng } from './rng';
-import { age, fairWage, marketValue, ovr, roundMoney } from './player';
+import { age, fairWage, marketValue, ovr, roundMoney, slotRating } from './player';
 import { clubPlayers } from './lineup';
 import { inWindow } from './calendar';
 import { fmtMoney, invalidateStrength, money, news, strengthOf } from './season';
@@ -106,11 +107,30 @@ export function offerContract(gs: GameState, pid: number, wage: number, years: n
   applyTerms();
   const used = new Set(clubPlayers(gs, me.id).map(x => x.num));
   p.num = [p.pos === 'GK' ? 13 : 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30, 33, 34].find(n => !used.has(n)) ?? 40;
-  me.bench = [...me.bench, pid].slice(-9);
+  placeSigning(gs, me, p);
   deal!.status = 'done';
   gs.shortlist = gs.shortlist.filter(x => x !== pid);
   news(gs, 'transfer', `Fichaje cerrado: ${p.name}`, `${p.name} firma por ${years} temporadas${from ? ` procedente del ${gs.clubs[from].name} por ${fmtMoney(deal!.fee)}` : ' como agente libre'}.`);
   return { ok: true, msg: `¡${p.name} es nuevo jugador del ${me.name}!` };
+}
+
+/** A new signing counts at once: he takes his slot in the XI if he is clearly better, otherwise he sits on the bench. */
+export function placeSigning(gs: GameState, club: Club, p: Player) {
+  invalidateStrength();
+  const slots = FORMATIONS[club.tactics.formation]?.slots; if (!slots) return;
+  while (club.lineup.length < slots.length) club.lineup.push(-1);
+  let best = -1, gain = 0;
+  slots.forEach((s, i) => {
+    if (s.pos !== p.pos) return;
+    const cur = club.lineup[i] >= 0 ? gs.players[club.lineup[i]] : undefined;
+    const g = slotRating(p, s.pos) - (cur ? slotRating(cur, s.pos) : 0);
+    if (g > gain) { gain = g; best = i; }
+  });
+  if (best >= 0 && gain > 1) {
+    const old = club.lineup[best]; club.lineup[best] = p.id;
+    if (old >= 0) club.bench = [...club.bench.filter(x => x !== old), old];
+  } else club.bench = [...club.bench.filter(x => x !== p.id), p.id];
+  club.bench = club.bench.slice(-9);
 }
 
 export function acceptIncoming(gs: GameState, offerId: number): string {

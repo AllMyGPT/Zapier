@@ -617,3 +617,7 @@ table.t td.r, table.t th.r { text-align: right; }
   .life-meter { grid-template-columns: 86px 1fr 30px; }
 }
 @media (max-width: 420px) { .people { grid-template-columns: 1fr; } }
+
+/* Ojeador: grid of quick scouting targets */
+.scout-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.scout-grid .btn:disabled { opacity: .55; }

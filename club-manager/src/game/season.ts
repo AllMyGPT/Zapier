@@ -1,4 +1,5 @@
-import type { Club, Fixture, GameState, League, NewsItem, Objectives, Player } from './types';
+import type { Club, Fixture, GameState, League, NewsItem, Objectives, Player, Training, TrainCriteria } from './types';
+import { scoutOf, tickScouting } from './scout';
 import { Rng, hashStr } from './rng';
 import { createMatch, runToEnd, type Match } from './engine';
 import { autoPick, clubPlayers, ensureLineup, withPlayerIndex } from './lineup';
@@ -94,6 +95,7 @@ export function startCareer(gs: GameState, clubId: string) {
   scheduleSeason(gs, rngFor(gs, 'sched'), ...continental(gs));
   youthIntake(gs, c, rngFor(gs, 'youth'));
   setObjectives(gs);
+  scoutOf(gs);
   news(gs, 'board', `Bienvenido a ${c.name}`, `La directiva te da la bienvenida como nuevo entrenador. Objetivo de la temporada: ${expectationLabel(gs, clubId)}. Presupuesto de fichajes: ${fmtMoney(c.transferBudget)}.`);
   news(gs, 'info', 'Mercado de fichajes abierto', 'El mercado de verano está abierto hasta el 31 de agosto. Revisa la plantilla y busca refuerzos en la sección Fichajes.');
 }
@@ -142,7 +144,8 @@ export function strengthOf(gs: GameState, clubId: string) {
 export function isUserFixture(gs: GameState, f: Fixture) { return f.home === gs.manager.clubId || f.away === gs.manager.clubId; }
 
 export function prepareSide(gs: GameState, club: Club): [number[], number[]] {
-  if (club.id === gs.manager.clubId) { ensureLineup(gs, club); return [club.lineup.slice(), club.bench.slice()]; }
+  // the first team and a reserve team the manager runs by hand use the manager's lineup
+  if (club.id === gs.manager.clubId || (club.manual && club.parentId === gs.manager.clubId)) { ensureLineup(gs, club); return [club.lineup.slice(), club.bench.slice()]; }
   const pick = autoPick(clubPlayers(gs, club.id), club.tactics.formation);
   club.lineup = pick.lineup; club.bench = pick.bench;
   return [pick.lineup, pick.bench];
@@ -198,6 +201,7 @@ export function applyResult(gs: GameState, f: Fixture, m: Match) {
     club.fans = clamp(club.fans + res * (isDerby(gs, f.home, f.away) ? 5 : 2), 5, 100);
   }
   if (isUserFixture(gs, f)) {
+    gs.clubs[gs.manager.clubId].callups = []; // call-ups only last for one match
     const us = f.home === gs.manager.clubId ? 0 : 1;
     const res = Math.sign(m.sides[us].goals - m.sides[1 - us].goals);
     const oppStr = strengthOf(gs, m.sides[1 - us].clubId), myStr = strengthOf(gs, gs.manager.clubId);
@@ -269,6 +273,7 @@ export function advance(gs: GameState, maxDays = 60): AdvanceResult {
 
 function nextDay(gs: GameState) {
   gs.day++;
+  tickScouting(gs);
   const rng = rngFor(gs, 'day');
   for (const id in gs.players) {
     const p = gs.players[id];
@@ -356,13 +361,17 @@ function weeklyRest(gs: GameState, rng: Rng) {
 function training(gs: GameState, c: Club, ps: Player[], rng: Rng) {
   const isUser = c.id === gs.manager.clubId;
   const t = c.training;
-  const intensity = t.focus === 'descanso' ? 0 : t.intensity;
+  const baseIntensity = t.focus === 'descanso' ? 0 : t.intensity;
   const focusAttrs: Record<string, (keyof Player['attrs'])[]> = {
     general: [], ataque: ['sho', 'dri', 'pas'], defensa: ['def', 'hea'], fisico: ['pac', 'sta'], tactica: ['pas', 'def'], balon_parado: ['sho', 'hea', 'pas'], descanso: [],
   };
   for (const p of ps) {
     const a = age(p, gs.season);
     const o = ratingAt(p.attrs, p.pos);
+    // automatic plan: each player's focus and load follow the manager's criteria
+    const plan = t.auto ? autoPlan(p, gs.season, t.criteria ?? 'desarrollo') : null;
+    const intensity = plan ? plan.intensity : baseIntensity;
+    const focus = plan ? plan.focus : t.focus;
     let g = 0;
     if (a <= 23) g = Math.max(0, p.pot - o) * 0.02;
     else if (a <= 27) g = Math.max(0, p.pot - o) * 0.012;
@@ -374,7 +383,7 @@ function training(gs: GameState, c: Club, ps: Player[], rng: Rng) {
     // spread across weighted attrs
     const w = WEIGHTS[p.pos];
     const keys = ATTR_KEYS.filter(k => (w[k] ?? 0) > 0);
-    const extra = focusAttrs[t.focus] ?? [];
+    const extra = focusAttrs[focus] ?? [];
     for (const k of keys) {
       const share = (w[k] ?? 0) * 1.0 + (extra.includes(k) ? 0.15 : 0) + (p.trainFocus === k ? 0.5 : 0);
       const delta = g * share * (p.pos === 'GK' ? (0.7 + c.staff.gk * 0.1) / (0.7 + c.staff.coach * 0.1) * (k === 'gk' ? 1.1 : 1) : 1) * 1.15;
@@ -396,6 +405,21 @@ function training(gs: GameState, c: Club, ps: Player[], rng: Rng) {
       }
     }
   }
+}
+
+/** Automatic training: what a player works on and how hard, from the criteria and his condition. */
+export function autoPlan(p: Player, season: number, criteria: TrainCriteria): { focus: Training['focus']; intensity: number } {
+  const a = age(p, season);
+  if (p.injury > 0 || p.fitness < 60) return { focus: 'descanso', intensity: 0 };
+  if (criteria === 'recuperacion') return p.fitness < 80 ? { focus: 'descanso', intensity: 0 } : { focus: 'fisico', intensity: 1 };
+  if (criteria === 'rendimiento') {
+    if (p.pos === 'GK') return { focus: 'defensa', intensity: 2 };
+    return { focus: ['ST', 'LW', 'RW', 'AM', 'CM'].includes(p.pos) ? 'ataque' : 'defensa', intensity: 2 };
+  }
+  // desarrollo: young players with room to grow train hard, veterans keep the load light
+  if (a <= 23 && p.pot - ovr(p) >= 4) return { focus: 'general', intensity: p.fitness >= 75 ? 3 : 2 };
+  if (a >= 31) return { focus: 'fisico', intensity: 1 };
+  return { focus: 'general', intensity: 2 };
 }
 
 // ---------------- cups ----------------

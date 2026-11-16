@@ -23,20 +23,21 @@ import ClubScreen from './screens/ClubScreen';
 import Competitions from './screens/Competitions';
 import SaveScreen from './screens/SaveScreen';
 import LifeScreen from './screens/LifeScreen';
+import Scout, { TacticAdvice } from './screens/Scout';
 import PlayerModal from './PlayerModal';
 import MatchView from './MatchView';
 import { saveLocal } from '@/lib/storage';
 import { runToEnd, type Match } from '@/game/engine';
 import { ensureLineup } from '@/game/lineup';
 
-export type Tab = 'office' | 'squad' | 'tactics' | 'training' | 'transfers' | 'finances' | 'club' | 'comps' | 'life' | 'save';
+export type Tab = 'office' | 'squad' | 'tactics' | 'training' | 'transfers' | 'scout' | 'finances' | 'club' | 'comps' | 'life' | 'save';
 interface Ctx { gs: GameState; v: number; refresh: () => void; toast: (s: string) => void; openPlayer: (id: number) => void; goto: (t: Tab) => void; setGs: (g: GameState | null) => void }
 const GameCtx = createContext<Ctx | null>(null);
 export const useGame = () => useContext(GameCtx)!;
 
 const NAV: [Tab, string][] = [
   ['office', 'Despacho'], ['squad', 'Plantilla'], ['tactics', 'Tácticas'], ['training', 'Entrenamiento'],
-  ['transfers', 'Fichajes'], ['finances', 'Finanzas'], ['club', 'Club'], ['comps', 'Competiciones'], ['life', 'Vida'], ['save', 'Partida'],
+  ['transfers', 'Fichajes'], ['scout', 'Ojeador'], ['finances', 'Finanzas'], ['club', 'Club'], ['comps', 'Competiciones'], ['life', 'Vida'], ['save', 'Partida'],
 ];
 
 /** Scene photo, kicker and subtitle for each screen's banner. */
@@ -45,7 +46,8 @@ const SCENES: Record<Tab, [string, string, string]> = {
   squad: ['dressing', 'Vestuario', 'Tu plantilla, contratos, estado y rendimiento'],
   tactics: ['chalkboard', 'La pizarra', 'Sistema, mentalidad y once titular'],
   training: ['training', 'Ciudad deportiva', 'Planifica la semana y haz crecer a tus jugadores'],
-  transfers: ['negotiation', 'Mercado', 'Ojeadores, ofertas y negociaciones'],
+  transfers: ['negotiation', 'Mercado', 'Ofertas y negociaciones'],
+  scout: ['chalkboard', 'Ojeadores', 'Misiones, informes y la táctica del próximo rival'],
   finances: ['negotiation', 'Cuentas del club', 'Ingresos, gastos y presupuesto'],
   club: ['exterior', 'Instalaciones', 'Estadio, personal y cantera'],
   comps: ['trophies', 'Sala de trofeos', 'Clasificaciones, copas y calendario'],
@@ -80,6 +82,26 @@ export default function GameApp() {
   const club = gs.clubs[gs.manager.clubId];
   const unread = gs.news.filter(n => !n.read).length;
   const pendingOffers = gs.offers.filter(o => o.incoming && o.status === 'pending').length;
+
+  /** Plays the whole rest of the season with the current lineups; stops early for decisions or a sacking. */
+  const simulateSeason = () => {
+    if (busy || gs.manager.sacked) return;
+    if (!confirm('Simular la temporada: tus partidos se juegan automáticamente con la alineación actual. ¿Continuar?')) return;
+    setBusy(true);
+    setTimeout(() => {
+      let ended: string[] | null = null; let stop = 'Simulación detenida.';
+      for (let guard = 0; guard < 5000; guard++) {
+        const r = advance(gs);
+        if (r.type === 'match') { simFixture(gs, r.fixture); continue; }
+        if (r.type === 'decision') { stop = 'Tienes una decisión pendiente: resuélvela para seguir simulando.'; break; }
+        if (r.type === 'sacked') { stop = 'Te han destituido.'; break; }
+        if (r.type === 'seasonEnd') { setAwards(seasonAwards(gs)); ended = endSeason(gs); break; }
+      }
+      setBusy(false);
+      if (ended) setSeasonEnd(ended); else toast(stop);
+      refresh();
+    }, 30);
+  };
 
   const doContinue = () => {
     if (busy) return;
@@ -139,6 +161,7 @@ export default function GameApp() {
               <div className="stat"><b style={{ color: inWindow(gs.day) ? 'var(--good)' : 'var(--muted)', fontSize: 14, paddingTop: 4 }}>{inWindow(gs.day) ? 'ABIERTO' : 'CERRADO'}</b><span>Mercado</span></div>
             </div>
             <div className="right">
+              <button className="btn" onClick={simulateSeason} disabled={busy || !!gs.manager.sacked} title="Juega el resto de la temporada sin ver los partidos">Simular temporada ⏩</button>
               <button className="btn primary big" onClick={doContinue} disabled={busy || !!gs.manager.sacked}>{busy ? <span className="spin" /> : 'Continuar ▶'}</button>
             </div>
           </div>
@@ -149,6 +172,7 @@ export default function GameApp() {
           {tab === 'tactics' && <TacticsScreen />}
           {tab === 'training' && <TrainingScreen />}
           {tab === 'transfers' && <Transfers />}
+          {tab === 'scout' && <Scout />}
           {tab === 'finances' && <Finances />}
           {tab === 'club' && <ClubScreen />}
           {tab === 'comps' && <Competitions />}
@@ -177,6 +201,7 @@ export default function GameApp() {
               <div className="col" style={{ alignItems: 'center', width: 220 }}><Crest club={away} size={96} /><h2 style={{ textAlign: 'center', fontStyle: 'italic', textTransform: 'uppercase' }}>{away.name}</h2></div>
             </div>
             <p className="muted" style={{ textAlign: 'center' }}>{home.stadium} · Rival: {opp.name} ({opp.tactics.formation})</p>
+            <div style={{ maxWidth: 620, margin: '0 auto 14px' }}><TacticAdvice rivalId={opp.id} /></div>
             <TalkBar title="Charla en el vestuario" options={PRE_TALKS} result={talk} onPick={k => { setTalk(preMatchTalk(gs, club.id, opp.id, pre.home === club.id, k as TalkKind)); refresh(); }} />
             <div className="row" style={{ justifyContent: 'center', marginTop: 18 }}>
               <button className="btn" onClick={() => { setPre(null); setTab('tactics'); }}>Revisar tácticas</button>

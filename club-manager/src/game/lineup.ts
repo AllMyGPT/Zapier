@@ -21,6 +21,11 @@ export function clubPlayers(gs: GameState, clubId: string, includeYouth = false)
 
 const fitFactor = (p: Player) => 0.6 + 0.4 * (p.fitness / 100);
 
+/** Youth and reserve players the manager called up for the next match (max 3). */
+export function callupPlayers(gs: GameState, club: Club): Player[] {
+  return (club.callups ?? []).map(id => gs.players[id]).filter((p): p is Player => !!p);
+}
+
 /** Best XI for a formation plus a bench of up to 9. */
 export function autoPick(players: Player[], formation: string): { lineup: number[]; bench: number[] } {
   const slots = FORMATIONS[formation]?.slots ?? FORMATIONS['4-4-2'].slots;
@@ -50,9 +55,11 @@ export function autoPick(players: Player[], formation: string): { lineup: number
 
 /** Validate a human lineup: replace unavailable players by auto picks. Returns list of replaced names. */
 export function ensureLineup(gs: GameState, club: Club): string[] {
-  const players = clubPlayers(gs, club.id);
+  const called = callupPlayers(gs, club);
+  const calledIds = new Set(called.map(p => p.id));
+  const players = [...clubPlayers(gs, club.id), ...called];
   const slots = FORMATIONS[club.tactics.formation].slots;
-  const ok = (id: number) => { const p = gs.players[id]; return p && p.clubId === club.id && !p.youth && available(p); };
+  const ok = (id: number) => { const p = gs.players[id]; return !!p && available(p) && (calledIds.has(id) || (p.clubId === club.id && !p.youth)); };
   const replaced: string[] = [];
   if (club.lineup.length !== slots.length) club.lineup = autoPick(players, club.tactics.formation).lineup;
   const used = new Set(club.lineup.filter(ok));
@@ -64,6 +71,9 @@ export function ensureLineup(gs: GameState, club: Club): string[] {
     if (cand[0]) { club.lineup[i] = cand[0].id; used.add(cand[0].id); }
   }
   club.bench = club.bench.filter(id => ok(id) && !used.has(id)).slice(0, 9);
+  // called-up youngsters always travel with the squad
+  for (const p of called) if (available(p) && !used.has(p.id) && !club.bench.includes(p.id)) club.bench.unshift(p.id);
+  club.bench = club.bench.slice(0, 9);
   if (club.bench.length < 7) {
     const rest = players.filter(p => available(p) && !used.has(p.id) && !club.bench.includes(p.id)).sort((a, b) => ovr(b) - ovr(a));
     for (const p of rest) { if (club.bench.length >= 9) break; club.bench.push(p.id); }

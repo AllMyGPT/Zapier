@@ -12,14 +12,14 @@ import { genName } from './names';
 
 export type Interest = 'mujeres' | 'hombres' | 'ambos';
 export type Stage = 'conocida' | 'citas' | 'pareja' | 'prometida' | 'casada' | 'amante' | 'ex';
-export interface Person { id: number; name: string; gender: 'f' | 'm'; born: number; job: string; img: string; traits: string[]; likes: string[]; affinity: number; stage: Stage; met: number; lastDate: number; since?: number; lastFlirt?: number }
+export interface Person { id: number; name: string; gender: 'f' | 'm'; born: number; job: string; img: string; traits: string[]; likes: string[]; affinity: number; stage: Stage; met: number; lastDate: number; since?: number; lastFlirt?: number; exRole?: 'pareja' | 'mujer'; alimonyUntil?: number; look?: 0 | 1 }
 export interface Child { id: number; name: string; gender: 'f' | 'm'; born: number; talent: number; studies: number; happiness: number; path?: 'fútbol' | 'estudios' | 'arte'; playerId?: number }
 export interface LifeLog { day: number; season: number; text: string; kind: 'love' | 'family' | 'home' | 'money' | 'scandal' | 'health' }
 export interface LifeState {
   enabled: true; interest: Interest; born: number;
   savings: number; happiness: number; stress: number; health: number;
   home: string; car: string; people: Person[]; children: Child[];
-  pregnancyDue?: number; tryingForBaby?: boolean; nights?: number; wedding?: { personId: number; day: number }; nextId: number; log: LifeLog[];
+  pregnancyDue?: number; tryingForBaby?: boolean; nights?: number; wedding?: { personId: number; day: number }; nextId: number; log: LifeLog[]; lastPartnerAct?: number;
 }
 
 export const HOMES = [
@@ -55,9 +55,17 @@ const JOBS_F = ['abogada', 'presentadora de televisión', 'galerista', 'bailarin
   'pianista', 'instructora de surf', 'modelo internacional', 'profesora de baile', 'empresaria del arte', 'creadora de viajes', 'sumiller', 'diseñadora de joyas', 'tenista profesional', 'enóloga'];
 const JOBS_M = ['arquitecto', 'piloto', 'médico', 'fotógrafo'];
 /** Portrait pool: generated fictional adults. f* women, m* men. */
-export const PORTRAITS: Record<'f' | 'm', string[]> = { f: Array.from({ length: 20 }, (_, i) => `f${i + 1}`), m: ['m1', 'm2', 'm3', 'm4'] };
+export const PORTRAITS: Record<'f' | 'm', string[]> = { f: Array.from({ length: 21 }, (_, i) => `f${i + 1}`), m: ['m1', 'm2', 'm3', 'm4'] };
+/** Women have a second look (other outfit): the file is `<portrait>-b`. The last portrait is the voluptuous one. */
+export const VOLUPTUOUS = 'f21';
+export const ALIMONY_WEEKLY = 1_800;
+/** The picture shown for a person, following the outfit they are wearing today. */
+export const lookImage = (p: Person) => (p.look && hasAltLook(p) ? `${p.img}-b` : p.img);
+/** Portraits whose second outfit (`<portrait>-b.webp`) is already in public/art/life. */
+export const ALT_LOOKS = new Set<string>(['f1', 'f2', 'f3', 'f4']);
+export const hasAltLook = (p: Person) => p.gender === 'f' && ALT_LOOKS.has(p.img);
 const NAMES_F = ['Lucía', 'Valentina', 'Irene', 'Daniela', 'Mei', 'Carla', 'Sofía', 'Elena', 'Marta', 'Chloé',
-  'Valeria', 'Larissa', 'Freya', 'Camila', 'Amara', 'Gisela', 'Yuna', 'Giulia', 'Maeve', 'Carmen'];
+  'Valeria', 'Larissa', 'Freya', 'Camila', 'Amara', 'Gisela', 'Yuna', 'Giulia', 'Maeve', 'Carmen', 'Candela'];
 const NAMES_M = ['Álex', 'Marco', 'Hugo', 'Leo', 'Daniel', 'Iker'];
 const SURN = ['Ferrer', 'Navarro', 'Ríos', 'Montero', 'Vidal', 'Serrano', 'Castell', 'Lozano', 'Duarte', 'Ibáñez', 'Rey', 'Molina'];
 
@@ -84,8 +92,8 @@ function newPerson(gs: GameState, rng: Rng): Person | null {
   const img = rng.pick(free);
   const idx = PORTRAITS[gender].indexOf(img);
   const name = `${(gender === 'f' ? NAMES_F : NAMES_M)[idx % (gender === 'f' ? NAMES_F.length : NAMES_M.length)]} ${rng.pick(SURN)}`;
-  const traits = rng.shuffle(TRAITS.slice()).slice(0, 2);
-  const p: Person = { id: l.nextId++, name, gender, born: gs.season - rng.int(26, 38), job: (gender === 'f' ? JOBS_F : JOBS_M)[idx % (gender === 'f' ? JOBS_F.length : JOBS_M.length)], img, traits, likes: rng.shuffle(VENUES.map(v => v.id)).slice(0, 2), affinity: rng.int(15, 35), stage: 'conocida', met: now(gs), lastDate: now(gs) - 7 };
+  const traits = img === VOLUPTUOUS ? ['voluptuosa', 'ardiente'] : rng.shuffle(TRAITS.slice()).slice(0, 2);
+  const p: Person = { id: l.nextId++, name, gender, born: gs.season - rng.int(26, 38), job: img === VOLUPTUOUS ? 'bailarina de salsa y guía de tango' : (gender === 'f' ? JOBS_F : JOBS_M)[idx % (gender === 'f' ? JOBS_F.length : JOBS_M.length)], img, traits, likes: rng.shuffle(VENUES.map(v => v.id)).slice(0, 2), affinity: rng.int(15, 35), stage: 'conocida', met: now(gs), lastDate: now(gs) - 7, look: 0 };
   l.people.push(p);
   return p;
 }
@@ -95,6 +103,61 @@ export const lifePartner = (gs: GameState) => (L(gs) ? partner(L(gs)!) : undefin
 
 function spend(gs: GameState, amount: number): boolean {
   const l = L(gs)!; if (l.savings < amount) return false; l.savings -= amount; return true;
+}
+
+/** The affair, the girl you are dating or an ex becomes your official partner. If you already have one, you leave her first. */
+export function makePartner(gs: GameState, personId: number): string {
+  const l = L(gs)!; const p = l.people.find(x => x.id === personId);
+  if (!p || p.stage === 'pareja' || p.stage === 'prometida' || p.stage === 'casada') return '';
+  const first = p.name.split(' ')[0];
+  if (p.affinity < 60) return `${first} quiere estar segura antes de dar ese paso (necesitas afinidad 60).`;
+  const sp = partner(l);
+  const leaving = sp && sp.id !== p.id;
+  const left = leaving ? ` ${breakUp(gs, sp!.id)}` : '';
+  p.stage = 'pareja'; p.since = now(gs); p.exRole = undefined; p.alimonyUntil = undefined;
+  l.happiness = clamp(l.happiness + 10, 0, 100);
+  log(gs, 'love', `${p.name} es ahora tu pareja oficial.${leaving ? ` Dejas a ${sp!.name}.` : ''}`);
+  news(gs, 'info', `El míster y ${first}, pareja oficial`, leaving ? `Tras separarse de ${sp!.name.split(' ')[0]}.` : 'Nueva pareja del entrenador.');
+  return `${first} es ahora tu pareja oficial.${left}`;
+}
+
+/** Ex-wife or ex: a second chance if the bond is still strong. */
+export const reconcile = (gs: GameState, personId: number) => makePartner(gs, personId);
+
+export const PARTNER_ACTS: { id: 'mensaje' | 'masaje' | 'flores' | 'cena' | 'velada' | 'escapada'; label: string; cost: number }[] = [
+  { id: 'mensaje', label: 'Mensaje cariñoso', cost: 0 },
+  { id: 'masaje', label: 'Masaje en casa', cost: 0 },
+  { id: 'flores', label: 'Flores y una nota (1.500 €)', cost: 1_500 },
+  { id: 'cena', label: 'Cena a la luz de las velas (400 €)', cost: 400 },
+  { id: 'velada', label: 'Velada romántica en casa (800 €)', cost: 800 },
+  { id: 'escapada', label: 'Escapada de dos días (6.000 €)', cost: 6_000 },
+];
+/** Time together with the partner: romantic and sensual, always fading before anything explicit. */
+export function partnerAction(gs: GameState, kind: (typeof PARTNER_ACTS)[number]['id']): string {
+  const l = L(gs)!; const sp = partner(l); if (!sp) return 'Ahora mismo no tienes pareja.';
+  if (l.lastPartnerAct != null && now(gs) - l.lastPartnerAct < 1) return 'Ya habéis compartido un momento hoy. Mañana más.';
+  const act = PARTNER_ACTS.find(a => a.id === kind)!;
+  if (act.cost && !spend(gs, act.cost)) return 'No te llega para ese plan.';
+  l.lastPartnerAct = now(gs);
+  const first = sp.name.split(' ')[0];
+  const T: Record<typeof kind, { text: string; aff: number; happy: number; stress: number }> = {
+    mensaje: { text: `Le escribes un mensaje cariñoso al despertar. ${first} responde con un corazón y ganas de verte esta noche.`, aff: 3, happy: 1, stress: 0 },
+    masaje: { text: `Masaje lento con aceite de almendra en el salón. ${first} se relaja, cierra los ojos y acaba riendo entre tus manos.`, aff: 4, happy: 2, stress: -8 },
+    flores: { text: `Un ramo de flores y una nota: «Me encanta cómo me miras». ${first} sonríe toda la tarde.`, aff: 6, happy: 3, stress: -2 },
+    cena: { text: `Cena a la luz de las velas en un sitio tranquilo. Se inclina hacia ti para decirte algo que solo tú escuchas.`, aff: 5, happy: 4, stress: -3 },
+    velada: { text: `Velada en casa: música suave, velas y una conversación que se alarga hasta la madrugada. Os quedáis abrazados hasta que amanece.`, aff: 8, happy: 6, stress: -6 },
+    escapada: { text: `Dos días lejos de todo: hotel con vistas al mar y la promesa de no mirar el móvil. Volvéis como si tuvierais veinte años.`, aff: 10, happy: 8, stress: -10 },
+  };
+  const t = T[kind];
+  sp.affinity = clamp(sp.affinity + t.aff, 0, 100); sp.lastDate = now(gs);
+  l.happiness = clamp(l.happiness + t.happy, 0, 100); l.stress = clamp(l.stress + t.stress, 0, 100);
+  log(gs, 'love', `${act.label} con ${sp.name}. ${t.text}`);
+  return t.text;
+}
+
+/** Choose the outfit a woman wears in the next scene. */
+export function toggleLook(gs: GameState, personId: number): void {
+  const p = L(gs)?.people.find(x => x.id === personId); if (p && p.gender === 'f') p.look = p.look ? 0 : 1;
 }
 
 // ---------------- actions ----------------
@@ -117,7 +180,7 @@ export function date(gs: GameState, personId: number, venueId: string): string {
   if (!spend(gs, v.cost)) return 'No tienes ahorros suficientes para ese plan.';
   const rng = rngFor(gs, `date${p.id}:${p.lastDate}`);
   const home = HOMES.find(h => h.id === l.home)!, car = CARS.find(c => c.id === l.car)!;
-  let gain = 6 + (p.likes.includes(v.id) ? 8 : 0) + rng.int(-4, 6) + (p.traits.includes('glamurosa') && (v.id === 'gala' || v.id === 'yate' || v.id === 'azotea' || car.happy >= 6) ? 4 : 0)
+  let gain = 6 + (p.likes.includes(v.id) ? 8 : 0) + rng.int(-4, 6) + (p.traits.includes('ardiente') && v.intimate ? 4 : 0) + (p.traits.includes('glamurosa') && (v.id === 'gala' || v.id === 'yate' || v.id === 'azotea' || car.happy >= 6) ? 4 : 0)
     + (p.traits.includes('romántica') && (v.id === 'playa' || v.id === 'viaje' || v.id === 'spa') ? 4 : 0) + (p.traits.includes('aventurera') && (v.id === 'salsa' || v.id === 'yate') ? 4 : 0)
     + (v.id === 'casa' ? Math.round(home.happy / 2) - 2 : 0) + Math.round((home.happy + car.happy) / 6) + (v.intimate ? 3 : 0);
   if (p.traits.includes('ambiciosa') && gs.manager.reputation > 70) gain += 3;
@@ -170,7 +233,7 @@ export function flirtMessage(gs: GameState, personId: number): string {
     log(gs, 'love', `${sp.name} ve en tu móvil los mensajes a ${p.name}. Bronca monumental.`);
     return `${sp.name.split(' ')[0]} ha visto tus mensajes con ${first}. Afinidad con ella −15.`;
   }
-  const g = p.affinity < 25 ? rng.int(-2, 2) : p.affinity > 70 ? rng.int(0, 2) : rng.int(1, 4) + (p.traits.includes('divertida') || p.traits.includes('aventurera') ? 1 : 0);
+  const g = p.affinity < 25 ? rng.int(-2, 2) : p.affinity > 70 ? rng.int(0, 2) : rng.int(1, 4) + (p.traits.includes('divertida') || p.traits.includes('aventurera') || p.traits.includes('ardiente') ? 1 : 0);
   p.affinity = clamp(p.affinity + g, 0, 100);
   return g > 0 ? `${line} ${first} responde con un emoji de fuego. Afinidad ${Math.round(p.affinity)}.` : g === 0 ? `${line} ${first} contesta con un «jaja» y poco más.` : `${line} ${first} te deja en visto… quizá fue demasiado pronto.`;
 }
@@ -218,8 +281,11 @@ export function breakUp(gs: GameState, personId: number): string {
   const l = L(gs)!; const p = l.people.find(x => x.id === personId); if (!p) return '';
   const wasMarried = p.stage === 'casada';
   p.stage = 'ex'; p.affinity = 10;
-  if (wasMarried) { const cost = Math.round(l.savings * 0.4); l.savings -= cost; log(gs, 'family', `Divorcio de ${p.name}. Te cuesta ${fmtMoney(cost)}.`); news(gs, 'info', 'El míster se divorcia', 'La separación acapara portadas.'); gs.manager.board = clamp(gs.manager.board - 3, 0, 100); }
-  else log(gs, 'love', `Lo dejas con ${p.name}.`);
+  if (wasMarried) {
+    const cost = Math.round(l.savings * 0.4); l.savings -= cost;
+    p.exRole = 'mujer'; p.alimonyUntil = gs.season + 3; // ex-mujer: pensión durante tres temporadas
+    log(gs, 'family', `Divorcio de ${p.name}. Te cuesta ${fmtMoney(cost)} y una pensión de ${fmtMoney(ALIMONY_WEEKLY)}/sem.`); news(gs, 'info', 'El míster se divorcia', 'La separación acapara portadas.'); gs.manager.board = clamp(gs.manager.board - 3, 0, 100);
+  } else { p.exRole = 'pareja'; log(gs, 'love', `Lo dejas con ${p.name}.`); }
   l.happiness = clamp(l.happiness - (wasMarried ? 18 : 8), 0, 100); l.stress = clamp(l.stress + 10, 0, 100); l.tryingForBaby = false;
   return wasMarried ? 'Divorcio firmado. Toca rehacerse.' : 'Ruptura. Duele, pero sigues adelante.';
 }
@@ -258,7 +324,8 @@ export function lifeWeekly(gs: GameState): number {
   const home = HOMES.find(h => h.id === l.home)!, car = CARS.find(c => c.id === l.car)!;
   const sp = partner(l);
   const kidsCost = l.children.length * 1_200 + (sp ? 600 : 0);
-  l.savings += managerWeekly(gs) - home.weekly - car.weekly - kidsCost;
+  const alimony = l.people.filter(p => p.exRole === 'mujer' && (p.alimonyUntil ?? 0) >= gs.season).length * ALIMONY_WEEKLY;
+  l.savings += managerWeekly(gs) - home.weekly - car.weekly - kidsCost - alimony;
   // moods from work and life
   const lr = gs.lastResults ?? [];
   const losing = lr.slice(-3).filter(x => x < 0).length;

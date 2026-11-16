@@ -9,7 +9,8 @@ import { askingPrice, makeBid, offerContract, releasePlayer, wageDemand, expecte
 import type { Role } from '@/game/types';
 import { inWindow } from '@/game/calendar';
 import { potStars } from './screens/Squad';
-import { reserveOf, sendToReserve, callUp, loanOut, RESERVE_MAX_AGE } from '@/game/academy';
+import { reserveOf, sendToReserve, callUp, loanOut, toggleCallup, RESERVE_MAX_AGE } from '@/game/academy';
+import { isKnownPlayer } from '@/game/scout';
 import { playerChat, CHAT_COOLDOWN, type ChatKind } from '@/game/talk';
 
 const attrColor = (v: number) => (v >= 85 ? '#46d2ff' : v >= 75 ? '#3ddc84' : v >= 65 ? '#c6f432' : v >= 55 ? '#ffb020' : '#ff5468');
@@ -43,7 +44,7 @@ export default function PlayerModal({ id, onClose }: { id: number; onClose: () =
     </div>
   );
   const deal = gs.offers.find(o => o.playerId === id && !o.incoming && o.status === 'contract');
-  const st = potStars(p, me.staff.scout, own);
+  const st = potStars(p, me.staff.scout, own || isKnownPlayer(gs, p));
   const posRatings = ALL_POS.map(pos => ({ pos, r: Math.round(slotRating(p, pos)) })).sort((a, b) => b.r - a.r).slice(0, 4);
   const short = gs.shortlist.includes(id);
   const act = (m: string) => { setMsg(m); refresh(); };
@@ -95,7 +96,8 @@ export default function PlayerModal({ id, onClose }: { id: number; onClose: () =
               <h3 style={{ margin: 0 }}>Gestión</h3>
               <div className="row wrap">
                 <button className={`btn sm ${p.listed ? 'active' : ''}`} onClick={() => { p.listed = !p.listed; act(p.listed ? 'Jugador en la lista de transferibles.' : 'Retirado de la lista.'); }}>{p.listed ? '✓ Transferible' : 'Poner a la venta'}</button>
-                {myReserve && !p.youth && age(p, gs.season) <= RESERVE_MAX_AGE && <button className="btn sm" onClick={() => act(sendToReserve(gs, id))}>Bajar al filial</button>}
+                {myReserve && !inReserve && age(p, gs.season) <= RESERVE_MAX_AGE && <button className="btn sm" onClick={() => act(sendToReserve(gs, id))}>{p.youth ? `Enviar al ${myReserve.name}` : `Bajar al ${myReserve.name}`}</button>}
+                {(p.youth || inReserve) && <button className={`btn sm ${(me.callups ?? []).includes(id) ? 'active' : ''}`} onClick={() => act(toggleCallup(gs, id))}>{(me.callups ?? []).includes(id) ? '✓ Convocado al próximo partido' : 'Convocar al próximo partido'}</button>}
                 {!p.youth && <button className="btn sm" onClick={() => act(loanOut(gs, id))}>Ceder una temporada</button>}
                 {p.youth ? <button className="btn sm" onClick={() => act(callUp(gs, id))}>Subir al primer equipo</button> : age(p, gs.season) < 19 && <button className="btn sm" onClick={() => { p.youth = true; me.lineup = me.lineup.map(x => (x === id ? -1 : x)); me.bench = me.bench.filter(x => x !== id); act('Enviado a la cantera.'); }}>Bajar a la cantera</button>}
                 {(['captain', 'penalty', 'freekick', 'corner'] as const).map(k => (

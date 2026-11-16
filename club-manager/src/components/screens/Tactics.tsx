@@ -4,7 +4,9 @@ import { useGame } from '../GameApp';
 import { Ovr, PosBadge, Bar } from '../ui';
 import PitchLines from '../PitchLines';
 import { FORMATIONS, FORMATION_KEYS, MENTALITY_LABEL, LEVEL3 } from '@/game/tactics';
-import { autoPick, clubPlayers } from '@/game/lineup';
+import { autoPick, callupPlayers, clubPlayers } from '@/game/lineup';
+import { reserveOf } from '@/game/academy';
+import { setReserveManual } from '@/game/academy';
 import { available, ovr, ovr as o2, slotRating, POS_LABEL, playerStatus } from '@/game/player';
 import { ovrColor } from '../ui';
 import { useMedia, isBroken, markBroken } from '@/lib/media';
@@ -15,11 +17,14 @@ type Sel = { kind: 'slot'; i: number } | { kind: 'pl'; id: number } | null;
 
 export default function TacticsScreen() {
   const { gs, refresh, toast, openPlayer } = useGame();
-  const club = gs.clubs[gs.manager.clubId];
-  const t = club.tactics;
   const [sel, setSel] = useState<Sel>(null);
+  const [which, setWhich] = useState<'first' | 'reserve'>('first');
+  const reserve = reserveOf(gs, gs.manager.clubId);
+  // the manager can also coach the reserve team (the filial), when the club has one
+  const club = which === 'reserve' && reserve ? gs.clubs[reserve.id] : gs.clubs[gs.manager.clubId];
+  const t = club.tactics;
   const slots = FORMATIONS[t.formation].slots;
-  const players = clubPlayers(gs, club.id);
+  const players = [...clubPlayers(gs, club.id), ...(club.id === gs.manager.clubId ? callupPlayers(gs, club) : [])];
   const P = (id: number) => gs.players[id] as Player | undefined;
   while (club.lineup.length < slots.length) club.lineup.push(-1);
   const inXI = new Set(club.lineup);
@@ -96,6 +101,18 @@ export default function TacticsScreen() {
   );
 
   return (
+    <div className="col">
+    {reserve && (
+      <div className="panel tight row wrap" style={{ gap: 10 }}>
+        <div className="seg"><button className={which === 'first' ? 'on' : ''} onClick={() => { setWhich('first'); setSel(null); }}>Primer equipo</button><button className={which === 'reserve' ? 'on' : ''} onClick={() => { setWhich('reserve'); setSel(null); }}>Filial · {reserve.name}</button></div>
+        {which === 'reserve' && (
+          <>
+            <div className="seg"><button className={!reserve.manual ? 'on' : ''} onClick={() => { setReserveManual(gs, false); refresh(); }}>Automático (ayudante)</button><button className={reserve.manual ? 'on' : ''} onClick={() => { toast(setReserveManual(gs, true)); refresh(); }}>Manual (tú diriges)</button></div>
+            <span className="small muted">{reserve.manual ? 'Tú eliges el once, el sistema y la mentalidad del filial.' : 'El filial se alinea solo cada jornada. Cambia a manual para dirigirlo como entrenador y DT.'}</span>
+          </>
+        )}
+      </div>
+    )}
     <div className="grid" style={{ gridTemplateColumns: 'minmax(300px, 460px) minmax(0, 1fr)' }}>
       <div className="col">
         <div className="panel tight">
@@ -138,6 +155,7 @@ export default function TacticsScreen() {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }

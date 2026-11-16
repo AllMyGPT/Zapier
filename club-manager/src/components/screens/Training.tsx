@@ -5,7 +5,13 @@ import { Bar, Ovr, PosBadge } from '../ui';
 import { clubPlayers } from '@/game/lineup';
 import { age, ovr, ATTR_LABEL } from '@/game/player';
 import type { Attrs } from '@/game/types';
-import type { Training } from '@/game/types';
+import type { Training, TrainCriteria } from '@/game/types';
+
+const CRITERIA: [TrainCriteria, string, string][] = [
+  ['desarrollo', '🌱 Desarrollo', 'Los jóvenes con potencial entrenan fuerte; los veteranos bajan la carga.'],
+  ['rendimiento', '🏆 Rendimiento', 'Cada jugador trabaja lo que pide su puesto, con carga media.'],
+  ['recuperacion', '🧊 Recuperación', 'Prioriza la forma física y descansa a los cansados o lesionados.'],
+];
 
 const FOCUS: [Training['focus'], string, string][] = [
   ['general', '⚖️ General', 'Mejora equilibrada de todos los atributos de cada puesto.'],
@@ -32,7 +38,12 @@ export default function TrainingScreen() {
             <div className="seg">{([1, 2, 3] as const).map(i => <button key={i} className={tr.intensity === i ? 'on' : ''} onClick={() => { tr.intensity = i; refresh(); }}>{['Suave', 'Normal', 'Dura'][i - 1]}</button>)}</div>
             <span className="small muted">{tr.intensity === 3 ? 'Más progreso, pero menos recuperación y riesgo de lesiones.' : tr.intensity === 1 ? 'Recuperación rápida, poco progreso.' : 'Equilibrio entre progreso y frescura.'}</span>
           </div>
-          <div className="grid g2" style={{ marginTop: 14 }}>
+          <div className="col" style={{ gap: 4, marginTop: 14 }}><span className="small muted">Modo de entrenamiento</span>
+            <div className="seg"><button className={!tr.auto ? 'on' : ''} onClick={() => { tr.auto = false; refresh(); }}>Manual</button><button className={tr.auto ? 'on' : ''} onClick={() => { tr.auto = true; tr.criteria = tr.criteria ?? 'desarrollo'; refresh(); }}>Automático</button></div>
+            {tr.auto && <div className="seg">{CRITERIA.map(([k, l]) => <button key={k} className={tr.criteria === k ? 'on' : ''} onClick={() => { tr.criteria = k; refresh(); }}>{l}</button>)}</div>}
+            {tr.auto && <span className="small muted">{CRITERIA.find(c => c[0] === tr.criteria)?.[2]} Cada jugador descansa solo si va justo de forma física o está lesionado. Tu foco individual manual sigue teniendo prioridad.</span>}
+          </div>
+          <div className="grid g2" style={{ marginTop: 14, opacity: tr.auto ? 0.5 : 1 }}>
             {FOCUS.map(([k, l, d]) => (
               <button key={k} className={`club-card ${tr.focus === k ? 'on' : ''}`} onClick={() => { tr.focus = k; refresh(); }}>
                 <div><b>{l}</b><div className="small muted">{d}</div></div>

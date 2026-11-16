@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useGame } from '../GameApp';
 import { fmtMoney } from '@/game/season';
-import { CARS, HOMES, VENUES, ageOf, askOut, breakUp, buy, childPath, date, familyTime, flirtMessage, gift, goOut, lifePartner, managerWeekly, now, propose, setTrying, type LifeState, type Person } from '@/game/life';
+import { ALIMONY_WEEKLY, CARS, HOMES, PARTNER_ACTS, VENUES, ageOf, askOut, breakUp, buy, childPath, date, familyTime, flirtMessage, gift, goOut, lifePartner, hasAltLook, lookImage, makePartner, managerWeekly, now, partnerAction, propose, reconcile, setTrying, toggleLook, type LifeState, type Person } from '@/game/life';
 
 const STAGE_LABEL: Record<Person['stage'], string> = { conocida: 'Conocida', citas: 'Quedando', pareja: 'Pareja', prometida: 'Prometida', casada: 'Matrimonio', amante: 'Aventura secreta', ex: 'Ex' };
 const img = (id: string) => `/art/life/${id}.webp`;
@@ -50,11 +50,18 @@ export default function LifeScreen() {
             <button className="btn primary" onClick={() => act(goOut(gs))}>Salir esta noche (500 €)</button>
             <span className="small muted">Conoces gente saliendo, en eventos del club y con la fama. Con pareja, coquetear con otra persona puede acabar en aventura… y en escándalo.</span>
           </div>
+          {sp && (sp.stage === 'pareja' || sp.stage === 'prometida' || sp.stage === 'casada') && (
+            <div className="panel col" style={{ gap: 6 }}>
+              <h3 style={{ margin: 0 }}>Momentos con {sp.name.split(' ')[0]}</h3>
+              <div className="row wrap" style={{ gap: 6 }}>{PARTNER_ACTS.map(a => <button key={a.id} className="btn sm" onClick={() => act(partnerAction(gs, a.id))}>{a.label}</button>)}</div>
+              <span className="small muted">Un momento a solas sube la afinidad y baja el estrés. Uno por día.</span>
+            </div>
+          )}
           {!people.length && <div className="panel empty">Todavía no conoces a nadie especial. Sal por la ciudad.</div>}
           <div className="people">
             {people.map(p => (
               <div key={p.id} className={`person ${p.stage}`}>
-                <div className="person-img" style={{ backgroundImage: `url(${img(p.img)})` }}><span className="stage">{STAGE_LABEL[p.stage]}</span></div>
+                <div className="person-img" style={{ backgroundImage: `url(${img(lookImage(p))})` }}><span className="stage">{STAGE_LABEL[p.stage]}</span></div>
                 <div className="person-body">
                   <b>{p.name}</b>
                   <div className="small muted">{ageOf(gs, p.born)} años · {p.job}</div>
@@ -66,6 +73,10 @@ export default function LifeScreen() {
                     <button className="btn sm" onClick={() => act(gift(gs, p.id))}>Regalo (2.500 €)</button>
                     {(p.stage === 'conocida' || p.stage === 'citas') && <button className="btn sm" onClick={() => act(askOut(gs, p.id))}>{sp ? 'Coquetear' : 'Pedir salir'}</button>}
                     {p.stage === 'pareja' && <button className="btn sm" onClick={() => act(propose(gs, p.id))}>Pedir matrimonio (anillo 15.000 €)</button>}
+                    {!['pareja', 'prometida', 'casada'].includes(p.stage) && p.affinity >= 60 && (
+                      <button className="btn sm primary" onClick={() => { if (!sp || sp.id === p.id || confirm(`Dejarás a ${sp.name.split(' ')[0]} para estar con ${p.name.split(' ')[0]}. ¿Seguir?`)) act(makePartner(gs, p.id)); }}>{sp && sp.id !== p.id ? `Dejar a ${sp.name.split(' ')[0]} por ella` : 'Ser tu pareja oficial'}</button>
+                    )}
+                    {hasAltLook(p) && <button className="btn sm" onClick={() => { toggleLook(gs, p.id); refresh(); }}>👗 Cambiar look</button>}
                     {p.stage !== 'conocida' && p.stage !== 'citas' && <button className="btn sm danger" onClick={() => { if (confirm(p.stage === 'casada' ? '¿Divorciarte? Te costará el 40 % de tus ahorros.' : '¿Romper la relación?')) act(breakUp(gs, p.id)); }}>{p.stage === 'casada' ? 'Divorcio' : 'Romper'}</button>}
                   </div>
                   {p.stage === 'amante' && <div className="small" style={{ color: '#ff9aa6' }}>Si la prensa os pilla, escándalo: directiva, afición y tu pareja.</div>}
@@ -73,7 +84,27 @@ export default function LifeScreen() {
               </div>
             ))}
           </div>
-          {exes.length > 0 && <div className="small muted">Ex: {exes.map(p => p.name).join(', ')}</div>}
+          {exes.length > 0 && (
+            <div className="col" style={{ gap: 6 }}>
+              <h3 style={{ margin: 0 }}>Ex</h3>
+              <div className="people">{exes.map(p => {
+                const wife = p.exRole === 'mujer';
+                const pension = wife && (p.alimonyUntil ?? 0) >= gs.season;
+                return (
+                  <div key={p.id} className="person ex">
+                    <div className="person-img" style={{ backgroundImage: `url(${img(lookImage(p))})` }}><span className="stage">{wife ? 'Ex-mujer' : 'Ex'}</span></div>
+                    <div className="person-body">
+                      <b>{p.name}</b>
+                      <div className="small muted">{ageOf(gs, p.born)} años · {p.job}</div>
+                      {pension && <div className="small" style={{ color: 'var(--warn)' }}>Pensión de {fmtMoney(ALIMONY_WEEKLY)}/sem hasta la temporada {p.alimonyUntil}/{((p.alimonyUntil ?? 0) + 1) % 100}.</div>}
+                      <div className="life-meter"><span>Afinidad</span><div className="bar"><i style={{ width: `${p.affinity}%`, background: 'linear-gradient(90deg,#ff5d8f,#ffb3c7)' }} /></div><b className="num">{Math.round(p.affinity)}</b></div>
+                      {p.affinity >= 60 && <div className="row wrap" style={{ gap: 6 }}><button className="btn sm primary" onClick={() => { if (!sp || sp.id === p.id || confirm(`Dejarás a ${sp.name.split(' ')[0]}. ¿Seguir?`)) act(reconcile(gs, p.id)); }}>{wife ? 'Volver con ella' : 'Volver a salir'}</button></div>}
+                    </div>
+                  </div>
+                );
+              })}</div>
+            </div>
+          )}
         </>
       )}
 
