@@ -28,19 +28,25 @@ export function portraitFor(s: GameState, c: Character): string {
   const sex = c.female ? 'f' : 'm';
   if (artEra(s) === 'modern') {
     const a = band(years) === 'c' ? 'y' : band(years);
-    return `/art/portraits/modern-${sex}-${a}-${hash(c.id) < 0.5 ? 1 : 2}.jpg`;
+    const n = sex === 'f' && a !== 'o' ? 1 + Math.floor(hash(c.id) * 3) : hash(c.id) < 0.5 ? 1 : 2;
+    return `/art/portraits/modern-${sex}-${a}-${n}.jpg`;
   }
   if (s.era === 'ww2') {
     const a = band(years) === 'c' ? 'y' : band(years);
-    return `/art/portraits/ww2-${sex}-${a}-${hash(c.id) < 0.5 ? 1 : 2}.jpg`;
+    const n = sex === 'f' && a !== 'o' ? 1 + Math.floor(hash(c.id) * 3) : hash(c.id) < 0.5 ? 1 : 2;
+    return `/art/portraits/ww2-${sex}-${a}-${n}.jpg`;
   }
   const cult = CULT[s.nations[c.tag]?.culture ?? ''] ?? 'w';
-  return `/art/portraits/${s.era}-${cult}-${sex}-${band(years)}${hash(c.id) < 0.5 ? '-2' : ''}.jpg`;
+  const b = band(years);
+  // women of marrying age have four variants, everyone else two
+  const variants = sex === 'f' && (b === 'y' || b === 'a') ? ['', '-2', '-3', '-4'] : ['', '-2'];
+  return `/art/portraits/${s.era}-${cult}-${sex}-${b}${variants[Math.floor(hash(c.id) * variants.length)]}.jpg`;
 }
 
 /** the original 13-portrait set, used when a detailed portrait is not available */
 export function legacyPortrait(src: string): string | null {
-  if (/-2\.jpg$/.test(src)) return src.replace(/-2\.jpg$/, '.jpg');
+  if (/-[234]\.jpg$/.test(src) && !/(ww2|modern)-[mf]-[yao]-[12]\.jpg$/.test(src)) return src.replace(/-[234]\.jpg$/, '.jpg');
+  if (/(ww2|modern)-f-[ya]-3\.jpg$/.test(src)) return src.replace(/-3\.jpg$/, '-1.jpg');
   const m = src.match(/portraits\/(medieval|earlymodern|ww2)-(?:([wei])-)?([mf])-([cyao])/);
   if (!m) return null;
   const [, era, , sex, age] = m;
@@ -120,8 +126,8 @@ export const TIPS: Record<string, string[]> = {
 /** portraits a player can choose for a founder, by art set and sex */
 export function portraitChoices(art: string, female: boolean): string[] {
   const sex = female ? 'f' : 'm';
-  if (art === 'modern') return ['y', 'a', 'o'].flatMap((a) => [1, 2].map((v) => `/art/portraits/modern-${sex}-${a}-${v}.jpg`));
-  if (art === 'ww2' || art === 'ww1') return ['y', 'a', 'o'].flatMap((a) => [1, 2].map((v) => `/art/portraits/ww2-${sex}-${a}-${v}.jpg`));
+  if (art === 'modern') return ['y', 'a', 'o'].flatMap((a) => (female && a !== 'o' ? [1, 2, 3] : [1, 2]).map((v) => `/art/portraits/modern-${sex}-${a}-${v}.jpg`));
+  if (art === 'ww2' || art === 'ww1') return ['y', 'a', 'o'].flatMap((a) => (female && a !== 'o' ? [1, 2, 3] : [1, 2]).map((v) => `/art/portraits/ww2-${sex}-${a}-${v}.jpg`));
   const era = art === 'earlymodern' ? 'earlymodern' : 'medieval';
-  return ['w', 'e', 'i'].flatMap((c) => ['y', 'a', 'o'].flatMap((a) => ['', '-2'].map((v) => `/art/portraits/${era}-${c}-${sex}-${a}${v}.jpg`)));
+  return ['w', 'e', 'i'].flatMap((c) => ['y', 'a', 'o'].flatMap((a) => (female && a !== 'o' ? ['', '-2', '-3', '-4'] : ['', '-2']).map((v) => `/art/portraits/${era}-${c}-${sex}-${a}${v}.jpg`)));
 }

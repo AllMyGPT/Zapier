@@ -51,6 +51,7 @@ export function describeEffect(s: GameState, tag: string, e: Effect): { text: st
       if (e.op === 'legitimize') return { text: `${nmA} es legitimad${A?.female ? 'a' : 'o'}`, good: true };
       if (e.op === 'banish') return { text: `${nmA} es desterrad${A?.female ? 'a' : 'o'} de la corte`, good: null };
       if (e.op === 'kill') return { text: `${nmA} no verá otro amanecer`, good: null };
+      if (e.op === 'marry') return { text: `Boda: ${nmA} y ${B?.name ?? '…'}`, good: true };
       if (e.op === 'inLove') return { text: `Nace el amor en el matrimonio (más hijos)`, good: true };
       if (e.op === 'trait') return { text: `${nmA} gana el rasgo «${e.value}»`, good: null };
       return null;

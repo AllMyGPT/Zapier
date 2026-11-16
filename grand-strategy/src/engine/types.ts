@@ -145,7 +145,7 @@ export type Effect =
   /** character-level operations used by romance and court events */
   | { type: 'breakAlliance'; tag?: string; other: string }
   | { type: 'release'; tag?: string; target: string }
-  | { type: 'char'; op: 'lovers' | 'breakup' | 'legitimize' | 'banish' | 'kill' | 'inLove' | 'trait'; a: string; b?: string; value?: string };
+  | { type: 'char'; op: 'lovers' | 'breakup' | 'legitimize' | 'banish' | 'kill' | 'inLove' | 'trait' | 'marry'; a: string; b?: string; value?: string };
 
 export interface EventOption {
   label: string;

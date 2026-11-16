@@ -172,6 +172,7 @@ export function createGame(sc: Scenario, player: string, seed = 12345, founder?:
     const war: War = { id: uid(s, 'w'), name: w.name, attackers: [...w.attackers], defenders: [...w.defenders], start: s.day, battleScore: 0, goal: w.goal ?? null };
     s.wars.push(war);
   }
+  startingGarrisons(s);
   if (founder && s.nations[player]) foundDynasty(s, player, founder);
   // every realm without a hand-written mission tree gets a generic one built from its neighbourhood
   const withTree = new Set(s.missions!.map((m) => m.tag));
@@ -319,6 +320,30 @@ export function spawnArmy(s: GameState, tag: string, pid: string, units: Record<
   return army;
 }
 function ordinal(n: number) { return `${n}.º`; }
+
+/**
+ * Every realm starts with a garrison sized to its territory and situation: more land means more troops,
+ * and a power already at war musters half again as many. Scenario-written armies count toward the total,
+ * so hand-placed forces are topped up instead of doubled.
+ */
+function startingGarrisons(s: GameState) {
+  const r = rules(s);
+  const unit = ['levy', 'infantry', 'militia'].find((u) => r.unitTypes[u]) ?? Object.keys(r.unitTypes)[0];
+  if (!unit) return;
+  const atWar = new Set<string>();
+  for (const w of s.wars) for (const t of [...w.attackers, ...w.defenders]) atWar.add(t);
+  for (const n of Object.values(s.nations)) {
+    if (n.tag === 'REB' || n.x.pseudo) continue;
+    const own = provincesOf(s, n.tag);
+    if (!own.length) continue;
+    const cap = own.find((p) => p.id === n.capital) ?? own.slice().sort((a, b) => b.dev - a.dev)[0];
+    let want = Math.min(16, 2 + own.length * 0.8);
+    if (atWar.has(n.tag)) want = Math.min(24, want * 1.5);
+    const have = armiesOf(s, n.tag).reduce((t, a) => t + a.units.length, 0);
+    const missing = Math.round(want) - have;
+    if (missing > 0) spawnArmy(s, n.tag, cap.id, { [unit]: missing }, `Guarnición de ${n.name}`);
+  }
+}
 
 export function canUseSea(s: GameState, tag: string): boolean {
   const r = rules(s) as Ruleset & { canUseSea?: (s: GameState, tag: string) => boolean };
@@ -886,6 +911,7 @@ export function applyEffect(s: GameState, tag: string, e: Effect) {
       if (e.op === 'banish' && A.alive) { if (A.lover && s.characters[A.lover]) s.characters[A.lover].lover = null; A.lover = null; A.tag = 'REB'; }
       if (e.op === 'kill' && A.alive) killCharacter(s, A.id, e.value ?? 'circunstancias extrañas');
       if (e.op === 'inLove') A.inLove = true;
+      if (e.op === 'marry' && B?.alive && A.alive) { if (A.lover === B.id) { A.lover = null; B.lover = null; } A.spouse = B.id; B.spouse = A.id; B.tag = A.tag; A.inLove = true; B.inLove = true; }
       if (e.op === 'trait' && e.value && !A.traits.includes(e.value)) A.traits.push(e.value);
       break;
     }

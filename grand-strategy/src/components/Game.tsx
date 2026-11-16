@@ -156,14 +156,14 @@ export default function Game({ initial, onExit }: { initial: GameState; onExit: 
 
       {event && (
         <div className="modal-bg"><div className="modal modal-event">
-          <div className="modal-art" style={{ backgroundImage: `url(${event.image ? `/art/events/${artEra(s)}-${event.image}.jpg` : eventArt(artEra(s), event.title, event.text)}), url(${event.image ? `/art/events/ww2-${event.image}.jpg` : eventArt('ww2', event.title, event.text)})` }} />
+          <div className="modal-art" style={{ backgroundImage: `url(${event.image ? `/art/events/${artEra(s)}-${event.image}.jpg` : eventArt(artEra(s), event.title, event.text)}), url(/art/events/${artEra(s)}-court.jpg), url(${event.image ? `/art/events/ww2-${event.image}.jpg` : eventArt('ww2', event.title, event.text)})` }} />
           <h2>{event.title}</h2>
           <div className="modal-date">{formatDate(s.day)}</div>
           <p>{event.text}</p>
           {event.note && <p className="event-note">{event.note}</p>}
           <div className="col">
             {event.options.map((o, i) => {
-              const fx = o.effects.map((e) => describeEffect(s, s.player, e)).filter(Boolean) as { text: string; good: boolean | null }[];
+              const fx = (o.effects.map((e) => describeEffect(s, s.player, e)).filter(Boolean) as { text: string; good: boolean | null }[]).filter((f, i, arr) => arr.findIndex((g) => g.text === f.text) === i);
               return (
                 <button key={i} className="opt" onClick={() => cmd({ type: 'eventChoice', eventId: event.id, option: i })}>
                   <span className="opt-label">{o.label}</span>

@@ -16,7 +16,7 @@ const ella = (c: Character) => (c.female ? 'ella' : 'él');
 const o_a = (c: Character) => (c.female ? 'a' : 'o');
 
 export function seductionChance(s: GameState, a: Character, b: Character): number {
-  if (!a.alive || !b.alive || a.female === b.female || age(s, a) < 16 || age(s, b) < 16 || closeKin(a, b)) return 0;
+  if (!a.alive || !b.alive || a.female === b.female || age(s, a) < 18 || age(s, b) < 18 || closeKin(a, b)) return 0;
   // every pair has its own chemistry
   const key = a.id < b.id ? a.id + b.id : b.id + a.id;
   let h = 7; for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
@@ -37,6 +37,7 @@ export function seductionChance(s: GameState, a: Character, b: Character): numbe
 /** who the player's character could try to seduce: notable people of other courts, best odds first */
 export function seductionTargets(s: GameState, a: Character, limit = 8) {
   const out: { b: Character; p: number; why: string }[] = [];
+  if (age(s, a) < 18) return out;
   for (const n of livingNations(s)) {
     if (n.x.pseudo) continue;
     const r = rulerOf(s, n);
@@ -84,7 +85,7 @@ export function monthlyRomance(s: GameState) {
     seen.add(a.id); seen.add(b.id);
     const woman = a.female ? a : b, man = a.female ? b : a;
     // a child "of uncertain resemblance"
-    if (age(s, woman) >= 16 && age(s, woman) <= 44 && chance(s, 0.012)) {
+    if (age(s, woman) >= 18 && age(s, woman) <= 44 && chance(s, 0.012)) {
       const child = randomCharacter(s, woman.tag, { dynasty: man.dynasty, female: chance(s, 0.48), ageYears: 0 });
       child.father = man.id; child.mother = woman.id; child.bastard = true;
       const tags = [man.tag, woman.tag].filter((t, i, arr) => arr.indexOf(t) === i);
@@ -162,6 +163,8 @@ export function monthlyRomance(s: GameState) {
     });
   }
 
+  if (me) playerIntrigues(s);
+
   // a perfumed letter from abroad for the player's monarch or heir
   if (me && chance(s, 0.022)) {
     const target = [me.rulerId, me.heirId].map((id) => (id ? s.characters[id] : null)).find((c) => c?.alive && age(s, c) >= 18 && !c.lover);
@@ -202,7 +205,143 @@ export function weddingNight(s: GameState, c: Character, k: Character) {
   });
 }
 
+const isFav = (c: Character | null | undefined) => !!c && (c.traits.includes('favorito') || c.traits.includes('favorita'));
+const NAMES_F = ['Leonor', 'Beatriz', 'Isabela', 'Catalina', 'Violante', 'Mencía', 'Brianda', 'Aldonza', 'Inés', 'Juliana'];
+const NAMES_M = ['Rodrigo', 'Gonzalo', 'Íñigo', 'Lope', 'Beltrán', 'Diego', 'Garcilaso', 'Hernando', 'Álvaro', 'Gastón'];
+const pickName = (s: GameState, female: boolean) => pick(s, female ? NAMES_F : NAMES_M);
+
+/** the player's court: favourites, duels, impossible loves and other temptations */
+function playerIntrigues(s: GameState) {
+  const me = s.nations[s.player];
+  const r = rulerOf(s, me);
+  if (!r?.alive) return;
+  const lover = r.lover ? s.characters[r.lover] : null;
+  // an official favourite: glamour and expense, envy at court
+  if (lover?.alive && isFav(lover)) {
+    me.prestige += 0.4;
+    me.treasury -= 1.2;
+    if (s.era === 'medieval') me.x.piety = (me.x.piety ?? 0) - 0.4;
+    const sp = r.spouse ? s.characters[r.spouse] : null;
+    if (sp?.alive && sp.tag !== me.tag && s.nations[sp.tag]) addRelation(s, sp.tag, me.tag, -1);
+    if (chance(s, 0.025)) {
+      tryEvent(s, s.player, {
+        title: `${lover.female ? 'La favorita' : 'El favorito'} pide más`, image: 'romance',
+        text: `Entre sedas y susurros, ${lover.name} enreda los dedos en tu pelo y pide, con una sonrisa que no admite un no, un regalo digno de su posición.`,
+        options: [
+          { label: 'Un collar de esmeraldas', hint: 'Su gratitud será… memorable.', effects: [{ type: 'treasury', amount: -60 }, { type: 'prestige', amount: 15 }, { type: 'char', op: 'inLove', a: lover.id }] },
+          { label: 'Un título y tierras para su familia', hint: 'La nobleza murmurará.', effects: [{ type: 'treasury', amount: -20 }, { type: 'stability', amount: -1 }, { type: 'prestige', amount: 25 }] },
+          { label: 'Un beso en la mano y una negativa', hint: 'Quizá se enfríe la alcoba.', effects: chance(s, 0.4) ? [{ type: 'char', op: 'breakup', a: r.id }, { type: 'prestige', amount: -10 }] : [{ type: 'prestige', amount: -5 }] },
+        ],
+      });
+    }
+  }
+  // a jealous spouse throws down the glove
+  if (lover?.alive && lover.spouse && s.characters[lover.spouse]?.alive && chance(s, 0.012)) {
+    const rival = s.characters[lover.spouse];
+    const win = Math.min(0.85, Math.max(0.15, 0.5 + (stat(r, 'martial') - stat(rival, 'martial')) * 0.06));
+    tryEvent(s, s.player, {
+      title: 'Un guante en el suelo', image: 'romance',
+      text: `${rival.name}, ${rival.female ? 'esposa' : 'marido'} de ${lover.name}, irrumpe en la sala y arroja un guante a tus pies. Toda la corte calla: exige satisfacción al amanecer.`,
+      note: `Tus probabilidades en el campo del honor: ${Math.round(win * 100)} %.`,
+      options: [
+        { label: 'Aceptar el duelo', hint: 'El honor o la tumba.', effects: rand(s) < win ? [{ type: 'prestige', amount: 60 }, { type: 'char', op: 'kill', a: rival.id, value: 'en duelo' }, { type: 'chronicle', text: `${r.name} se bate en duelo al amanecer y vuelve sin un rasguño. ${rival.name} no.` }] : [{ type: 'prestige', amount: -40 }, { type: 'char', op: 'trait', a: r.id, value: 'enfermizo' }, { type: 'chronicle', text: `${r.name} cae herido en un duelo por amor; la herida nunca curará del todo.` }] },
+        { label: 'Enviar a un campeón', hint: 'Cuesta oro y algo de orgullo.', effects: [{ type: 'treasury', amount: -40 }, { type: 'prestige', amount: -10 }] },
+        { label: 'Romper con tu amante y pedir disculpas', effects: [{ type: 'char', op: 'breakup', a: r.id }, { type: 'prestige', amount: -25 }] },
+      ],
+    });
+  }
+  // the heir falls for someone of low birth
+  const heir = me.heirId ? s.characters[me.heirId] : null;
+  if (heir?.alive && age(s, heir) >= 18 && age(s, heir) <= 30 && !(heir.spouse && s.characters[heir.spouse]?.alive) && chance(s, 0.008)) {
+    const beloved = randomCharacter(s, me.tag, { female: !heir.female, ageYears: Math.max(18, age(s, heir) - 2), dynasty: heir.female ? 'de baja cuna' : 'de baja cuna' });
+    beloved.name = pickName(s, beloved.female);
+    beloved.traits = ['bello'];
+    tryEvent(s, s.player, {
+      title: 'Un amor imposible', image: 'romance',
+      text: `${heir.name} ha perdido la cabeza por ${beloved.name}, ${beloved.female ? 'una joven' : 'un joven'} sin linaje que trabaja en las cocinas de palacio. Les han visto paseando a medianoche por las murallas.`,
+      options: [
+        { label: 'Que se casen: el amor también es política', hint: 'Escándalo en las cortes, pero un heredero feliz.', effects: [{ type: 'prestige', amount: -50 }, { type: 'char', op: 'marry', a: heir.id, b: beloved.id }, { type: 'chronicle', text: `${heir.name} desafía a la corte y declara su amor por ${beloved.name}.` }] },
+        { label: 'Que sea su amante en secreto', hint: 'Nadie tiene por qué enterarse… todavía.', effects: [{ type: 'char', op: 'lovers', a: heir.id, b: beloved.id }] },
+        { label: 'Alejar a esa persona de la corte', hint: 'El heredero no lo olvidará.', effects: [{ type: 'char', op: 'banish', a: beloved.id }, { type: 'char', op: 'trait', a: heir.id, value: 'cínico' }] },
+      ],
+    });
+  }
+}
+
 export const romanceActions: ActionDef[] = [
+  {
+    id: 'make_favorite', label: 'Nombrar favorito/a', group: 'Corte', hidden: true,
+    description: 'Tu amante pasa a la luz: título, aposentos junto a los tuyos y joyas. Prestigio y glamour… a cambio de oro, envidias y un cónyuge herido.',
+    args: [{ key: 'character', label: 'Soberano', kind: 'character' }],
+    available: (s, tag, a) => {
+      if (!a) return true;
+      const c = s.characters[a.character as string];
+      const l = c?.lover ? s.characters[c.lover] : null;
+      if (!c || c.id !== s.nations[tag].rulerId) return 'Solo el soberano puede tener favorito/a';
+      if (!l?.alive) return 'No hay amante a quien nombrar';
+      return isFav(l) ? 'Ya es favorito/a oficial' : true;
+    },
+    run: (s, tag, a) => {
+      const c = s.characters[a.character as string];
+      const l = s.characters[c.lover!];
+      l.traits.push(l.female ? 'favorita' : 'favorito');
+      const sp = c.spouse ? s.characters[c.spouse] : null;
+      if (sp?.alive) sp.inLove = false;
+      s.nations[tag].prestige += 20;
+      log(s, `${l.name} es proclamad${l.female ? 'a favorita' : 'o favorito'} de ${c.name}. La corte entera sabe ya dónde pasa las noches.`, [tag], 'story');
+    },
+  },
+  {
+    id: 'masked_ball', label: 'Baile de máscaras', group: 'Corte', hidden: true,
+    description: 'Una noche de música, antifaces y jardines en penumbra. Puede salir un romance, una alianza… o un escándalo.',
+    cost: () => '40 de oro · una vez al año',
+    available: (s, tag) => {
+      const n = s.nations[tag];
+      if (n.treasury < 40) return 'Hacen falta 40 de oro';
+      if (s.day - (n.flags.masked_ball ?? -9999) < 365) return 'La corte aún habla del último baile';
+      return rulerOf(s, n) ? true : 'No hay soberano';
+    },
+    run: (s, tag) => {
+      const n = s.nations[tag];
+      const r = rulerOf(s, n)!;
+      n.treasury -= 40; n.flags.masked_ball = s.day;
+      const realms = livingNations(s).filter((x) => x.tag !== tag && !x.x.pseudo);
+      const used = new Set<string>([r.name, ...(r.spouse && s.characters[r.spouse] ? [s.characters[r.spouse].name] : [])]);
+      const mk = () => {
+        const from = realms.length ? pick(s, realms) : n;
+        const g = randomCharacter(s, from.tag, { female: !r.female, ageYears: Math.max(20, age(s, r) - 4 - Math.round(rand(s) * 10)) });
+        const pool = (g.female ? NAMES_F : NAMES_M).filter((x) => !used.has(x));
+        g.name = pool.length ? pick(s, pool) : pickName(s, g.female);
+        used.add(g.name);
+        g.traits = [pick(s, ['bello', 'seductor', 'lujurioso', 'ambicioso'])];
+        return { g, from };
+      };
+      const [a1, a2, a3] = [mk(), mk(), mk()];
+      const sp = r.spouse ? s.characters[r.spouse] : null;
+      tryEvent(s, tag, {
+        title: 'Baile de máscaras', image: 'romance',
+        text: `Antorchas, violines y antifaces de seda. Tres miradas te buscan entre la multitud: ${a1.g.name}, de la corte de ${a1.from.name}; ${a2.g.name}, que no deja de sonreír desde la galería; y ${a3.g.name}, que te roza la mano al pasar y desaparece hacia los jardines.`,
+        options: [
+          { label: `Seguir a ${a3.g.name} a los jardines`, hint: 'Lo que pasa en el laberinto de setos…', effects: [{ type: 'char', op: 'lovers', a: r.id, b: a3.g.id }, { type: 'relations', other: a3.from.tag, amount: 15 }] },
+          { label: `Bailar toda la noche con ${a1.g.name}`, hint: 'Un flirteo diplomático: relaciones sin compromisos.', effects: [{ type: 'relations', other: a1.from.tag, amount: 35 }, { type: 'prestige', amount: 10 }] },
+          ...(sp?.alive ? [{ label: `Quitarle el antifaz a ${sp.name} y bailar solo con ${sp.female ? 'ella' : 'él'}`, hint: 'El amor conyugal también puede ser escandaloso.', effects: [{ type: 'char', op: 'inLove', a: r.id }, { type: 'char', op: 'inLove', a: sp.id }] as Effect[] }] : []),
+          { label: `Una copa de más con ${a2.g.name}`, hint: 'A la mañana siguiente, todo el reino lo sabrá.', effects: [{ type: 'char', op: 'lovers', a: r.id, b: a2.g.id }, { type: 'prestige', amount: -15 }, ...(sp?.alive ? [{ type: 'char', op: 'trait', a: sp.id, value: 'celoso' } as Effect] : [])] },
+        ],
+      });
+    },
+  },
+  {
+    id: 'love_potion', label: 'Filtro de amor', group: 'Corte', hidden: true,
+    description: 'El boticario jura que su elixir vuelve irresistible a quien lo bebe. Mejora mucho la próxima seducción… si no es veneno.',
+    cost: () => '25 de oro',
+    available: (s, tag) => (s.nations[tag].treasury >= 25 ? true : 'Hacen falta 25 de oro'),
+    run: (s, tag) => {
+      const n = s.nations[tag];
+      n.treasury -= 25;
+      if (rand(s) < 0.12) { const r = rulerOf(s, n); if (r) { r.traits.push('enfermizo'); log(s, `El «filtro de amor» del boticario sienta fatal a ${r.name}. El boticario ha huido.`, [tag], 'story'); } }
+      else { n.x.potion = 1; log(s, 'Un frasquito de cristal azul espera en tu tocador. Huele a jazmín y a promesas.', [tag], 'story'); }
+    },
+  },
   {
     id: 'seduce', label: 'Seducir', group: 'Corte', hidden: true,
     description: 'Un juego de miradas, cartas y encuentros discretos. Si sale bien, nace una relación secreta; si sale mal, un escándalo.',
@@ -216,7 +355,9 @@ export const romanceActions: ActionDef[] = [
     },
     run: (s, tag, a) => {
       const c = s.characters[a.character as string], b = s.characters[a.target as string];
-      const p = seductionChance(s, c, b);
+      const n0 = s.nations[tag];
+      const p = Math.min(0.95, seductionChance(s, c, b) + (n0.x.potion ? 0.3 : 0));
+      if (n0.x.potion) delete n0.x.potion;
       const rb = s.nations[b.tag];
       if (rand(s) < p) {
         c.lover = b.id; b.lover = c.id;

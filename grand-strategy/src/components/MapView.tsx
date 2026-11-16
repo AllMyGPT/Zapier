@@ -141,26 +141,115 @@ function category(a: Army) {
   return Object.entries(count).sort((x, y) => y[1] - x[1])[0]?.[0] ?? 'inf';
 }
 
-/** unit glyph inside a 10×10 box */
-function UnitIcon({ cat, modern }: { cat: string; modern: boolean }) {
-  const st = { fill: 'none', stroke: '#fff', strokeWidth: 1.1, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
-  if (modern) {
-    return (
-      <g {...st}>
-        <rect x="0.8" y="2" width="8.4" height="6" />
-        {(cat === 'inf' || cat === 'mtn' || cat === 'mar' || cat === 'mot') && <path d="M0.8 2 L9.2 8 M9.2 2 L0.8 8" />}
-        {cat === 'cav' && <path d="M0.8 8 L9.2 2" />}
-        {(cat === 'arm' || cat === 'mot') && <rect x="2.4" y="3.3" width="5.2" height="3.4" rx="1.7" />}
-        {cat === 'art' && <circle cx="5" cy="5" r="1.2" fill="#fff" />}
-        {cat === 'mtn' && <path d="M3.5 8 L5 5.8 L6.5 8Z" fill="#fff" />}
-        {cat === 'mar' && <path d="M3 4.2 Q5 6.5 7 4.2" />}
-      </g>
-    );
-  }
-  if (cat === 'cav') return <g {...st}><path d="M2 8.6 L2.6 5 Q3 2.6 5.6 2.2 L7.6 1.4 L7.2 3 L8.6 4.6 L7.4 5.4 L6 4.6 L5.4 6.4 L6 8.6" /></g>;
-  if (cat === 'art') return <g {...st}><path d="M1.5 6.2 L8.4 3.2" strokeWidth={2} /><circle cx="3.6" cy="7.6" r="1.5" /></g>;
-  if (cat === 'arc') return <g {...st}><path d="M3 1.2 Q8.6 5 3 8.8" /><path d="M3 1.2 L3 8.8 M1.4 5 L8 5" /></g>;
-  return <g {...st}><path d="M1.6 1.6 L8.4 8.4 M8.4 1.6 L1.6 8.4" /><path d="M1 6.4 L3.6 9 M9 6.4 L6.4 9" /></g>;
+/** unit symbol in a 24×24 box, drawn in the spirit of wargame unit counters (Hearts of Iron 2): a figure or vehicle in pale steel
+ *  with dark detailing, read at a glance. Light ink = the unit, dark ink = details and shadow. */
+function UnitIcon({ cat }: { cat: string }) {
+  const L = '#efe6cc', D = '#2a2116', M = '#b8ad8e';
+  if (cat === 'cav') return (
+    <g>
+      {/* lancer on a galloping horse, side view */}
+      <path stroke={D} strokeWidth="0.9" d="M8.6 8.2 L1.4 0.9" />
+      <path fill={D} d="M0.8 0.6 L2.2 0.4 L1.6 1.9Z" />
+      <path fill={L} d="M8.6 3.8 L11.4 3.8 L11.8 9.6 L8.4 9.8Z" />
+      <circle fill={L} cx="10.2" cy="2.4" r="1.5" />
+      <path fill={L} d="M4.2 12.2 Q6 10.4 9.6 10.6 L15.4 10.2 Q16.6 9.8 17.2 8.2 L18.2 5.4 Q18.6 4.4 19.8 4.4 L21.4 5.4 Q21.8 6.2 21 6.9 L19.6 7.6 Q18.8 8.4 18.4 9.6 Q17.8 11.6 16.6 12.6 L16.2 13.4 L16.8 20.8 L15 20.8 L14.4 14.2 L10.4 14.6 L9.8 20.8 L8 20.8 L7.8 14.4 Q5.6 14.6 4.6 13.8 Q4 13.2 4.2 12.2Z" />
+      <path fill={M} d="M7.8 14.4 L10.4 14.6 L14.4 14.2 L15 20.8 L16.8 20.8 L16.8 19 L15 18.8Z" opacity=".5" />
+      <path fill={D} d="M19.4 5.2 L20.4 5.2 L20 6.2Z" />
+      <path fill="none" stroke={L} strokeWidth="1.2" strokeLinecap="round" d="M4.4 11 Q1.4 12 2.2 15.8" />
+    </g>
+  );
+  if (cat === 'art') return (
+    <g>
+      {/* spoked wheel, carriage and a long barrel */}
+      <circle fill="none" stroke={L} strokeWidth="1.5" cx="8" cy="17" r="4.8" />
+      <circle fill={D} cx="8" cy="17" r="1.2" />
+      <path stroke={M} strokeWidth="0.6" d="M8 12.2 V21.8 M3.2 17 H12.8 M4.8 13.8 L11.2 20.2 M11.2 13.8 L4.8 20.2" />
+      <path fill={L} d="M6.4 13.4 L12.6 13.4 L13.8 16.2 L6 16.2Z" />
+      <path fill={L} d="M9.6 12.2 L21.6 5.8 L22.8 8.2 L10.8 14.2Z" />
+      <path fill={D} d="M20.6 5.4 L22.8 4.6 L23.2 6.6 L21.8 7.2Z" />
+    </g>
+  );
+  if (cat === 'arm') return (
+    <g>
+      {/* tank: hull, sloped turret, long gun and a track with road wheels */}
+      <rect fill={D} x="1.6" y="15.4" width="20.8" height="5.6" rx="2.8" />
+      {[3.8, 7.4, 11, 14.6, 18.2].map((x) => <circle key={x} fill={M} cx={x} cy="18.2" r="1.05" />)}
+      <path fill={L} d="M2.6 15.4 L3.6 12.2 L20.6 12.2 L21.4 15.4Z" />
+      <path fill={L} d="M7.4 12.4 Q8 8 12 7.6 Q15.8 8 16.6 12.4Z" />
+      <rect fill={L} x="15.2" y="9.2" width="8.4" height="1.6" />
+      <rect fill={D} x="22.6" y="8.8" width="1" height="2.4" />
+      <circle fill={D} cx="11.4" cy="9.8" r="0.9" />
+    </g>
+  );
+  if (cat === 'mot') return (
+    <g>
+      {/* lorry: cab with windscreen, canvas-covered load, two wheels */}
+      <path fill={L} d="M9.2 7 Q14.4 5.2 20.6 7 L20.8 15.2 L9.2 15.2Z" />
+      <path fill={M} d="M9.2 12.8 L20.8 12.8 L20.8 15.2 L9.2 15.2Z" />
+      <path fill={L} d="M1.6 9.4 L5 9.4 L6.6 12.4 L6.8 15.2 L1.6 15.2Z" />
+      <path fill={D} d="M2.4 10.4 L4.6 10.4 L5.6 12.2 L2.4 12.2Z" />
+      <rect fill={D} x="1.6" y="15" width="19.4" height="1.4" />
+      <circle fill={D} cx="4.6" cy="17.6" r="2.6" />
+      <circle fill={L} cx="4.6" cy="17.6" r="1" />
+      <circle fill={D} cx="16.6" cy="17.6" r="2.6" />
+      <circle fill={L} cx="16.6" cy="17.6" r="1" />
+    </g>
+  );
+  if (cat === 'mtn') return (
+    <g>
+      {/* alpine troops: two peaks with snow caps and a banner */}
+      <path fill={L} d="M1 21.2 L9 6.4 L13 13.4 L15.6 9.2 L23 21.2Z" />
+      <path fill={D} d="M7.4 10.2 L9 6.4 L10.6 10.2 L9 9.2Z" />
+      <path fill={D} d="M14.2 11.4 L15.6 9.2 L17 11.4 L15.6 10.6Z" />
+      <path fill={D} d="M9 6.4 V1.8" stroke={D} strokeWidth="0.8" />
+      <path fill={L} d="M9 1.8 L13 2.9 L9 4Z" />
+    </g>
+  );
+  if (cat === 'mar') return (
+    <g fill="none" stroke={L} strokeWidth="1.6" strokeLinecap="round">
+      {/* anchor */}
+      <circle cx="12" cy="4.4" r="1.9" />
+      <path d="M12 6.4 V20.6 M7.4 9.4 H16.6" />
+      <path d="M4.2 14.2 Q12 25 19.8 14.2" />
+      <path d="M4.2 14.2 L3.4 11.8 M19.8 14.2 L20.6 11.8" />
+    </g>
+  );
+  if (cat === 'arc') return (
+    <g>
+      {/* longbowman: bow, nocked arrow and quiver */}
+      <path fill="none" stroke={L} strokeWidth="1.8" d="M6.4 2 Q20.4 12 6.4 22" />
+      <path stroke={M} strokeWidth="0.6" d="M6.4 2 L6.4 22" />
+      <path stroke={L} strokeWidth="1.1" d="M2.6 12 H16.2" />
+      <path fill={L} d="M15.2 9.6 L20 12 L15.2 14.4Z" />
+      <path stroke={L} strokeWidth="1" d="M2.6 12 L1.2 10.4 M2.6 12 L1.2 13.6" />
+      <path fill={D} d="M18.8 16.6 L22.8 15 L23.6 22 L19.6 22.4Z" />
+      <path stroke={L} strokeWidth="0.7" d="M20.4 16.4 L19.4 9 M22.2 15.6 L22.2 8.8" />
+    </g>
+  );
+  if (cat === 'inf') return (
+    <g>
+      {/* rifleman with helmet, tunic, belt and rifle at the shoulder */}
+      <path fill={L} d="M8 6.4 Q8.4 2 12.2 2 Q16 2 16.4 6.4Z" />
+      <rect fill={D} x="7.2" y="5.8" width="10" height="1.1" rx=".5" />
+      <ellipse fill={M} cx="12.2" cy="8.2" rx="2.4" ry="2.2" />
+      <path fill={L} d="M7.6 10.4 Q12.2 8.6 16.8 10.4 L17.4 17.4 L7 17.4Z" />
+      <rect fill={D} x="7" y="14.4" width="10.4" height="1" />
+      <path fill={D} d="M7.6 17.2 L11.2 17.2 L10.8 22.6 L7.8 22.6Z" />
+      <path fill={D} d="M12.8 17.2 L16.4 17.2 L16.4 22.6 L13.2 22.6Z" />
+      <path fill={L} d="M17.6 3.2 L18.8 3 L19.4 21.8 L18.2 22Z" />
+      <path fill={D} d="M18.2 1.2 L19.4 3.4 L18.4 3.6Z" />
+    </g>
+  );
+  // levies, militia and anything else: a pikeman with a round shield
+  return (
+    <g>
+      <path stroke={L} strokeWidth="1.2" d="M4 22 L20.6 2.6" />
+      <path fill={D} d="M19.4 0.6 L22.2 2.8 L21 4.2Z" />
+      <circle fill={L} cx="9.4" cy="14.4" r="5" />
+      <circle fill="none" stroke={D} strokeWidth="0.9" cx="9.4" cy="14.4" r="4.2" />
+      <circle fill={D} cx="9.4" cy="14.4" r="1.2" />
+    </g>
+  );
 }
 
 function armyPoint(s: GameState, g: MapGeometry, a: Army): [number, number] {
@@ -192,7 +281,8 @@ function MapView({ s, version, mode, selectedProvince, selectedArmy, onProvince,
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const initial = useMemo(() => {
+  // the realm-centred view: where "Centrar en tu reino" takes you
+  const realm = useMemo(() => {
     const mine = Object.values(s.provinces).filter((p) => p.owner === s.player).map((p) => g.centers[p.id]);
     const owned = (mine.length ? mine : Object.values(s.provinces).filter((p) => p.owner).map((p) => g.centers[p.id]));
     const xs = owned.map((c) => c[0]), ys = owned.map((c) => c[1]);
@@ -202,6 +292,8 @@ function MapView({ s, version, mode, selectedProvince, selectedArmy, onProvince,
     return { x: cx - w / 2, y: cy - h / 2, w, h };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.scenarioId, g]);
+  // world maps open on the whole planet, so every continent and nation is in view from the first frame
+  const initial = useMemo(() => (s.mapId === 'world' ? { x: g.minX, y: g.minY, w: g.width, h: g.height } : realm), [s.mapId, g, realm]);
   const [view, setView] = useState(initial);
   useEffect(() => setView(initial), [initial]);
   type Drag = { x: number; y: number; vx: number; vy: number; moved: boolean; pointers: Map<number, [number, number]>; pinch?: number };
@@ -284,7 +376,6 @@ function MapView({ s, version, mode, selectedProvince, selectedArmy, onProvince,
   const byLoc: Record<string, Army[]> = {};
   for (const a of armies) (byLoc[a.inBattle || !a.progress || !a.path.length ? a.location : `${a.location}>${a.path[0]}`] ??= []).push(a);
   const selArmy = selectedArmy ? s.armies[selectedArmy] : null;
-  const modern = s.era === 'ww2';
   const r = rules(s);
 
   const tipRef = useRef<HTMLDivElement>(null);
@@ -356,7 +447,10 @@ function MapView({ s, version, mode, selectedProvince, selectedArmy, onProvince,
       }}
     >
       <defs>
-        <radialGradient id="seaGrad" cx="50%" cy="45%" r="75%">
+        {/* world maps paint the sea in user space so the gradient runs on past the map's edges: no hard border around the planet */}
+        <radialGradient id="seaGrad" {...(s.mapId === 'world'
+          ? { gradientUnits: 'userSpaceOnUse' as const, cx: g.minX + g.width * 0.5, cy: g.minY + g.height * 0.45, r: Math.max(g.width, g.height) * 0.55 }
+          : { cx: '50%', cy: '45%', r: '75%' })}>
           <stop offset="0" stopColor={MAPS[s.mapId].seaColor} />
           <stop offset="1" stopColor="#0b1a26" />
         </radialGradient>
@@ -372,10 +466,10 @@ function MapView({ s, version, mode, selectedProvince, selectedArmy, onProvince,
         <radialGradient id="battleGlow"><stop offset="0" stopColor="#ff5a2a" stopOpacity=".85" /><stop offset="1" stopColor="#ff5a2a" stopOpacity="0" /></radialGradient>
       </defs>
 
-      <rect x={g.minX - g.width} y={g.minY - g.height} width={g.width * 3} height={g.height * 3} fill="#0b1a26" />
+      <rect x={g.minX - g.width} y={g.minY - g.height} width={g.width * 3} height={g.height * 3} fill={s.mapId === 'world' ? 'url(#seaGrad)' : '#0b1a26'} />
       <rect x={g.minX} y={g.minY} width={g.width} height={g.height} fill="url(#seaGrad)" />
-      {tex && <rect x={g.minX} y={g.minY} width={g.width} height={g.height} fill="url(#tex-sea)" opacity={0.3} pointerEvents="none" />}
-      <rect x={g.minX} y={g.minY} width={g.width} height={g.height} fill="url(#waves)" pointerEvents="none" />
+      {tex && <rect x={g.minX - g.width} y={g.minY - g.height} width={g.width * 3} height={g.height * 3} fill="url(#tex-sea)" opacity={0.3} pointerEvents="none" />}
+      <rect x={g.minX - g.width} y={g.minY - g.height} width={g.width * 3} height={g.height * 3} fill="url(#waves)" pointerEvents="none" />
 
       <g clipPath="url(#mapclip)">
       <StaticLand coast={world ?? g.land} wild={!!world} tex={tex} />
@@ -397,7 +491,7 @@ function MapView({ s, version, mode, selectedProvince, selectedArmy, onProvince,
       </g>
       {world && <path d={world} fill="none" stroke="#24180c" strokeOpacity=".9" strokeWidth={1.3} vectorEffect="non-scaling-stroke" pointerEvents="none" />}
       </g>
-      {paper && <rect x={g.minX} y={g.minY} width={g.width} height={g.height} fill="url(#paper)" opacity={0.55} pointerEvents="none" />}
+      {paper && <rect x={g.minX - g.width} y={g.minY - g.height} width={g.width * 3} height={g.height * 3} fill="url(#paper)" opacity={0.55} pointerEvents="none" />}
 
       <Labels s={s} version={version} g={g} ppu={ppu} />
 
@@ -470,11 +564,15 @@ function MapView({ s, version, mode, selectedProvince, selectedArmy, onProvince,
           <g key={a.id} data-aid={a.id} className="counter" style={{ cursor: 'pointer', transform: `translate(${x}px, ${y}px)` }} data-loc={key}>
             <rect x={-font * 0.12} y={-font * 0.12} width={w + font * 0.24} height={h + font * 0.62} rx={font * 0.3} fill="#000" opacity={0.45} />
             {sel && <rect x={-font * 0.35} y={-font * 0.35} width={w + font * 0.7} height={h + font * 1.05} rx={font * 0.45} fill="none" stroke="#ffe08a" strokeWidth={font * 0.22} className="sel-pulse" />}
-            <rect width={w} height={h} rx={font * 0.22} fill="#1d1710" stroke={a.inBattle ? '#ff6a3d' : enemy ? '#d9534a' : mine ? '#e3c06f' : '#8d7a55'} strokeWidth={font * 0.14} />
-            <rect width={h} height={h} rx={font * 0.22} fill={color} />
-            <rect width={h} height={h * 0.5} rx={font * 0.22} fill="#fff" opacity={0.18} />
-            <g transform={`translate(${h * 0.14} ${h * 0.14}) scale(${(h * 0.72) / 10})`}><UnitIcon cat={category(a)} modern={modern} /></g>
-            <text x={h + (w - h) / 2} y={h * 0.7} fontSize={font * 1.05} textAnchor="middle" fill="#f4e6c2" fontWeight={700} style={{ fontFamily: 'var(--display)' }}>{a.inBattle ? '⚔' : n}</text>
+            {/* a cardboard counter: wooden frame, painted roundel with brass rim, cream number plate */}
+            <rect width={w} height={h} rx={font * 0.3} fill="#2b1f12" stroke={a.inBattle ? '#ff6a3d' : enemy ? '#d9534a' : mine ? '#e3c06f' : '#8d7a55'} strokeWidth={font * 0.16} />
+            <rect x={font * 0.1} y={font * 0.1} width={w - font * 0.2} height={h - font * 0.2} rx={font * 0.22} fill="none" stroke="#000" strokeOpacity={0.35} strokeWidth={font * 0.06} />
+            <circle cx={h / 2} cy={h / 2} r={h * 0.44} fill={color} stroke="#f3dfa6" strokeWidth={font * 0.14} />
+            <circle cx={h / 2} cy={h / 2} r={h * 0.34} fill="none" stroke="#000" strokeOpacity={0.28} strokeWidth={font * 0.07} />
+            <ellipse cx={h / 2} cy={h * 0.3} rx={h * 0.3} ry={h * 0.13} fill="#fff" opacity={0.22} />
+            <g transform={`translate(${h * 0.2} ${h * 0.2}) scale(${(h * 0.6) / 24})`} style={{ filter: `drop-shadow(0 ${font * 0.04}px 0 #1a1208)` }}><UnitIcon cat={category(a)} /></g>
+            <rect x={h * 0.92} y={h * 0.1} width={w - h * 0.98} height={h * 0.8} rx={font * 0.2} fill="#efe0b8" stroke="#7a5a2a" strokeWidth={font * 0.06} />
+            <text x={h + (w - h) / 2 - font * 0.12} y={h * 0.7} fontSize={font * 1.1} textAnchor="middle" fill="#2a1d0e" fontWeight={700} style={{ fontFamily: 'var(--display)' }}>{a.inBattle ? '⚔' : n}</text>
             <rect x={0} y={h + font * 0.1} width={w} height={font * 0.22} fill="#00000099" />
             <rect x={0} y={h + font * 0.1} width={w * org} height={font * 0.22} fill="#7bd17b" />
             <rect x={0} y={h + font * 0.34} width={w} height={font * 0.16} fill="#00000099" />
@@ -488,7 +586,7 @@ function MapView({ s, version, mode, selectedProvince, selectedArmy, onProvince,
     <div className="zoomctl">
       <button aria-label="Acercar" onClick={() => { const r = svgRef.current!.getBoundingClientRect(); zoom(1 / 1.4, r.left + r.width / 2, r.top + r.height / 2); }}>+</button>
       <button aria-label="Alejar" onClick={() => { const r = svgRef.current!.getBoundingClientRect(); zoom(1.4, r.left + r.width / 2, r.top + r.height / 2); }}>−</button>
-      <button aria-label="Centrar en tu reino" onClick={() => { live.current = { tx: 0, ty: 0, k: 1 }; applyLive(); setView(initial); }}>◎</button>
+      <button aria-label="Centrar en tu reino" onClick={() => { live.current = { tx: 0, ty: 0, k: 1 }; applyLive(); setView(realm); }}>◎</button>
     </div>
     <Minimap s={s} version={version} g={g} coast={world} view={view} onJump={(x, y) => { live.current = { tx: 0, ty: 0, k: 1 }; applyLive(); setView((v) => ({ ...v, x: x - v.w / 2, y: y - v.h / 2 })); }} />
     </>

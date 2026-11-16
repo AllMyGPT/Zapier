@@ -104,6 +104,10 @@ export default function DynastyPanel({ s, cmd }: P) {
             <div className="romance">
               {c.bastard && <button onClick={() => cmd({ type: 'action', id: 'legitimize', args: { character: c.id } })}>Legitimar (60 prestigio)</button>}
               {c.lover && s.characters[c.lover]?.alive && <button onClick={() => cmd({ type: 'action', id: 'end_affair', args: { character: c.id } })}>Poner fin al romance</button>}
+              {c.id === n.rulerId && c.lover && s.characters[c.lover]?.alive && !s.characters[c.lover].traits.some((t) => t.startsWith('favorit')) && <button className="rose" onClick={() => cmd({ type: 'action', id: 'make_favorite', args: { character: c.id } })}>👑 Nombrar {s.characters[c.lover].female ? 'favorita' : 'favorito'} oficial</button>}
+              {c.id === n.rulerId && <button className="rose" onClick={() => cmd({ type: 'action', id: 'masked_ball', args: {} })}>🎭 Baile de máscaras (40)</button>}
+              {c.id === n.rulerId && !n.x.potion && <button className="rose" onClick={() => cmd({ type: 'action', id: 'love_potion', args: {} })}>🧪 Filtro de amor (25)</button>}
+              {n.x.potion ? <span className="lover">🧪 Tienes un filtro de amor: tu próxima seducción será mucho más fácil.</span> : null}
               {age(s, c) >= 16 && !(c.lover && s.characters[c.lover]?.alive) && <button className="rose" onClick={() => setSeduce((v) => !v)}>{seduce ? 'Dejarlo estar' : '♥ Intrigas de alcoba'}</button>}
               {seduce && (
                 <div className="cands">

@@ -1,6 +1,7 @@
 import { Delaunay } from 'd3-delaunay';
 import { MAPS } from '@/data/maps';
 import { distance } from '@/engine/map';
+import { LAND_MASK_WORLD } from '@/data/landmask_world';
 import type { Terrain } from '@/data/provinces';
 
 type Pt = [number, number];
@@ -28,6 +29,15 @@ const SCALE = 22;
 export const project = (lon: number, lat: number): Pt => [lon * SCALE * 0.72, -lat * SCALE];
 
 const cache: Record<string, MapGeometry> = {};
+
+/** true when a point lies on land in the world map's 1° mask (sea seeds must not be placed there) */
+const landWorld = (lon: number, lat: number) => {
+  const M = LAND_MASK_WORLD;
+  const c = Math.round(lon - M.lo0), r = Math.round(lat - M.la0);
+  if (c < 0 || c >= M.cols || r < 0 || r >= M.rows) return false;
+  const byte = parseInt(M.hex.substr((r * M.bytesPerRow + (c >> 3)) * 2, 2), 16);
+  return ((byte >> (c & 7)) & 1) === 1;
+};
 
 /** deterministic hash → [0,1) */
 function hash(str: string, salt = 0) {
@@ -82,7 +92,8 @@ export function geometry(mapId: string): MapGeometry {
     for (let lon = lo0; lon <= lo1; lon += step / Math.cos((lat * Math.PI) / 180) * 0.8) {
       let best = Infinity, bi = 0;
       for (let i = 0; i < pts.length; i++) { const d = distance(pts[i], { lon, lat }); if (d < best) { best = d; bi = i; } }
-      if (best > Math.max(2.1, Math.min(4.2, nn[bi] * 0.8))) seeds.push(project(lon, lat));
+      // on the world map, land never gets a sea seed: every land point belongs to a province's cell
+      if (best > Math.max(2.1, Math.min(4.2, nn[bi] * 0.8)) && !(mapId === 'world' && landWorld(lon, lat))) seeds.push(project(lon, lat));
     }
   }
   // open straits: a sea seed between nearby provinces of different landmasses keeps islands visibly separate
