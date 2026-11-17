@@ -23,21 +23,28 @@ export function money(gs: GameState, clubId: string, amount: number, label: stri
   if (clubId === gs.manager.clubId) { gs.finance.push({ date: gs.day + gs.season * 1000, label, amount }); if (gs.finance.length > 600) gs.finance.splice(0, gs.finance.length - 600); }
 }
 
-/** Continental cups: which continent feeds them and whether they take the places after the first cup's. */
-export const CONT_CUPS: { id: string; continent: 'eu' | 'sa'; second: boolean }[] = [
-  { id: 'euro', continent: 'eu', second: false }, { id: 'euro2', continent: 'eu', second: true }, { id: 'sud', continent: 'sa', second: false },
+/** Continental cups: which continent feeds them and their rank (0 = champions cup, 1 = second cup, 2 = conference). */
+export const CONT_CUPS: { id: string; continent: 'eu' | 'sa'; rank: 0 | 1 | 2 }[] = [
+  { id: 'euro', continent: 'eu', rank: 0 }, { id: 'euro2', continent: 'eu', rank: 1 }, { id: 'euro3', continent: 'eu', rank: 2 }, { id: 'sud', continent: 'sa', rank: 0 },
 ];
+/** League places a top flight gives to a continental cup of the given rank: [first place index, count]. */
+export function contSpots(L: League, rank: 0 | 1 | 2): [number, number] {
+  const e1 = L.euroSpots, e2 = L.euro2Spots ?? L.euroSpots;
+  if (rank === 0) return [0, e1];
+  if (rank === 1) return [e1, e2];
+  return [e1 + e2, e1 ? Math.max(1, Math.ceil(e2 / 2)) : 0];
+}
 /** The 32 entrants of a continental cup: league places from final standings (or reputation in the first
  *  season), trimmed or topped up by reputation. Empty when the continent has too few clubs in this world. */
 export function continentalTeams(gs: GameState, cupId: string, standings?: Record<string, string[]>): string[] {
   const cup = CONT_CUPS.find(c => c.id === cupId)!;
   const rep = (id: string) => gs.clubs[id].reputation;
   const tops = Object.values(gs.leagues).filter(l => l.tier === 1 && (l.continent ?? 'eu') === cup.continent);
-  const taken = new Set(cup.second ? CONT_CUPS.filter(c => c.continent === cup.continent && !c.second).flatMap(c => continentalTeams(gs, c.id, standings)) : []);
+  const taken = new Set(CONT_CUPS.filter(c => c.continent === cup.continent && c.rank < cup.rank).flatMap(c => continentalTeams(gs, c.id, standings)));
   const picked: string[] = [];
   for (const L of tops) {
     const order = standings?.[L.id] ?? L.clubIds.slice().sort((a, b) => rep(b) - rep(a));
-    const from = cup.second ? L.euroSpots : 0, n = cup.second ? (L.euro2Spots ?? L.euroSpots) : L.euroSpots;
+    const [from, n] = contSpots(L, cup.rank);
     picked.push(...order.slice(from, from + n));
   }
   let out = [...new Set(picked)].filter(id => !taken.has(id));
@@ -48,7 +55,7 @@ export function continentalTeams(gs: GameState, cupId: string, standings?: Recor
   }
   return out.length === 32 ? out : [];
 }
-const continental = (gs: GameState, standings?: Record<string, string[]>) => CONT_CUPS.map(c => continentalTeams(gs, c.id, standings)) as [string[], string[], string[]];
+const continental = (gs: GameState, standings?: Record<string, string[]>) => Object.fromEntries(CONT_CUPS.map(c => [c.id, continentalTeams(gs, c.id, standings)]));
 
 /** Same-city clubs in the same country play a derby. */
 export function isDerby(gs: GameState, a: string, b: string) {
@@ -92,7 +99,7 @@ export function startCareer(gs: GameState, clubId: string) {
   const c = gs.clubs[clubId];
   gs.manager.reputation = Math.max(35, c.reputation - 15);
   gs.manager.board = 65;
-  scheduleSeason(gs, rngFor(gs, 'sched'), ...continental(gs));
+  scheduleSeason(gs, rngFor(gs, 'sched'), continental(gs));
   youthIntake(gs, c, rngFor(gs, 'youth'));
   setObjectives(gs);
   scoutOf(gs);
@@ -146,7 +153,7 @@ export function isUserFixture(gs: GameState, f: Fixture) { return f.home === gs.
 export function prepareSide(gs: GameState, club: Club): [number[], number[]] {
   // the first team and a reserve team the manager runs by hand use the manager's lineup
   if (club.id === gs.manager.clubId || (club.manual && club.parentId === gs.manager.clubId)) { ensureLineup(gs, club); return [club.lineup.slice(), club.bench.slice()]; }
-  const pick = autoPick(clubPlayers(gs, club.id), club.tactics.formation);
+  const pick = autoPick(clubPlayers(gs, club.id), club.tactics.formation, club.fixed);
   club.lineup = pick.lineup; club.bench = pick.bench;
   return [pick.lineup, pick.bench];
 }
@@ -215,7 +222,7 @@ export function applyResult(gs: GameState, f: Fixture, m: Match) {
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
 function gate(gs: GameState, home: Club, away: Club, f: Fixture) {
-  const big = f.comp === 'euro' ? 1.25 : f.comp === 'euro2' || f.comp === 'sud' ? 1.1 : f.comp.startsWith('cup_') ? 0.85 : 1;
+  const big = f.comp === 'euro' ? 1.25 : f.comp === 'euro2' || f.comp === 'sud' ? 1.1 : f.comp === 'euro3' ? 1.05 : f.comp.startsWith('cup_') ? 0.85 : 1;
   const demand = (0.45 + home.reputation / 200 + away.reputation / 400) * (0.7 + home.fans / 200) * big * (home.city === away.city ? 1.2 : 1);
   const priceRef = 15 + Math.pow(home.reputation / 100, 3) * 70;
   const priceF = Math.pow(priceRef / Math.max(5, home.ticketPrice), 0.8);
@@ -485,7 +492,7 @@ function twoLeg(gs: GameState, a: string, b: string, stage: number, id: string) 
 function finishCup(gs: GameState, cupId: string, winner: string) {
   const cup = gs.cups[cupId]; cup.done = true; cup.winner = winner;
   gs.trophies.push({ season: gs.season, comp: cup.name, club: winner });
-  const prize = cupId === 'euro' ? 25_000_000 : cupId === 'euro2' ? 9_000_000 : cupId === 'sud' ? 8_000_000 : 4_000_000;
+  const prize = cupId === 'euro' ? 25_000_000 : cupId === 'euro2' ? 9_000_000 : cupId === 'euro3' ? 4_500_000 : cupId === 'sud' ? 8_000_000 : 4_000_000;
   money(gs, winner, prize, `Premio campeón ${cup.name}`);
   gs.clubs[winner].reputation = Math.min(99, gs.clubs[winner].reputation + (cupId === 'euro' ? 3 : cupId === 'euro2' || cupId === 'sud' ? 2 : 1));
   if (winner === gs.manager.clubId) { news(gs, 'board', `¡CAMPEONES de la ${cup.name}!`, `Título histórico. Premio de ${fmtMoney(prize)}. La afición está eufórica.`); gs.manager.board = Math.min(100, gs.manager.board + 20); gs.manager.reputation = Math.min(100, gs.manager.reputation + 6); }
@@ -642,7 +649,7 @@ export function endSeason(gs: GameState): string[] {
   }
   const uc = gs.clubs[u];
   uc.cohesion = Math.max(50, uc.cohesion - 10);
-  scheduleSeason(gs, rngFor(gs, 'sched'), ...continental(gs, order));
+  scheduleSeason(gs, rngFor(gs, 'sched'), continental(gs, order));
   youthIntake(gs, uc, rng);
   setObjectives(gs);
   // emergency signings: the board never lets the user's first team drop below 18 players

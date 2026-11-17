@@ -9,6 +9,7 @@ import { askingPrice, makeBid, offerContract, releasePlayer, wageDemand, expecte
 import type { Role } from '@/game/types';
 import { inWindow } from '@/game/calendar';
 import { potStars } from './screens/Squad';
+import { toggleFixed } from '@/game/lineup';
 import { reserveOf, sendToReserve, callUp, loanOut, toggleCallup, RESERVE_MAX_AGE } from '@/game/academy';
 import { isKnownPlayer } from '@/game/scout';
 import { playerChat, CHAT_COOLDOWN, type ChatKind } from '@/game/talk';
@@ -29,8 +30,8 @@ export default function PlayerModal({ id, onClose }: { id: number; onClose: () =
   const value = marketValue(p, gs.season);
   const ask = p.clubId && !own ? askingPrice(gs, p) : 0;
   const [fee, setFee] = useState(Math.round((ask || value) / 100_000) / 10);
-  const [wage, setWage] = useState(Math.round((own ? Math.max(p.wage, fairWage(p, gs.season, me.reputation)) : wageDemand(gs, p)) / 1000));
-  const [years, setYears] = useState(own ? 3 : 4);
+  const [wage, setWage] = useState(Math.round((own || inReserve ? Math.max(p.wage, fairWage(p, gs.season, me.reputation)) : wageDemand(gs, p)) / 1000));
+  const [years, setYears] = useState(own || inReserve ? 3 : 4);
   const [msg, setMsg] = useState('');
   const [role, setRole] = useState<Role>(p.role ?? expectedRole(gs, p));
   const [bonus, setBonus] = useState(0);   // thousands of €
@@ -42,6 +43,18 @@ export default function PlayerModal({ id, onClose }: { id: number; onClose: () =
       <label>Prima de fichaje <input type="number" min={0} step={50} value={bonus} onChange={e => setBonus(Math.max(0, +e.target.value))} style={{ width: 80 }} /> mil €</label>
       <label>Cláusula <input type="number" min={0} value={clause} onChange={e => setClause(Math.max(0, +e.target.value))} style={{ width: 70 }} /> M€ <span className="small muted">(0 = sin cláusula)</span></label>
     </div>
+  );
+  const renewUI = (
+    <>
+              <div className="row wrap">
+                <span className="small muted">Renovar:</span>
+                <input type="number" value={wage} min={1} onChange={e => setWage(+e.target.value)} style={{ width: 90 }} /><span className="small">mil €/sem</span>
+                <select value={years} onChange={e => setYears(+e.target.value)}>{[1, 2, 3, 4, 5].map(y => <option key={y} value={y}>{y} año{y > 1 ? 's' : ''}</option>)}</select>
+                <button className="btn sm primary" onClick={() => act(offerContract(gs, id, wage * 1000, years, terms()).msg)}>Ofrecer</button>
+              </div>
+              {termsUI}
+              <div className="small muted">Pide aprox. {fmtMoney(wageDemand(gs, p) * 0.95)}/sem. Un rol mejor, una prima o una cláusula baja le convencen con menos sueldo.{p.role ? ` Rol actual: ${ROLE_LABEL[p.role]}.` : ''}{p.releaseClause ? ` Cláusula: ${fmtMoney(p.releaseClause)}.` : ''}</div>
+    </>
   );
   const deal = gs.offers.find(o => o.playerId === id && !o.incoming && o.status === 'contract');
   const st = potStars(p, me.staff.scout, own || isKnownPlayer(gs, p));
@@ -88,7 +101,8 @@ export default function PlayerModal({ id, onClose }: { id: number; onClose: () =
             <div className="panel tight col">
               <h3 style={{ margin: 0 }}>{inReserve ? `Jugador del filial (${myReserve!.name})` : `Cedido en el ${club!.name}`}</h3>
               <div className="small muted">{onLoan ? `Vuelve al final de la temporada. Esta campaña: ${p.stats.apps} partidos, ${p.stats.goals} goles${p.stats.apps ? `, nota ${avgRating(p).toFixed(2)}` : ''}.` : 'Juega con el filial para sumar minutos. Puedes subirlo cuando quieras.'}</div>
-              {inReserve && <div><button className="btn sm primary" onClick={() => act(callUp(gs, id))}>Subir al primer equipo</button></div>}
+              {inReserve && <div className="row wrap"><button className="btn sm primary" onClick={() => act(callUp(gs, id))}>Subir al primer equipo</button><button className={`btn sm ${(myReserve!.fixed ?? []).includes(id) ? 'active' : ''}`} onClick={() => act(toggleFixed(myReserve!, id))}>{(myReserve!.fixed ?? []).includes(id) ? '🔒 Titular indiscutible del filial' : 'Titular indiscutible del filial'}</button></div>}
+              {inReserve && renewUI}
             </div>
           )}
           {own ? (
@@ -100,18 +114,12 @@ export default function PlayerModal({ id, onClose }: { id: number; onClose: () =
                 {(p.youth || inReserve) && <button className={`btn sm ${(me.callups ?? []).includes(id) ? 'active' : ''}`} onClick={() => act(toggleCallup(gs, id))}>{(me.callups ?? []).includes(id) ? '✓ Convocado al próximo partido' : 'Convocar al próximo partido'}</button>}
                 {!p.youth && <button className="btn sm" onClick={() => act(loanOut(gs, id))}>Ceder una temporada</button>}
                 {p.youth ? <button className="btn sm" onClick={() => act(callUp(gs, id))}>Subir al primer equipo</button> : age(p, gs.season) < 19 && <button className="btn sm" onClick={() => { p.youth = true; me.lineup = me.lineup.map(x => (x === id ? -1 : x)); me.bench = me.bench.filter(x => x !== id); act('Enviado a la cantera.'); }}>Bajar a la cantera</button>}
+                {!p.youth && <button className={`btn sm ${(me.fixed ?? []).includes(id) ? 'active' : ''}`} onClick={() => act(toggleFixed(me, id))}>{(me.fixed ?? []).includes(id) ? '🔒 Titular indiscutible' : 'Titular indiscutible'}</button>}
                 {(['captain', 'penalty', 'freekick', 'corner'] as const).map(k => (
                   <button key={k} className={`btn sm ${me.tactics[k] === id ? 'active' : ''}`} onClick={() => { me.tactics[k] = id; act('Asignado.'); }}>{({ captain: 'Capitán', penalty: 'Penaltis', freekick: 'Faltas', corner: 'Córners' })[k]}</button>
                 ))}
               </div>
-              <div className="row wrap">
-                <span className="small muted">Renovar:</span>
-                <input type="number" value={wage} min={1} onChange={e => setWage(+e.target.value)} style={{ width: 90 }} /><span className="small">mil €/sem</span>
-                <select value={years} onChange={e => setYears(+e.target.value)}>{[1, 2, 3, 4, 5].map(y => <option key={y} value={y}>{y} año{y > 1 ? 's' : ''}</option>)}</select>
-                <button className="btn sm primary" onClick={() => act(offerContract(gs, id, wage * 1000, years, terms()).msg)}>Ofrecer</button>
-              </div>
-              {termsUI}
-              <div className="small muted">Pide aprox. {fmtMoney(wageDemand(gs, p) * 0.95)}/sem. Un rol mejor, una prima o una cláusula baja le convencen con menos sueldo.{p.role ? ` Rol actual: ${ROLE_LABEL[p.role]}.` : ''}{p.releaseClause ? ` Cláusula: ${fmtMoney(p.releaseClause)}.` : ''}</div>
+              {renewUI}
               <div className="chat">
                 <span className="small muted">Hablar con él:</span>
                 {([['elogiar', 'Elogiar'], ['exigir', 'Exigir más'], ['minutos', 'Prometer minutos']] as [ChatKind, string][]).map(([k, l]) => (

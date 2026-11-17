@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useGame } from '../GameApp';
 import { fmtMoney } from '@/game/season';
-import { ALIMONY_WEEKLY, CARS, HOMES, PARTNER_ACTS, VENUES, ageOf, askOut, breakUp, buy, childPath, date, familyTime, flirtMessage, gift, goOut, lifePartner, hasAltLook, lookImage, makePartner, managerWeekly, now, partnerAction, propose, reconcile, setTrying, toggleLook, type LifeState, type Person } from '@/game/life';
+import { ALIMONY_WEEKLY, CARS, HOMES, PARTNER_ACTS, VENUES, ageOf, askOut, breakUp, buy, callEx, childPath, date, exFling, familyTime, flirtMessage, gift, goOut, lifePartner, hasAltLook, lookImage, makePartner, managerWeekly, now, partnerAction, propose, reconcile, setTrying, toggleLook, type LifeState, type Person } from '@/game/life';
 
 const STAGE_LABEL: Record<Person['stage'], string> = { conocida: 'Conocida', citas: 'Quedando', pareja: 'Pareja', prometida: 'Prometida', casada: 'Matrimonio', amante: 'Aventura secreta', ex: 'Ex' };
 const img = (id: string) => `/art/life/${id}.webp`;
@@ -79,7 +79,7 @@ export default function LifeScreen() {
                     {hasAltLook(p) && <button className="btn sm" onClick={() => { toggleLook(gs, p.id); refresh(); }}>👗 Cambiar look</button>}
                     {p.stage !== 'conocida' && p.stage !== 'citas' && <button className="btn sm danger" onClick={() => { if (confirm(p.stage === 'casada' ? '¿Divorciarte? Te costará el 40 % de tus ahorros.' : '¿Romper la relación?')) act(breakUp(gs, p.id)); }}>{p.stage === 'casada' ? 'Divorcio' : 'Romper'}</button>}
                   </div>
-                  {p.stage === 'amante' && <div className="small" style={{ color: '#ff9aa6' }}>Si la prensa os pilla, escándalo: directiva, afición y tu pareja.</div>}
+                  {p.stage === 'amante' && <div className="small" style={{ color: '#ff9aa6' }}>{p.exRole ? `Aventura con ${p.exRole === 'mujer' ? 'tu ex-mujer' : 'tu ex'}. ` : ''}{sp ? 'Si la prensa os pilla, tu pareja se enterará (al club no le importa tu vida privada).' : 'Sin pareja oficial: nadie a quien rendir cuentas.'}</div>}
                 </div>
               </div>
             ))}
@@ -98,7 +98,11 @@ export default function LifeScreen() {
                       <div className="small muted">{ageOf(gs, p.born)} años · {p.job}</div>
                       {pension && <div className="small" style={{ color: 'var(--warn)' }}>Pensión de {fmtMoney(ALIMONY_WEEKLY)}/sem hasta la temporada {p.alimonyUntil}/{((p.alimonyUntil ?? 0) + 1) % 100}.</div>}
                       <div className="life-meter"><span>Afinidad</span><div className="bar"><i style={{ width: `${p.affinity}%`, background: 'linear-gradient(90deg,#ff5d8f,#ffb3c7)' }} /></div><b className="num">{Math.round(p.affinity)}</b></div>
-                      {p.affinity >= 60 && <div className="row wrap" style={{ gap: 6 }}><button className="btn sm primary" onClick={() => { if (!sp || sp.id === p.id || confirm(`Dejarás a ${sp.name.split(' ')[0]}. ¿Seguir?`)) act(reconcile(gs, p.id)); }}>{wife ? 'Volver con ella' : 'Volver a salir'}</button></div>}
+                      <div className="row wrap" style={{ gap: 6 }}>
+                        <button className="btn sm" onClick={() => act(callEx(gs, p.id))}>Llamarla</button>
+                        <button className="btn sm" disabled={p.affinity < 30} title={p.affinity < 30 ? 'Necesitas afinidad 30' : ''} onClick={() => act(exFling(gs, p.id))}>🔥 Aventura con ella (600 €)</button>
+                        {p.affinity >= 60 && <button className="btn sm primary" onClick={() => { if (!sp || sp.id === p.id || confirm(`Dejarás a ${sp.name.split(' ')[0]}. ¿Seguir?`)) act(reconcile(gs, p.id)); }}>{wife ? 'Volver con ella' : 'Volver a salir'}</button>}
+                      </div>
                     </div>
                   </div>
                 );

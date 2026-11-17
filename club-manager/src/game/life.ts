@@ -206,16 +206,51 @@ export function date(gs: GameState, personId: number, venueId: string): string {
   return [mood, gain >= 8 ? v.flirt : '', night.trim(), `Afinidad con ${first}: ${Math.round(p.affinity)}.`].filter(Boolean).join(' ');
 }
 
-/** An affair comes out: the partner finds out, the board and the fans are not amused. */
+/** An affair comes out: it is a private matter. Your partner finds out (and may leave you), but the
+ *  board and the fans judge you by results, not by the gossip pages. */
 function caught(gs: GameState, lover: Person, how: string): string {
   const l = L(gs)!; const sp = partner(l); if (!sp) return how;
-  sp.affinity = clamp(sp.affinity - 60, 0, 100); lover.stage = 'ex';
+  sp.affinity = clamp(sp.affinity - 60, 0, 100); lover.stage = 'ex'; if (!lover.exRole) lover.exRole = 'pareja';
   log(gs, 'scandal', `${sp.name} descubre tu aventura con ${lover.name}. ${how}`);
-  news(gs, 'board', `Escándalo: el míster, cazado con ${lover.name}`, `${how} Las fotos incendian la ciudad. La directiva no está contenta.`);
-  gs.manager.board = clamp(gs.manager.board - 8, 0, 100); gs.clubs[gs.manager.clubId].fans = clamp(gs.clubs[gs.manager.clubId].fans - 5, 5, 100);
+  news(gs, 'info', `Prensa rosa: el míster, cazado con ${lover.name}`, `${how} Las revistas del corazón no hablan de otra cosa; en el club, nadie comenta su vida privada.`);
   l.stress = clamp(l.stress + 25, 0, 100);
+  const board = gs.manager.board, fans = gs.clubs[gs.manager.clubId].fans;
   if (sp.affinity < 30) breakUp(gs, sp.id);
-  return `¡Escándalo! ${how} ${sp.name.split(' ')[0]} se ha enterado.`;
+  gs.manager.board = board; gs.clubs[gs.manager.clubId].fans = fans; // a scandal-driven break-up stays private too
+  return `¡Pillados! ${how} ${sp.name.split(' ')[0]} se ha enterado.`;
+}
+
+/** Call an ex: old wounds heal slowly; the spark may come back. */
+export function callEx(gs: GameState, personId: number): string {
+  const l = L(gs)!; const p = l.people.find(x => x.id === personId); if (!p || p.stage !== 'ex') return '';
+  const first = p.name.split(' ')[0];
+  if (p.lastFlirt != null && now(gs) - p.lastFlirt < 3) return `${first} aún no te ha devuelto la última llamada.`;
+  p.lastFlirt = now(gs);
+  const rng = rngFor(gs, `exc${p.id}:${now(gs)}`);
+  const g = rng.int(2, 7) + (p.traits.includes('ardiente') || p.traits.includes('romántica') ? 2 : 0) - (p.exRole === 'mujer' && (p.alimonyUntil ?? 0) >= gs.season ? 1 : 0);
+  p.affinity = clamp(p.affinity + g, 0, 100);
+  const lines = [`Hablas con ${first} de los viejos tiempos. Se ríe como antes.`, `${first} te cuelga al principio… y te llama ella diez minutos después.`, `Una conversación larga a medianoche. ${first} reconoce que a veces te echa de menos.`, `Le recuerdas aquella noche en la playa. Se hace un silencio cómplice.`];
+  return `${rng.pick(lines)} Afinidad ${Math.round(p.affinity)}.`;
+}
+
+/** An affair with an ex: a secret meeting where the old chemistry takes over (always fades to black). */
+export function exFling(gs: GameState, personId: number): string {
+  const l = L(gs)!; const p = l.people.find(x => x.id === personId); if (!p || p.stage !== 'ex') return '';
+  const first = p.name.split(' ')[0];
+  if (p.affinity < 30) return `${first} no está preparada para volver a verte así (necesitas afinidad 30).`;
+  if (now(gs) - p.lastDate < 5) return `${first} prefiere esperar unos días.`;
+  if (!spend(gs, 600)) return 'No te llega para una noche en un hotel discreto (600 €).';
+  const rng = rngFor(gs, `exf${p.id}:${now(gs)}`);
+  p.lastDate = now(gs);
+  if (!rng.chance(0.45 + p.affinity / 120 + (p.traits.includes('ardiente') ? 0.1 : 0))) {
+    p.affinity = clamp(p.affinity + 2, 0, 100);
+    return `Quedáis a tomar algo. Saltan chispas, pero ${first} se despide en la puerta del hotel: «Todavía no». Afinidad ${Math.round(p.affinity)}.`;
+  }
+  p.stage = 'amante'; p.since = now(gs); p.affinity = clamp(p.affinity + 10, 0, 100);
+  l.happiness = clamp(l.happiness + 6, 0, 100); l.stress = clamp(l.stress - 8, 0, 100);
+  const who = p.exRole === 'mujer' ? 'tu ex-mujer' : 'tu ex';
+  log(gs, 'love', `Una noche con ${p.name}, ${who}. Lo vuestro vuelve, en secreto.`);
+  return `Un hotel discreto, su perfume de siempre y la ropa por el suelo antes de cerrar la puerta. Con ${first}, ${who}, todo vuelve a empezar… en secreto.`;
 }
 
 const FLIRTS = ['Le mandas un mensaje a medianoche: «No dejo de pensar en la cena del otro día».', 'Le escribes que el vestido de anoche debería estar prohibido.', 'Un audio con voz ronca después del partido: «¿Celebramos la victoria a solas?».', 'Le propones repetir, «pero esta vez sin prisas».', 'Le dices que tienes una sorpresa y que solo le darás una pista: champán.'];

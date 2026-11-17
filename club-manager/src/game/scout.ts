@@ -122,7 +122,7 @@ export function recommendTactics(gs: GameState, rivalId: string): TacticalAdvice
 /** Puts the advised setup on the first team: new system, intensity and the best XI for it. */
 export function applyTacticalAdvice(gs: GameState, adv: TacticalAdvice): string {
   const me = gs.clubs[gs.manager.clubId];
-  const pick = autoPick([...clubPlayers(gs, me.id), ...callupPlayers(gs, me)], adv.formation);
+  const pick = autoPick([...clubPlayers(gs, me.id), ...callupPlayers(gs, me)], adv.formation, me.fixed);
   me.tactics = { ...me.tactics, formation: adv.formation, mentality: adv.mentality, pressing: adv.pressing, width: adv.width, passing: adv.passing };
   me.lineup = pick.lineup; me.bench = pick.bench;
   invalidateStrength();

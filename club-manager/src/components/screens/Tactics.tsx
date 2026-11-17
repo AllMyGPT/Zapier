@@ -4,7 +4,7 @@ import { useGame } from '../GameApp';
 import { Ovr, PosBadge, Bar } from '../ui';
 import PitchLines from '../PitchLines';
 import { FORMATIONS, FORMATION_KEYS, MENTALITY_LABEL, LEVEL3 } from '@/game/tactics';
-import { autoPick, callupPlayers, clubPlayers } from '@/game/lineup';
+import { autoPick, callupPlayers, clubPlayers, toggleFixed } from '@/game/lineup';
 import { reserveOf } from '@/game/academy';
 import { setReserveManual } from '@/game/academy';
 import { available, ovr, ovr as o2, slotRating, POS_LABEL, playerStatus } from '@/game/player';
@@ -71,7 +71,7 @@ export default function TacticsScreen() {
     t.formation = f; club.lineup = nl; club.cohesion = Math.max(30, club.cohesion - 12);
     toast('Formación cambiada: los jugadores necesitarán tiempo para adaptarse (cohesión).'); refresh();
   };
-  const auto = () => { const r = autoPick(players, t.formation); club.lineup = r.lineup; club.bench = r.bench; refresh(); toast('Alineación automática aplicada'); };
+  const auto = () => { const r = autoPick(players, t.formation, club.fixed); club.lineup = r.lineup; club.bench = r.bench; refresh(); toast('Alineación automática aplicada'); };
 
   const chip = (p: Player | undefined, i: number) => {
     const slot = slots[i];
@@ -81,7 +81,7 @@ export default function TacticsScreen() {
     return (
       <div key={i} className={`tslot ${isSel ? 'sel' : ''}`} style={{ left: `${slot.y * 100}%`, top: `${(1 - slot.x) * 88 + 6}%` }} onClick={() => place({ kind: 'slot', i })}>
         <Shirt p={p} bg={slot.pos === 'GK' ? '#f5c84b' : club.colors[0]} border={club.colors[1]} fg={slot.pos === 'GK' ? '#222' : textOn(club.colors[0])} />
-        <div className="nm">{p ? shortName(p.name) : 'Vacío'}{p && !available(p) ? ' ⚠️' : ''}</div>
+        <div className="nm">{p && (club.fixed ?? []).includes(p.id) ? '🔒 ' : ''}{p ? shortName(p.name) : 'Vacío'}{p && !available(p) ? ' ⚠️' : ''}</div>
         <div className="row" style={{ gap: 3 }}><span className="rt" style={{ background: bg, color: fg }}>{r || '-'}</span><span className="rt" style={{ background: 'rgba(0,0,0,.55)' }}>{POS_LABEL[slot.pos]}</span></div>
       </div>
     );
@@ -91,7 +91,7 @@ export default function TacticsScreen() {
     const isSel = sel?.kind === 'pl' && sel.id === p.id;
     return (
       <tr className={`click ${isSel ? 'me' : ''}`} onClick={() => place({ kind: 'pl', id: p.id })} onDoubleClick={() => openPlayer(p.id)}>
-        <td className="muted num">{p.num}</td><td><PosBadge pos={p.pos} /></td><td>{p.name} {playerStatus(p) && <span className="pill bad">{playerStatus(p)}</span>}</td><td className="c"><Ovr v={o2(p)} /></td><td style={{ width: 60 }}><Bar v={p.fitness} /></td><td className="small muted">{where}</td>
+        <td className="muted num">{p.num}</td><td><PosBadge pos={p.pos} /></td><td><button className={`lockbtn ${(club.fixed ?? []).includes(p.id) ? 'on' : ''}`} title="Titular indiscutible: la alineación automática nunca lo deja fuera" onClick={e => { e.stopPropagation(); toast(toggleFixed(club, p.id)); refresh(); }}>🔒</button>{p.name} {playerStatus(p) && <span className="pill bad">{playerStatus(p)}</span>}</td><td className="c"><Ovr v={o2(p)} /></td><td style={{ width: 60 }}><Bar v={p.fitness} /></td><td className="small muted">{where}</td>
       </tr>
     );
   };
@@ -122,7 +122,7 @@ export default function TacticsScreen() {
             <span className="small muted right">Cohesión {Math.round(club.cohesion)}%</span>
           </div>
           <div className="tpitch"><PitchLines />{slots.map((_, i) => chip(P(club.lineup[i]), i))}</div>
-          <div className="small muted" style={{ marginTop: 8 }}>Haz clic en dos jugadores (campo, banquillo o reservas) para intercambiarlos. Doble clic en la lista abre la ficha.</div>
+          <div className="small muted" style={{ marginTop: 8 }}>Haz clic en dos jugadores (campo, banquillo o reservas) para intercambiarlos. Doble clic en la lista abre la ficha. 🔒 marca a un titular indiscutible: la alineación automática y las rotaciones nunca lo dejan fuera si está disponible.</div>
         </div>
       </div>
       <div className="col">

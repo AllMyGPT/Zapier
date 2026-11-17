@@ -67,7 +67,7 @@ export interface ContractTerms { role?: Role; bonus?: number; clause?: number }
 export function offerContract(gs: GameState, pid: number, wage: number, years: number, terms: ContractTerms = {}): { ok: boolean; msg: string } {
   const p = gs.players[pid]; const me = gs.clubs[gs.manager.clubId];
   const deal = gs.offers.find(o => o.playerId === pid && !o.incoming && o.status === 'contract');
-  const renewing = p.clubId === me.id;
+  const renewing = p.clubId === me.id || (!!p.clubId && gs.clubs[p.clubId]?.parentId === me.id && !p.loanFrom); // first team or own reserve team
   if (!deal && !renewing) return { ok: false, msg: 'No hay un acuerdo de traspaso en curso.' };
   if (!renewing && !willingToJoin(gs, p)) { if (deal) deal.status = 'rejected'; return { ok: false, msg: `${p.name} no quiere fichar por un club de menor nivel.` }; }
   // role, signing bonus and release clause all move what he asks for
@@ -121,7 +121,7 @@ export function placeSigning(gs: GameState, club: Club, p: Player) {
   while (club.lineup.length < slots.length) club.lineup.push(-1);
   let best = -1, gain = 0;
   slots.forEach((s, i) => {
-    if (s.pos !== p.pos) return;
+    if (s.pos !== p.pos || (club.fixed ?? []).includes(club.lineup[i])) return; // undisputed starters keep their place
     const cur = club.lineup[i] >= 0 ? gs.players[club.lineup[i]] : undefined;
     const g = slotRating(p, s.pos) - (cur ? slotRating(cur, s.pos) : 0);
     if (g > gain) { gain = g; best = i; }

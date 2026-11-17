@@ -50,11 +50,11 @@ function scheduleEuro(gs: GameState, rng: Rng, id: string, teams: string[], offs
 
 export function addFixture(gs: GameState, f: Omit<Fixture, 'id'>) { const fx = { ...f, id: gs.nextId++ } as Fixture; gs.fixtures.push(fx); return fx; }
 
-export const EURO_NAMES: Record<string, string> = { euro: 'Copa de Campeones', euro2: 'Copa Continental', sud: 'Copa de Campeones de América' };
-export const EURO_DAY_OFFSET: Record<string, number> = { euro: 0, euro2: 2, sud: 2 }; // sud never shares clubs with euro2 // +2 keeps clear of domestic cup days
-export const isEuro = (comp: string) => comp === 'euro' || comp === 'euro2' || comp === 'sud';
+export const EURO_NAMES: Record<string, string> = { euro: 'Copa de Campeones', euro2: 'Copa Continental', euro3: 'Copa Conferencia', sud: 'Copa de Campeones de América' };
+export const EURO_DAY_OFFSET: Record<string, number> = { euro: 0, euro2: 2, euro3: 2, sud: 2 }; // sud never shares clubs with euro2 // +2 keeps clear of domestic cup days
+export const isEuro = (comp: string) => comp === 'euro' || comp === 'euro2' || comp === 'euro3' || comp === 'sud';
 
-export function scheduleSeason(gs: GameState, rng: Rng, euroTeams: string[], euro2Teams: string[] = [], sudTeams: string[] = []) {
+export function scheduleSeason(gs: GameState, rng: Rng, cont: Record<string, string[]> = {}) {
   gs.fixtures = [];
   gs.cups = {};
   for (const L of Object.values(gs.leagues)) {
@@ -78,9 +78,8 @@ export function scheduleSeason(gs: GameState, rng: Rng, euroTeams: string[], eur
     drawCupRound(gs, rng, id);
   }
   // european cups: Copa de Campeones and, two days later in the week, Copa Continental
-  scheduleEuro(gs, rng, 'euro', euroTeams, 0);
-  if (euro2Teams.length >= 32) scheduleEuro(gs, rng, 'euro2', euro2Teams.slice(0, 32), EURO_DAY_OFFSET.euro2);
-  if (sudTeams.length >= 32) scheduleEuro(gs, rng, 'sud', sudTeams.slice(0, 32), EURO_DAY_OFFSET.sud);
+  // (euro3, the Copa Conferencia, shares the euro2 days: the two never share clubs)
+  for (const id of ['euro', 'euro2', 'euro3', 'sud']) if ((cont[id]?.length ?? 0) >= 32) scheduleEuro(gs, rng, id, cont[id].slice(0, 32), EURO_DAY_OFFSET[id]);
 }
 
 export const CUP_NAME: Record<string, string> = { esp: 'Copa Nacional (ESP)', eng: 'Copa Inglesa', ita: 'Copa Italiana', ger: 'Copa Alemana', fra: 'Copa Francesa' };

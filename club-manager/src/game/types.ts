@@ -97,6 +97,7 @@ export interface Club {
   parentId?: string;    // reserve (B) team: id of its first team
   academy?: number;     // youth academy level 1-6: intake quality and youth development
   callups?: number[];  // youth / reserve players called up for the next match only (user club)
+  fixed?: number[];    // undisputed starters: automatic picks never leave them out
   manual?: boolean;    // reserve team only: the manager sets its lineup instead of the AI
 }
 
