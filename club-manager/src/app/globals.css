@@ -635,3 +635,9 @@ table.t td.r, table.t th.r { text-align: right; }
 .lockbtn:hover { opacity: .8; }
 .groups-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
 .groups-grid td:nth-child(2) span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-flex; }
+.look-seg button { font-size: 12px; padding: 4px 8px; }
+.look-seg button:disabled { opacity: .45; cursor: not-allowed; }
+.escort summary { cursor: pointer; list-style: none; }
+.escort summary::-webkit-details-marker { display: none; }
+.escort-card { display: flex; }
+.escort-avatar { width: 64px; min-width: 64px; display: grid; place-items: center; font-family: var(--font-head); font-size: 28px; color: #ffd6e0; background: radial-gradient(circle at 30% 30%, #6b1f3a, #1a0a14); }

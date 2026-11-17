@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useGame } from '../GameApp';
 import { fmtMoney } from '@/game/season';
-import { ALIMONY_WEEKLY, CARS, HOMES, PARTNER_ACTS, VENUES, ageOf, askOut, breakUp, buy, callEx, childPath, date, exFling, familyTime, flirtMessage, gift, goOut, lifePartner, hasAltLook, lookImage, makePartner, managerWeekly, now, partnerAction, propose, reconcile, setTrying, toggleLook, type LifeState, type Person } from '@/game/life';
+import { ALIMONY_WEEKLY, CARS, HOMES, PARTNER_ACTS, VENUES, ageOf, askOut, breakUp, buy, callEx, childPath, closeOpen, confess, ESCORT_IMGS, proposeOpen, proposeTrio, date, dateVenues, escortDate, escortProfiles, exFling, moveIn, reassure, setWeddingPlan, weddingCost, WEDDING_OPTS, familyTime, flirtMessage, gift, goOut, lifePartner, hasAltLook, hasLingerie, lingerieUnlocked, LOOK_LABEL, lookImage, makePartner, managerWeekly, now, partnerAction, propose, reconcile, setTrying, toggleLook, type LifeState, type Person } from '@/game/life';
 
 const STAGE_LABEL: Record<Person['stage'], string> = { conocida: 'Conocida', citas: 'Quedando', pareja: 'Pareja', prometida: 'Prometida', casada: 'Matrimonio', amante: 'Aventura secreta', ex: 'Ex' };
 const img = (id: string) => `/art/life/${id}.webp`;
@@ -55,17 +55,32 @@ export default function LifeScreen() {
               <h3 style={{ margin: 0 }}>Momentos con {sp.name.split(' ')[0]}</h3>
               <div className="row wrap" style={{ gap: 6 }}>{PARTNER_ACTS.map(a => <button key={a.id} className="btn sm" onClick={() => act(partnerAction(gs, a.id))}>{a.label}</button>)}</div>
               <span className="small muted">Un momento a solas sube la afinidad y baja el estrés. Uno por día.</span>
+              <div className="row wrap" style={{ gap: 6 }}>
+                {l.cohabit === sp.id ? <span className="pill good">🏠 Vivís juntos</span> : sp.stage !== 'casada' && <button className="btn sm" onClick={() => act(moveIn(gs))}>🏠 Iros a vivir juntos</button>}
+                {l.cohabit === sp.id && <span className="small muted">Ella paga su parte (+500 €/sem) y la casa influye en su afinidad.</span>}
+                {l.openRelation ? <><span className="pill good">💞 Relación abierta</span><button className="btn sm" onClick={() => act(closeOpen(gs))}>Volver a cerrarla</button></> : <button className="btn sm" onClick={() => { if (confirm(`¿Proponer a ${sp.name.split(' ')[0]} una relación abierta? Si no le gusta la idea, bajará la afinidad.`)) act(proposeOpen(gs)); }}>💞 Proponer relación abierta</button>}
+              </div>
+              {(l.suspicion ?? 0) > 0 && (
+                <div className="col" style={{ gap: 4 }}>
+                  <div className="life-meter"><span>Sospecha</span><div className="bar"><i style={{ width: `${l.suspicion}%`, background: 'linear-gradient(90deg,#ffb020,#ff5468)' }} /></div><b className="num">{Math.round(l.suspicion ?? 0)}</b></div>
+                  <div className="row wrap" style={{ gap: 6 }}>
+                    <button className="btn sm" onClick={() => act(reassure(gs))}>Tranquilizarla</button>
+                    <button className="btn sm danger" onClick={() => { if (confirm('Confesar pone fin a tus aventuras y puede costarte la relación. ¿Seguir?')) act(confess(gs)); }}>Confesar</button>
+                    <span className="small muted">Cuanto más sospecha, más pistas encuentra y más fácil es que te pille.</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {!people.length && <div className="panel empty">Todavía no conoces a nadie especial. Sal por la ciudad.</div>}
           <div className="people">
             {people.map(p => (
               <div key={p.id} className={`person ${p.stage}`}>
-                <div className="person-img" style={{ backgroundImage: `url(${img(lookImage(p))})` }}><span className="stage">{STAGE_LABEL[p.stage]}</span></div>
+                <div className="person-img" style={{ backgroundImage: `url(${img(lookImage(p))})` }}><span className="stage">{p.stage === 'amante' && l.openRelation ? 'Amante (relación abierta)' : STAGE_LABEL[p.stage]}</span></div>
                 <div className="person-body">
                   <b>{p.name}</b>
                   <div className="small muted">{ageOf(gs, p.born)} años · {p.job}</div>
-                  <div className="small">{p.traits.join(' · ')}</div>
+                  <div className="small">{p.traits.join(' · ')}{p.bi && <span className="pill blue" style={{ marginLeft: 6 }}>bisexual</span>}{p.trans && <span className="pill" style={{ marginLeft: 6, background: 'linear-gradient(90deg,#5bcefa55,#f5a9b855)' }}>{p.gender === 'f' ? 'mujer trans' : 'hombre trans'}</span>}</div>
                   <div className="life-meter"><span>Afinidad</span><div className="bar"><i style={{ width: `${p.affinity}%`, background: 'linear-gradient(90deg,#ff5d8f,#ffb3c7)' }} /></div><b className="num">{Math.round(p.affinity)}</b></div>
                   <div className="row wrap" style={{ gap: 6 }}>
                     <button className="btn sm primary" onClick={() => setDating(p)}>Proponer cita</button>
@@ -76,14 +91,37 @@ export default function LifeScreen() {
                     {!['pareja', 'prometida', 'casada'].includes(p.stage) && p.affinity >= 60 && (
                       <button className="btn sm primary" onClick={() => { if (!sp || sp.id === p.id || confirm(`Dejarás a ${sp.name.split(' ')[0]} para estar con ${p.name.split(' ')[0]}. ¿Seguir?`)) act(makePartner(gs, p.id)); }}>{sp && sp.id !== p.id ? `Dejar a ${sp.name.split(' ')[0]} por ella` : 'Ser tu pareja oficial'}</button>
                     )}
-                    {hasAltLook(p) && <button className="btn sm" onClick={() => { toggleLook(gs, p.id); refresh(); }}>👗 Cambiar look</button>}
+                    {(hasAltLook(p) || hasLingerie(p)) && (
+                      <div className="seg look-seg">{([0, 1, 2] as const).filter(k => k === 0 || (k === 1 ? hasAltLook(p) : hasLingerie(p))).map(k => {
+                        const locked = k === 2 && !lingerieUnlocked(p);
+                        return <button key={k} className={(p.look ?? 0) === k && !locked ? 'on' : ''} disabled={locked} title={locked ? 'Necesitas más intimidad: que sea tu pareja o amante, o afinidad 70' : ''} onClick={() => { toggleLook(gs, p.id, k); refresh(); }}>{k === 2 ? (locked ? '🔒 ' : '🖤 ') : k === 1 ? '👗 ' : ''}{LOOK_LABEL[k]}</button>;
+                      })}</div>
+                    )}
                     {p.stage !== 'conocida' && p.stage !== 'citas' && <button className="btn sm danger" onClick={() => { if (confirm(p.stage === 'casada' ? '¿Divorciarte? Te costará el 40 % de tus ahorros.' : '¿Romper la relación?')) act(breakUp(gs, p.id)); }}>{p.stage === 'casada' ? 'Divorcio' : 'Romper'}</button>}
                   </div>
-                  {p.stage === 'amante' && <div className="small" style={{ color: '#ff9aa6' }}>{p.exRole ? `Aventura con ${p.exRole === 'mujer' ? 'tu ex-mujer' : 'tu ex'}. ` : ''}{sp ? 'Si la prensa os pilla, tu pareja se enterará (al club no le importa tu vida privada).' : 'Sin pareja oficial: nadie a quien rendir cuentas.'}</div>}
+                  {p.stage === 'amante' && <div className="small" style={{ color: '#ff9aa6' }}>{p.exRole ? `Aventura con ${p.exRole === 'mujer' ? 'tu ex-mujer' : 'tu ex'}. ` : ''}{l.openRelation ? 'Relación abierta: tu pareja lo sabe, no hay escándalo posible.' : sp ? 'Si la prensa os pilla, tu pareja se enterará (al club no le importa tu vida privada).' : 'Sin pareja oficial: nadie a quien rendir cuentas.'}</div>}
                 </div>
               </div>
             ))}
           </div>
+          {people.length >= 2 && <TrioPanel people={people} sp={sp} onAct={act} />}
+          {l.interest !== 'hombres' && <details className="panel escort">
+            <summary><b>🥂 Agencia de acompañantes de lujo</b> <span className="small muted">· citas de pago, discretas (una por semana)</span></summary>
+            <div className="people" style={{ marginTop: 10 }}>{escortProfiles(gs).map(e => (
+              <div key={e.idx} className={`person ${ESCORT_IMGS.has(e.img) ? '' : 'escort-card'}`}>
+                {ESCORT_IMGS.has(e.img) ? <div className="person-img" style={{ backgroundImage: `url(${img(e.img)})` }}><span className="stage">Acompañante</span></div> : <div className="escort-avatar">{e.name[0]}</div>}
+                <div className="person-body">
+                  <b>{e.name}, {e.age} años</b>
+                  <div className="small muted">{e.style}</div>
+                  <div className="row wrap" style={{ gap: 6 }}>
+                    <button className="btn sm primary" onClick={() => act(escortDate(gs, e.idx))}>Reservar velada · {fmtMoney(e.price)}</button>
+                    <button className="btn sm" onClick={() => act(escortDate(gs, e.idx, true))}>Para tres, con una amiga · {fmtMoney(e.price * 2)}</button>
+                  </div>
+                </div>
+              </div>
+            ))}</div>
+            <div className="small muted" style={{ marginTop: 6 }}>Baja mucho el estrés. Si tienes pareja, sube su sospecha y la prensa puede enterarse (no afecta al club).</div>
+          </details>}
           {exes.length > 0 && (
             <div className="col" style={{ gap: 6 }}>
               <h3 style={{ margin: 0 }}>Ex</h3>
@@ -134,11 +172,26 @@ export default function LifeScreen() {
             {sp ? <div className="person-mini" style={{ backgroundImage: `url(${img(sp.img)})` }} /> : null}
             <div className="grow"><h3 style={{ margin: 0 }}>{sp ? `${STAGE_LABEL[sp.stage]}: ${sp.name}` : 'Sin pareja'}</h3>
               {l.wedding && <div className="small">Boda prevista dentro de {Math.max(0, l.wedding.day - now(gs))} días.</div>}
+              {l.cohabit != null && sp && l.cohabit === sp.id && <div className="small">Vivís juntos.</div>}
               {l.pregnancyDue != null && <div className="small" style={{ color: 'var(--accent)' }}>¡Bebé en camino! Nacerá dentro de {Math.max(0, l.pregnancyDue - now(gs))} días.</div>}
             </div>
             <button className="btn" onClick={() => act(familyTime(gs))}>Día en familia</button>
             {sp?.stage === 'casada' && <button className={`btn ${l.tryingForBaby ? 'active' : ''}`} onClick={() => { setTrying(gs, !l.tryingForBaby); refresh(); }}>{l.tryingForBaby ? 'Buscando bebé ✓' : 'Buscar un bebé'}</button>}
           </div>
+          {l.wedding && (
+            <div className="panel col wedding-plan" style={{ gap: 8 }}>
+              <h3 style={{ margin: 0 }}>💍 Organiza la boda</h3>
+              {(['venue', 'guests', 'honeymoon'] as const).map(k => (
+                <div key={k} className="col" style={{ gap: 4 }}>
+                  <span className="small muted">{({ venue: 'Lugar', guests: 'Invitados', honeymoon: 'Luna de miel' })[k]}</span>
+                  <div className="row wrap" style={{ gap: 6 }}>{WEDDING_OPTS[k].map(o => (
+                    <button key={o.id} className={`btn sm ${(l.weddingPlan?.[k] ?? (k === 'venue' ? 'finca' : k === 'guests' ? 'familia' : 'none')) === o.id ? 'active' : ''}`} title={o.hint} onClick={() => { setWeddingPlan(gs, k, o.id); refresh(); }}>{o.label}{o.cost ? ` · ${fmtMoney(o.cost)}` : ''}</button>
+                  ))}</div>
+                </div>
+              ))}
+              <div className="small">Coste total: <b>{fmtMoney(weddingCost(l.weddingPlan ?? { venue: 'finca', guests: 'familia', honeymoon: 'none' }))}</b>. Se paga el día de la boda.</div>
+            </div>
+          )}
           <div className="life-scene" style={{ backgroundImage: `url(${img(l.children.length ? 'life-family' : sp?.stage === 'casada' ? 'life-wedding' : 'venue-beach')})` }} />
           {!l.children.length && <div className="panel empty">Todavía no hay niños en casa.</div>}
           <div className="grid g3">{l.children.map(c => {
@@ -166,7 +219,7 @@ export default function LifeScreen() {
             <button className="btn sm ghost x" onClick={() => setDating(null)}>✕</button>
             <span className="matchday-kicker">Cita con {dating.name.split(' ')[0]}</span>
             <p className="muted">Le gustan especialmente: {dating.likes.map(v => VENUES.find(x => x.id === v)!.name.toLowerCase()).join(' y ')}. Tu coche y tu casa también cuentan. Los planes más íntimos piden más confianza y pueden acabar en una noche juntos.</p>
-            <div className="venues">{VENUES.map(v => {
+            <div className="venues">{dateVenues(gs).map(v => {
               const locked = !!v.minAff && dating.affinity < v.minAff;
               return (
                 <button key={v.id} className={`venue ${locked ? 'locked' : ''}`} disabled={locked} onClick={() => { act(date(gs, dating.id, v.id)); setDating(null); }}>
@@ -179,6 +232,23 @@ export default function LifeScreen() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Pick two people you know for a night for three. */
+function TrioPanel({ people, sp, onAct }: { people: Person[]; sp?: Person; onAct: (m: string) => void }) {
+  const { gs } = useGame();
+  const [a, setA] = useState<number>(sp?.id ?? people[0].id);
+  const [b, setB] = useState<number>(people.find(p => p.id !== (sp?.id ?? people[0].id))?.id ?? people[1].id);
+  return (
+    <div className="panel row wrap" style={{ gap: 8 }}>
+      <b>🔥 Noche para tres</b>
+      <select value={a} onChange={e => setA(+e.target.value)}>{people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+      <span>y</span>
+      <select value={b} onChange={e => setB(+e.target.value)}>{people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+      <button className="btn sm primary" onClick={() => onAct(proposeTrio(gs, a, b))}>Proponerlo (suite 2.500 €)</button>
+      <span className="small muted">Las dos tienen que querer (afinidad 60). Las personas bisexuales, ardientes o aventureras dicen que sí más fácilmente.</span>
     </div>
   );
 }
