@@ -3,11 +3,16 @@ import { useCallback, useState } from 'react';
 import Menu from '@/components/Menu';
 import Game from '@/components/Game';
 import LoadingScreen from '@/components/LoadingScreen';
+import MobileGate from '@/components/MobileGate';
 import { scenarioById } from '@/data/scenarios';
 import { artEra } from '@/lib/art';
 import type { GameState } from '@/engine/types';
 
 export default function Home() {
+  return <MobileGate><App /></MobileGate>;
+}
+
+function App() {
   const [game, setGame] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(false);
   const start = useCallback((s: GameState) => { setGame(s); setLoading(true); }, []);
