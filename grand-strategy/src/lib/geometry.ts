@@ -88,10 +88,13 @@ export function geometry(mapId: string): MapGeometry {
   const [lo0, lo1, la0, la1] = [Math.min(...lons) - 4, Math.max(...lons) + 4, Math.min(...lats) - 4, Math.max(...lats) + 4];
   const seeds: Pt[] = pts.map((p) => project(p.lon, p.lat));
   const step = 1.1;
+  // a seed is placed when the nearest province is farther than at most 4.2°, so only provinces within 6° of
+  // latitude can decide it: scan that band per row instead of every province for every point
   for (let lat = la0; lat <= la1; lat += step) {
+    const band = pts.map((_, i) => i).filter((i) => Math.abs(pts[i].lat - lat) <= 6);
     for (let lon = lo0; lon <= lo1; lon += step / Math.cos((lat * Math.PI) / 180) * 0.8) {
       let best = Infinity, bi = 0;
-      for (let i = 0; i < pts.length; i++) { const d = distance(pts[i], { lon, lat }); if (d < best) { best = d; bi = i; } }
+      for (const i of band) { const d = distance(pts[i], { lon, lat }); if (d < best) { best = d; bi = i; } }
       // on the world map, land never gets a sea seed: every land point belongs to a province's cell
       if (best > Math.max(2.1, Math.min(4.2, nn[bi] * 0.8)) && !(mapId === 'world' && landWorld(lon, lat))) seeds.push(project(lon, lat));
     }

@@ -33,17 +33,30 @@
   },
   "build": {
     "appId": "app.grandstrategy.engine",
-    "productName": "Grand Strategy Engine",
+    "productName": "Gran Estrategia",
     "files": [
       "out/**/*",
-      "electron/**/*"
+      "electron/**/*",
+      "!node_modules/**/*"
     ],
     "mac": {
       "category": "public.app-category.strategy-games",
+      "icon": "build/icon.png",
       "target": [
-        "dmg",
-        "zip"
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
       ]
+    },
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "dmg": {
+      "title": "Gran Estrategia"
     }
   }
 }

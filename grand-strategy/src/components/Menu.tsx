@@ -25,7 +25,7 @@ export default function Menu({ onStart }: { onStart: (s: GameState) => void }) {
   const nations = useMemo(() => {
     if (!sc) return [];
     const rec = sc.recommended ?? [];
-    return [...sc.nations].filter((n) => !n.liege || rec.includes(n.tag)).sort((a, b) => (rec.includes(b.tag) ? 1 : 0) - (rec.includes(a.tag) ? 1 : 0) || b.provinces.length - a.provinces.length);
+    return [...sc.nations].filter((n) => !n.liege || rec.includes(n.tag)).sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
   }, [sc]);
 
   return (
