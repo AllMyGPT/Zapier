@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1180" viewBox="0 0 512 590">
+  <defs>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.28" stop-color="#c9d6ea"/>
+      <stop offset="0.5" stop-color="#5d6f8f"/>
+      <stop offset="0.52" stop-color="#9fb3d4"/>
+      <stop offset="0.8" stop-color="#e8f0ff"/>
+      <stop offset="1" stop-color="#8296b8"/>
+    </linearGradient>
+    <linearGradient id="navy" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b3f8f"/>
+      <stop offset="1" stop-color="#071431"/>
+    </linearGradient>
+    <radialGradient id="slate" cx="0.5" cy="0.35" r="0.75">
+      <stop offset="0" stop-color="#2c4a3f"/>
+      <stop offset="1" stop-color="#0d1a17"/>
+    </radialGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="lime" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e4ff7a"/>
+      <stop offset="1" stop-color="#7fcf1f"/>
+    </linearGradient>
+    <clipPath id="inner"><path d="M256 70 L430 112 L420 300 Q408 450 256 528 Q104 450 92 300 L82 112 Z"/></clipPath>
+  </defs>
+  <!-- outer chrome shield -->
+  <path d="M256 18 L478 72 L466 304 Q450 490 256 580 Q62 490 46 304 L34 72 Z" fill="url(#chrome)"/>
+  <path d="M256 40 L456 88 L445 302 Q430 470 256 556 Q82 470 67 302 L56 88 Z" fill="url(#navy)"/>
+  <!-- slate board -->
+  <path d="M256 70 L430 112 L420 300 Q408 450 256 528 Q104 450 92 300 L82 112 Z" fill="url(#slate)" stroke="#b6f24a" stroke-width="5"/>
+  <g clip-path="url(#inner)" fill="none" stroke="#f4f7f2" stroke-linecap="round" stroke-linejoin="round" opacity=".92">
+    <!-- chalk pitch -->
+    <rect x="110" y="128" width="292" height="380" stroke-width="4" opacity=".55"/>
+    <line x1="110" y1="318" x2="402" y2="318" stroke-width="4" opacity=".55"/>
+    <circle cx="256" cy="318" r="46" stroke-width="4" opacity=".55"/>
+    <rect x="186" y="128" width="140" height="58" stroke-width="4" opacity=".55"/>
+    <!-- X marks -->
+    <path d="M150 220 l26 26 m0 -26 l-26 26" stroke-width="9"/>
+    <path d="M330 248 l26 26 m0 -26 l-26 26" stroke-width="9"/>
+    <!-- O marks -->
+    <circle cx="186" cy="400" r="17" stroke-width="9"/>
+    <circle cx="322" cy="420" r="17" stroke-width="9"/>
+    <!-- curved arrow -->
+    <path d="M196 384 Q236 300 312 268" stroke="#b6f24a" stroke-width="10" stroke-dasharray="2 22"/>
+    <path d="M296 252 L318 266 L298 286" stroke="#b6f24a" stroke-width="10"/>
+  </g>
+  <!-- ball -->
+  <g transform="translate(256 470)">
+    <circle r="40" fill="#f4f6fb" stroke="#0a1a3a" stroke-width="6"/>
+    <path d="M0 -15 L14 -5 L9 12 L-9 12 L-14 -5 Z" fill="#0a1a3a"/>
+    <path d="M0 -15 L0 -38 M14 -5 L36 -12 M9 12 L22 32 M-9 12 L-22 32 M-14 -5 L-36 -12" stroke="#0a1a3a" stroke-width="5"/>
+  </g>
+  <!-- top banner -->
+  <path d="M120 36 L392 36 L376 92 L136 92 Z" fill="url(#lime)" stroke="#0a1a3a" stroke-width="5"/>
+  <g fill="#0a1a3a"><circle cx="196" cy="64" r="7"/><circle cx="256" cy="64" r="9"/><circle cx="316" cy="64" r="7"/></g>
+  <!-- gloss -->
+  <path d="M256 40 L456 88 L452 190 Q256 150 60 190 L56 88 Z" fill="url(#gloss)" opacity=".5"/>
+</svg>
